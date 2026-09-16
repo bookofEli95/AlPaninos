@@ -1,14 +1,13 @@
-import { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  Alert, 
-  Image, 
-  ActivityIndicator, 
-  KeyboardAvoidingView, 
-  Platform 
+import { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  Alert,
+  Image,
+  ActivityIndicator,
+  Keyboard
 } from 'react-native';
 import { Link } from 'expo-router';
 import { supabase } from '../../lib/supabase';
@@ -18,6 +17,16 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [guestLoading, setGuestLoading] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener('keyboardDidShow', (e) => setKeyboardHeight(e.endCoordinates.height));
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -44,11 +53,8 @@ export default function Login() {
   const isBusy = loading || guestLoading;
 
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      className="flex-1 bg-[#FAF6F0]"
-    >
-      <View className="flex-1 justify-center px-6">
+    <View className="flex-1 bg-[#FAF6F0]">
+      <View className="flex-1 justify-center px-6" style={{ marginBottom: keyboardHeight }}>
         <View className="items-center mb-8">
           <Image
             source={require('../../assets/logo.jpg')}
@@ -111,6 +117,6 @@ export default function Login() {
           </TouchableOpacity>
         </Link>
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 }

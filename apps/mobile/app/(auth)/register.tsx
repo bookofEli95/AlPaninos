@@ -1,15 +1,14 @@
-import { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  Alert, 
-  KeyboardAvoidingView, 
-  Platform, 
-  ScrollView, 
+import { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  Alert,
+  ScrollView,
   Image,
-  ActivityIndicator 
+  ActivityIndicator,
+  Keyboard
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
@@ -23,7 +22,17 @@ export default function Register() {
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [loading, setLoading] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const router = useRouter();
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener('keyboardDidShow', (e) => setKeyboardHeight(e.endCoordinates.height));
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const handleRegister = async () => {
     if (!firstName.trim() || !lastName.trim() || !phone.trim() || !address.trim() || !email.trim() || !password.trim()) {
@@ -61,14 +70,12 @@ export default function Register() {
   };
 
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      className="flex-1 bg-[#FAF6F0]"
-    >
-      <ScrollView 
+    <View className="flex-1 bg-[#FAF6F0]">
+      <ScrollView
         className="flex-1 px-6 pt-12"
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: keyboardHeight }}
       >
         <View className="items-center mb-6">
           <Image
@@ -147,6 +154,6 @@ export default function Register() {
           <Text className="text-[#78716C] text-center text-base font-semibold">Back to Login</Text>
         </TouchableOpacity>
       </ScrollView>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
