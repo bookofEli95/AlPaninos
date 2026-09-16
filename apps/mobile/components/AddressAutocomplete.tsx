@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, TextInput, Text, TouchableOpacity } from 'react-native';
+import { View, TextInput, Text, TouchableOpacity, StyleSheet } from 'react-native';
 
 type Props = {
   defaultAddress?: string;
@@ -17,7 +17,7 @@ export default function AddressAutocomplete({ defaultAddress = '', onAddressSele
       setResults([]);
       return;
     }
-    
+
     try {
       const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(text)}&components=country:ca&key=${API_KEY}`;
       const res = await fetch(url);
@@ -39,22 +39,23 @@ export default function AddressAutocomplete({ defaultAddress = '', onAddressSele
   };
 
   return (
-    <View className="z-50 w-full relative">
+    <View style={styles.container}>
       <TextInput
-        className="bg-gray-100 p-4 rounded-lg text-lg mb-2"
+        style={styles.input}
         placeholder="Enter delivery address..."
+        placeholderTextColor="#9CA3AF"
         value={query}
         onChangeText={searchPlaces}
       />
       {results.length > 0 && (
-        <View className="absolute top-16 left-0 right-0 bg-white shadow-xl rounded-lg border border-gray-200 z-50 max-h-60 overflow-hidden">
+        <View style={styles.dropdown}>
           {results.map(item => (
             <TouchableOpacity
               key={item.place_id}
-              className="p-4 border-b border-gray-100"
+              style={styles.row}
               onPress={() => handleSelect(item.description)}
             >
-              <Text className="text-gray-800 text-base">{item.description}</Text>
+              <Text style={styles.rowText}>{item.description}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -62,3 +63,44 @@ export default function AddressAutocomplete({ defaultAddress = '', onAddressSele
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    width: '100%',
+    position: 'relative',
+  },
+  input: {
+    backgroundColor: '#F3F4F6',
+    padding: 16,
+    borderRadius: 8,
+    fontSize: 18,
+    marginBottom: 8,
+    color: '#1F2937',
+  },
+  dropdown: {
+    position: 'absolute',
+    top: 64,
+    left: 0,
+    right: 0,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    maxHeight: 240,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  row: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  rowText: {
+    color: '#1F2937',
+    fontSize: 16,
+  },
+});
