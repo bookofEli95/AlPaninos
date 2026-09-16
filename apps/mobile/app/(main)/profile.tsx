@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { useLocationStore } from '../../store/locationStore';
@@ -43,42 +44,89 @@ export default function ProfileScreen() {
     enabled: !!session?.user?.id
   });
 
+  const { data: orderCount } = useQuery({
+    queryKey: ['orderCount', session?.user?.id],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('orders')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', session!.user.id);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!session?.user?.id
+  });
+
   const handleSignOut = async () => {
     await supabase.auth.signOut().catch(console.warn);
     setSession(null);
     router.replace('/(auth)/login');
   };
 
+  const initials = profile
+    ? `${profile.first_name?.[0] ?? ''}${profile.last_name?.[0] ?? ''}`.toUpperCase()
+    : (session?.user?.email?.[0] ?? '?').toUpperCase();
+
+  if (isLoading) {
+    return (
+      <View className="flex-1 bg-[#FAF6F0] justify-center items-center">
+        <ActivityIndicator size="large" color="#A61C14" />
+      </View>
+    );
+  }
+
   return (
-    <View className="flex-1 bg-[#FAF6F0] pt-16 px-4">
-      <Text className="text-3xl font-extrabold text-[#1C1917] mb-6">My Profile</Text>
-      
-      {isLoading ? (
-        <ActivityIndicator size="large" color="#A61C14" className="mt-10" />
-      ) : profile ? (
-        <View className="mb-6 bg-white p-6 rounded-2xl border border-stone-200 shadow-sm">
-          <Text className="text-xs text-[#78716C] uppercase font-bold tracking-wider mb-1">Name</Text>
-          <Text className="text-lg font-bold text-[#1C1917] mb-4">{profile.first_name} {profile.last_name}</Text>
-
-          <Text className="text-xs text-[#78716C] uppercase font-bold tracking-wider mb-1">Phone</Text>
-          <Text className="text-lg font-bold text-[#1C1917] mb-4">{profile.phone}</Text>
-
-          <Text className="text-xs text-[#78716C] uppercase font-bold tracking-wider mb-1">Address</Text>
-          <Text className="text-lg font-bold text-[#1C1917] mb-4">{profile.address}</Text>
-          
-          <Text className="text-xs text-[#78716C] uppercase font-bold tracking-wider mb-1">Account Email</Text>
-          <Text className="text-lg font-bold text-[#1C1917]">{session?.user?.email}</Text>
+    <ScrollView className="flex-1 bg-[#FAF6F0]" showsVerticalScrollIndicator={false}>
+      {/* Hero */}
+      <View className="bg-[#A61C14] pt-16 pb-8 px-6 items-center rounded-b-[32px]">
+        <View className="w-24 h-24 rounded-full bg-[#F4ECE1] items-center justify-center mb-4 border-4 border-[#85140E]">
+          <Text className="text-3xl font-extrabold text-[#A61C14]">{initials}</Text>
         </View>
-      ) : (
-        <Text className="text-[#78716C] mb-8 text-base">No profile data found.</Text>
-      )}
+        <Text className="text-2xl font-extrabold text-[#F4ECE1]">
+          {profile ? `${profile.first_name} ${profile.last_name}` : 'Welcome back'}
+        </Text>
+        <Text className="text-[#F4ECE1] opacity-80 mt-1">{session?.user?.email}</Text>
+      </View>
 
-      <TouchableOpacity 
-        onPress={handleSignOut}
-        className="bg-red-50 p-4 rounded-2xl w-full items-center border border-red-200 mt-auto mb-8 active:bg-red-100"
-      >
-        <Text className="text-[#A61C14] font-bold text-lg">Sign Out</Text>
-      </TouchableOpacity>
-    </View>
+      <View className="px-4 -mt-6">
+        {/* Orders stat */}
+        <View className="bg-white rounded-2xl border border-stone-200 shadow-sm p-5 flex-row items-center mb-4">
+          <View className="w-12 h-12 rounded-full bg-[#FAF6F0] items-center justify-center mr-4">
+            <Ionicons name="receipt" size={22} color="#A61C14" />
+          </View>
+          <View>
+            <Text className="text-2xl font-extrabold text-[#1C1917]">{orderCount ?? '—'}</Text>
+            <Text className="text-[#78716C] text-sm">Orders placed</Text>
+          </View>
+        </View>
+
+        {/* Contact info */}
+        {profile && (
+          <View className="bg-white rounded-2xl border border-stone-200 shadow-sm mb-6 overflow-hidden">
+            <View className="flex-row items-center p-4 border-b border-stone-100">
+              <Ionicons name="call-outline" size={20} color="#A61C14" style={{ width: 28 }} />
+              <View>
+                <Text className="text-xs text-[#78716C] uppercase font-bold tracking-wider">Phone</Text>
+                <Text className="text-base font-semibold text-[#1C1917]">{profile.phone}</Text>
+              </View>
+            </View>
+            <View className="flex-row items-center p-4">
+              <Ionicons name="location-outline" size={20} color="#A61C14" style={{ width: 28 }} />
+              <View>
+                <Text className="text-xs text-[#78716C] uppercase font-bold tracking-wider">Address</Text>
+                <Text className="text-base font-semibold text-[#1C1917]">{profile.address}</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        <TouchableOpacity
+          onPress={handleSignOut}
+          className="bg-red-50 p-4 rounded-2xl w-full items-center border border-red-200 mb-8 active:bg-red-100"
+        >
+          <Text className="text-[#A61C14] font-bold text-lg">Sign Out</Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
   );
 }
