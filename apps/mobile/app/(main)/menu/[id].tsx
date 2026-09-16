@@ -169,7 +169,8 @@ export default function MenuScreen() {
         contentContainerStyle={{ paddingBottom: cartItems.length > 0 ? 110 : 20 }}
       >
         {filteredItems.map(item => {
-          const isExtras = categoryNameById.get(item.category_id) === 'Extras';
+          const categoryName = categoryNameById.get(item.category_id);
+          const isSimpleCategory = categoryName === 'Extras' || categoryName === 'Drinks';
           const rowContent = (
             <>
               <View className="flex-1 pr-4">
@@ -180,17 +181,29 @@ export default function MenuScreen() {
                 <Text className="text-[#A61C14] font-bold mt-2 text-base">${item.base_price.toFixed(2)}</Text>
               </View>
 
-              {isExtras ? (
+              {isSimpleCategory ? (
                 (() => {
                   const qty = getSimpleQuantity(item.id);
                   if (qty === 0) {
+                    const addToCart = () => incrementSimpleItem(
+                      { menuItemId: item.id, name: item.name, basePrice: item.base_price },
+                      item.location_id
+                    );
+                    if (item.image_url) {
+                      return (
+                        <TouchableOpacity onPress={addToCart}>
+                          <Image
+                            source={{ uri: item.image_url }}
+                            className="w-24 h-24 rounded-xl bg-stone-200"
+                            resizeMode="cover"
+                          />
+                        </TouchableOpacity>
+                      );
+                    }
                     return (
                       <TouchableOpacity
                         className="bg-[#A61C14] px-4 py-2.5 rounded-xl active:bg-[#85140E]"
-                        onPress={() => incrementSimpleItem(
-                          { menuItemId: item.id, name: item.name, basePrice: item.base_price },
-                          item.location_id
-                        )}
+                        onPress={addToCart}
                       >
                         <Text className="text-[#F4ECE1] font-bold text-sm">Add to Cart</Text>
                       </TouchableOpacity>
@@ -229,7 +242,7 @@ export default function MenuScreen() {
             </>
           );
 
-          if (isExtras) {
+          if (isSimpleCategory) {
             return (
               <View key={item.id} className="flex-row justify-between items-center py-4 border-b border-stone-200">
                 {rowContent}
