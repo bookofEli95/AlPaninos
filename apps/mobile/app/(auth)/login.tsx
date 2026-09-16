@@ -76,19 +76,17 @@ export default function Login() {
   const isBusy = loading || guestLoading;
 
   return (
-    <View className="flex-1 bg-[#FAF6F0]" style={{ marginBottom: keyboardHeight }}>
-      <Animated.View style={heroStyle} className="bg-[#A61C14] pt-20 pb-10 items-center rounded-b-[36px]">
-        <View className="w-24 h-24 rounded-full items-center justify-center border-4 border-[#85140E] overflow-hidden mb-3">
-          <Image
-            source={require('../../assets/logo.jpg')}
-            className="w-full h-full"
-            resizeMode="cover"
-          />
-        </View>
-        <Text className="text-3xl font-extrabold text-[#F4ECE1]">AlPaninos</Text>
+    <View className="flex-1 bg-[#FAF6F0] justify-center px-6" style={{ marginBottom: keyboardHeight }}>
+      <Animated.View style={heroStyle} className="items-center mb-8">
+        <Image
+          source={require('../../assets/logo.jpg')}
+          className="w-24 h-24 rounded-full mb-3 shadow-md"
+          resizeMode="contain"
+        />
+        <Text className="text-3xl font-extrabold text-[#1C1917]">AlPaninos</Text>
       </Animated.View>
 
-      <Animated.View style={formStyle} className="flex-1 px-6 pt-8">
+      <Animated.View style={formStyle}>
         {errorMessage && <ErrorBanner message={errorMessage} />}
 
         <View className="flex-row items-center bg-white border border-stone-300 rounded-xl mb-4 px-4">
