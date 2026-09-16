@@ -3,6 +3,7 @@ import { View, Text, FlatList, TouchableOpacity } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
+import { useLocationStore } from '../../store/locationStore';
 import { useRouter } from 'expo-router';
 import SkeletonBox from '../../components/Skeleton';
 
@@ -19,6 +20,17 @@ export default function OrdersScreen() {
   const { session } = useAuthStore();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const locationId = useLocationStore(state => state.locationId);
+  const isAnonymous = session?.user?.is_anonymous ?? false;
+
+  // Hidden from guests' tab bar, but the route itself is still reachable
+  // (e.g. an OS back gesture) -- guest order history isn't reliable enough
+  // to show (tied to a throwaway anonymous session), so bounce them out.
+  useEffect(() => {
+    if (isAnonymous) {
+      router.replace(locationId ? `/(main)/menu/${locationId}` : '/(main)');
+    }
+  }, [isAnonymous]);
 
   const { data: orders, isLoading, error } = useQuery({
     queryKey: ['orders', session?.user?.id],

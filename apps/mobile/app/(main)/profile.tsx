@@ -1,7 +1,9 @@
+import { useEffect } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
+import { useLocationStore } from '../../store/locationStore';
 import { useQuery } from '@tanstack/react-query';
 
 type ProfileData = {
@@ -14,6 +16,17 @@ type ProfileData = {
 export default function ProfileScreen() {
   const router = useRouter();
   const { session, setSession } = useAuthStore();
+  const locationId = useLocationStore(state => state.locationId);
+  const isAnonymous = session?.user?.is_anonymous ?? false;
+
+  // Profile is hidden from guests' tab bar, but the route itself is still
+  // reachable (e.g. the Android back gesture can land here regardless) --
+  // there's nothing here for a guest, so bounce them out immediately.
+  useEffect(() => {
+    if (isAnonymous) {
+      router.replace(locationId ? `/(main)/menu/${locationId}` : '/(main)');
+    }
+  }, [isAnonymous]);
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ['profile', session?.user?.id],

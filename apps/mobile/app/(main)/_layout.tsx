@@ -46,6 +46,15 @@ export default function MainLayout() {
         options={{
           title: 'Orders',
           tabBarIcon: ({ color }) => <Ionicons name="receipt" size={24} color={color} />,
+          href: isAnonymous ? null : undefined,
+        }}
+      />
+      <Tabs.Screen
+        name="guest-exit"
+        options={{
+          title: 'Home',
+          tabBarIcon: ({ color }) => <Ionicons name="home-outline" size={24} color={color} />,
+          href: isAnonymous ? undefined : null,
         }}
       />
       <Tabs.Screen
