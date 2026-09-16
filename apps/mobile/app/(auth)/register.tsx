@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,8 @@ import {
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import AddressAutocomplete from '../../components/AddressAutocomplete';
+import ErrorBanner from '../../components/ErrorBanner';
+import { getPasswordStrength, isValidEmail } from '../../lib/passwordStrength';
 
 export default function Register() {
   const [email, setEmail] = useState('');
@@ -23,7 +25,10 @@ export default function Register() {
   const [address, setAddress] = useState('');
   const [loading, setLoading] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const router = useRouter();
+
+  const strength = useMemo(() => getPasswordStrength(password), [password]);
 
   useEffect(() => {
     const showSub = Keyboard.addListener('keyboardDidShow', (e) => setKeyboardHeight(e.endCoordinates.height));
@@ -35,8 +40,18 @@ export default function Register() {
   }, []);
 
   const handleRegister = async () => {
+    setErrorMessage(null);
+
     if (!firstName.trim() || !lastName.trim() || !phone.trim() || !address.trim() || !email.trim() || !password.trim()) {
-      Alert.alert('Missing Info', 'Please fill out all fields.');
+      setErrorMessage('Please fill out all fields.');
+      return;
+    }
+    if (!isValidEmail(email)) {
+      setErrorMessage('Please enter a valid email address.');
+      return;
+    }
+    if (password.length < 6) {
+      setErrorMessage('Password must be at least 6 characters long.');
       return;
     }
 
@@ -58,7 +73,7 @@ export default function Register() {
     setLoading(false);
 
     if (error) {
-      Alert.alert('Registration Failed', error.message);
+      setErrorMessage(error.message);
       return;
     }
 
@@ -85,7 +100,9 @@ export default function Register() {
           />
           <Text className="text-3xl font-extrabold text-[#1C1917]">Create Account</Text>
         </View>
-        
+
+        {errorMessage && <ErrorBanner message={errorMessage} />}
+
         <View className="flex-row justify-between mb-4">
           <TextInput
             className="bg-white border border-stone-300 p-4 rounded-xl flex-1 mr-2 text-base text-[#1C1917]"
@@ -123,7 +140,7 @@ export default function Register() {
         />
 
         <TextInput
-          className="bg-white border border-stone-300 p-4 rounded-xl mb-4 text-base text-[#1C1917]"
+          className="bg-white border border-stone-300 p-4 rounded-xl text-base text-[#1C1917]"
           placeholder="Password (min 6 chars)"
           placeholderTextColor="#A8A29E"
           secureTextEntry
@@ -131,14 +148,29 @@ export default function Register() {
           onChangeText={setPassword}
         />
 
+        {password.length > 0 && (
+          <View className="mb-4 mt-2">
+            <View className="h-1.5 bg-stone-200 rounded-full overflow-hidden">
+              <View
+                style={{ width: `${strength.percent}%`, backgroundColor: strength.color }}
+                className="h-full rounded-full"
+              />
+            </View>
+            <Text style={{ color: strength.color }} className="text-xs font-bold mt-1">
+              {strength.label} password
+            </Text>
+          </View>
+        )}
+        {password.length === 0 && <View className="mb-4" />}
+
         <View className="z-50 mb-6 w-full">
-          <AddressAutocomplete 
+          <AddressAutocomplete
             defaultAddress={address}
             onAddressSelect={setAddress}
           />
         </View>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           className="bg-[#A61C14] p-4 rounded-xl mb-4 items-center shadow-md active:bg-[#85140E]"
           onPress={handleRegister}
           disabled={loading}

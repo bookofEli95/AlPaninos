@@ -4,13 +4,13 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  Alert,
   Image,
   ActivityIndicator,
   Keyboard
 } from 'react-native';
 import { Link } from 'expo-router';
 import { supabase } from '../../lib/supabase';
+import ErrorBanner from '../../components/ErrorBanner';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -18,6 +18,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [guestLoading, setGuestLoading] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const showSub = Keyboard.addListener('keyboardDidShow', (e) => setKeyboardHeight(e.endCoordinates.height));
@@ -29,24 +30,26 @@ export default function Login() {
   }, []);
 
   const handleLogin = async () => {
+    setErrorMessage(null);
     if (!email.trim() || !password.trim()) {
-      Alert.alert('Missing Info', 'Please enter your email and password.');
+      setErrorMessage('Please enter your email and password.');
       return;
     }
 
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ 
-      email: email.trim(), 
-      password: password.trim() 
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password: password.trim()
     });
-    if (error) Alert.alert('Login Failed', error.message);
+    if (error) setErrorMessage(error.message);
     setLoading(false);
   };
 
   const handleGuestCheckout = async () => {
+    setErrorMessage(null);
     setGuestLoading(true);
     const { error } = await supabase.auth.signInAnonymously();
-    if (error) Alert.alert('Guest Login Failed', error.message);
+    if (error) setErrorMessage(error.message);
     setGuestLoading(false);
   };
 
@@ -63,7 +66,9 @@ export default function Login() {
           />
           <Text className="text-3xl font-extrabold text-[#1C1917]">AlPaninos</Text>
         </View>
-        
+
+        {errorMessage && <ErrorBanner message={errorMessage} />}
+
         <TextInput
           className="bg-white border border-stone-300 p-4 rounded-xl mb-4 text-base text-[#1C1917]"
           placeholder="Email"
@@ -71,21 +76,21 @@ export default function Login() {
           autoCapitalize="none"
           keyboardType="email-address"
           value={email}
-          onChangeText={setEmail}
+          onChangeText={(text) => { setEmail(text); setErrorMessage(null); }}
           editable={!isBusy}
         />
-        
+
         <TextInput
           className="bg-white border border-stone-300 p-4 rounded-xl mb-6 text-base text-[#1C1917]"
           placeholder="Password"
           placeholderTextColor="#A8A29E"
           secureTextEntry
           value={password}
-          onChangeText={setPassword}
+          onChangeText={(text) => { setPassword(text); setErrorMessage(null); }}
           editable={!isBusy}
         />
 
-        <TouchableOpacity 
+        <TouchableOpacity
           className="bg-[#A61C14] p-4 rounded-xl mb-4 items-center shadow-md active:bg-[#85140E]"
           onPress={handleLogin}
           disabled={isBusy}
@@ -97,7 +102,7 @@ export default function Login() {
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           className="bg-[#1C1917] p-4 rounded-xl mb-6 items-center active:opacity-90"
           onPress={handleGuestCheckout}
           disabled={isBusy}
