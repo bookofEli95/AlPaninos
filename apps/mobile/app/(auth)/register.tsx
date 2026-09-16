@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,9 +8,11 @@ import {
   ScrollView,
   Image,
   ActivityIndicator,
-  Keyboard
+  Keyboard,
+  Dimensions
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import AddressAutocomplete from '../../components/AddressAutocomplete';
 import ErrorBanner from '../../components/ErrorBanner';
@@ -26,19 +28,13 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [addressPopupVisible, setAddressPopupVisible] = useState(false);
   const router = useRouter();
-  const scrollRef = useRef<ScrollView>(null);
-  const isAddressFocusedRef = useRef(false);
 
   const strength = useMemo(() => getPasswordStrength(password), [password]);
 
   useEffect(() => {
-    const showSub = Keyboard.addListener('keyboardDidShow', (e) => {
-      setKeyboardHeight(e.endCoordinates.height);
-      if (isAddressFocusedRef.current) {
-        scrollRef.current?.scrollToEnd({ animated: true });
-      }
-    });
+    const showSub = Keyboard.addListener('keyboardDidShow', (e) => setKeyboardHeight(e.endCoordinates.height));
     const hideSub = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0));
     return () => {
       showSub.remove();
@@ -94,11 +90,9 @@ export default function Register() {
   return (
     <View className="flex-1 bg-[#FAF6F0]">
       <ScrollView
-        ref={scrollRef}
         className="flex-1 px-6 pt-12"
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: keyboardHeight }}
       >
         <View className="items-center mb-6">
           <Image
@@ -118,7 +112,6 @@ export default function Register() {
             placeholderTextColor="#A8A29E"
             value={firstName}
             onChangeText={setFirstName}
-            onFocus={() => { isAddressFocusedRef.current = false; }}
           />
           <TextInput
             className="bg-white border border-stone-300 p-4 rounded-xl flex-1 ml-2 text-base text-[#1C1917]"
@@ -126,7 +119,6 @@ export default function Register() {
             placeholderTextColor="#A8A29E"
             value={lastName}
             onChangeText={setLastName}
-            onFocus={() => { isAddressFocusedRef.current = false; }}
           />
         </View>
 
@@ -137,7 +129,6 @@ export default function Register() {
           keyboardType="phone-pad"
           value={phone}
           onChangeText={setPhone}
-          onFocus={() => { isAddressFocusedRef.current = false; }}
         />
 
         <TextInput
@@ -148,7 +139,6 @@ export default function Register() {
           keyboardType="email-address"
           value={email}
           onChangeText={setEmail}
-          onFocus={() => { isAddressFocusedRef.current = false; }}
         />
 
         <TextInput
@@ -158,7 +148,6 @@ export default function Register() {
           secureTextEntry
           value={password}
           onChangeText={setPassword}
-          onFocus={() => { isAddressFocusedRef.current = false; }}
         />
 
         {password.length > 0 && (
@@ -176,18 +165,18 @@ export default function Register() {
         )}
         {password.length === 0 && <View className="mb-4" />}
 
-        <View className="z-50 mb-6 w-full">
-          <AddressAutocomplete
-            defaultAddress={address}
-            onAddressSelect={setAddress}
-            onFocus={() => {
-              isAddressFocusedRef.current = true;
-              // If the keyboard is already up (re-focusing the field), the
-              // keyboardDidShow handler above won't fire again -- scroll now too.
-              scrollRef.current?.scrollToEnd({ animated: true });
-            }}
-          />
-        </View>
+        <TouchableOpacity
+          onPress={() => setAddressPopupVisible(true)}
+          className="flex-row items-center bg-white border border-stone-300 p-4 rounded-xl mb-6"
+        >
+          <Ionicons name="location-outline" size={20} color="#A8A29E" />
+          <Text
+            className={`flex-1 ml-3 text-base ${address ? 'text-[#1C1917]' : 'text-[#A8A29E]'}`}
+            numberOfLines={1}
+          >
+            {address || 'Enter delivery address...'}
+          </Text>
+        </TouchableOpacity>
 
         <TouchableOpacity
           className="bg-[#A61C14] p-4 rounded-xl mb-4 items-center shadow-md active:bg-[#85140E]"
@@ -205,6 +194,43 @@ export default function Register() {
           <Text className="text-[#78716C] text-center text-base font-semibold">Back to Login</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Address popup -- a plain in-tree overlay rather than RN's Modal,
+          which crashes in this app when combined with certain style
+          toggles (see the menu screen's order-type sheet for the same
+          fix). Top-anchored so there's maximum room above the keyboard
+          for the full suggestion list to be visible without scrolling. */}
+      {addressPopupVisible && (
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)' }}>
+          <TouchableOpacity
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+            activeOpacity={1}
+            onPress={() => setAddressPopupVisible(false)}
+          />
+          <View
+            className="bg-[#FAF6F0] rounded-2xl mx-4 p-5"
+            style={{
+              marginTop: 70,
+              maxHeight: Dimensions.get('window').height - keyboardHeight - 70 - 40,
+            }}
+          >
+            <View className="flex-row justify-between items-center mb-4">
+              <Text className="text-xl font-extrabold text-[#1C1917]">Delivery Address</Text>
+              <TouchableOpacity onPress={() => setAddressPopupVisible(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Ionicons name="close" size={26} color="#1C1917" />
+              </TouchableOpacity>
+            </View>
+
+            <AddressAutocomplete
+              defaultAddress={address}
+              onAddressSelect={(selected) => {
+                setAddress(selected);
+                setAddressPopupVisible(false);
+              }}
+            />
+          </View>
+        </View>
+      )}
     </View>
   );
 }

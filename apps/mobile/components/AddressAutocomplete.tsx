@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, TextInput, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, TextInput, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 
 type Props = {
   defaultAddress?: string;
@@ -51,15 +51,17 @@ export default function AddressAutocomplete({ defaultAddress = '', onAddressSele
       />
       {results.length > 0 && (
         <View style={styles.dropdown}>
-          {results.map(item => (
-            <TouchableOpacity
-              key={item.place_id}
-              style={styles.row}
-              onPress={() => handleSelect(item.description)}
-            >
-              <Text style={styles.rowText}>{item.description}</Text>
-            </TouchableOpacity>
-          ))}
+          <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
+            {results.map(item => (
+              <TouchableOpacity
+                key={item.place_id}
+                style={styles.row}
+                onPress={() => handleSelect(item.description)}
+              >
+                <Text style={styles.rowText}>{item.description}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
       )}
     </View>
@@ -89,7 +91,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    maxHeight: 240,
+    maxHeight: 320,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
