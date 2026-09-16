@@ -101,7 +101,7 @@ export default function CartScreen() {
 
       clearCart();
       Alert.alert('Success', 'Order placed successfully!', [
-        { text: 'OK', onPress: () => router.push(`/(main)/menu/${locationId}`) }
+        { text: 'OK', onPress: () => router.replace(`/(main)/menu/${locationId}`) }
       ]);
 
     } catch (error: any) {
