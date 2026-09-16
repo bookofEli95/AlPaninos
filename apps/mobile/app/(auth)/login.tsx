@@ -8,7 +8,9 @@ import {
   ActivityIndicator,
   Keyboard
 } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, withDelay, Easing } from 'react-native-reanimated';
 import { Link } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import ErrorBanner from '../../components/ErrorBanner';
 
@@ -19,6 +21,24 @@ export default function Login() {
   const [guestLoading, setGuestLoading] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const heroProgress = useSharedValue(0);
+  const formProgress = useSharedValue(0);
+
+  useEffect(() => {
+    heroProgress.value = withTiming(1, { duration: 500, easing: Easing.out(Easing.cubic) });
+    formProgress.value = withDelay(200, withTiming(1, { duration: 500, easing: Easing.out(Easing.cubic) }));
+  }, []);
+
+  const heroStyle = useAnimatedStyle(() => ({
+    opacity: heroProgress.value,
+    transform: [{ translateY: (1 - heroProgress.value) * -20 }],
+  }));
+
+  const formStyle = useAnimatedStyle(() => ({
+    opacity: formProgress.value,
+    transform: [{ translateY: (1 - formProgress.value) * 20 }],
+  }));
 
   useEffect(() => {
     const showSub = Keyboard.addListener('keyboardDidShow', (e) => setKeyboardHeight(e.endCoordinates.height));
@@ -56,39 +76,47 @@ export default function Login() {
   const isBusy = loading || guestLoading;
 
   return (
-    <View className="flex-1 bg-[#FAF6F0]">
-      <View className="flex-1 justify-center px-6" style={{ marginBottom: keyboardHeight }}>
-        <View className="items-center mb-8">
+    <View className="flex-1 bg-[#FAF6F0]" style={{ marginBottom: keyboardHeight }}>
+      <Animated.View style={heroStyle} className="bg-[#A61C14] pt-20 pb-10 items-center rounded-b-[36px]">
+        <View className="w-24 h-24 rounded-full items-center justify-center border-4 border-[#85140E] overflow-hidden mb-3">
           <Image
             source={require('../../assets/logo.jpg')}
-            className="w-24 h-24 rounded-full mb-3 shadow-md"
-            resizeMode="contain"
+            className="w-full h-full"
+            resizeMode="cover"
           />
-          <Text className="text-3xl font-extrabold text-[#1C1917]">AlPaninos</Text>
         </View>
+        <Text className="text-3xl font-extrabold text-[#F4ECE1]">AlPaninos</Text>
+      </Animated.View>
 
+      <Animated.View style={formStyle} className="flex-1 px-6 pt-8">
         {errorMessage && <ErrorBanner message={errorMessage} />}
 
-        <TextInput
-          className="bg-white border border-stone-300 p-4 rounded-xl mb-4 text-base text-[#1C1917]"
-          placeholder="Email"
-          placeholderTextColor="#A8A29E"
-          autoCapitalize="none"
-          keyboardType="email-address"
-          value={email}
-          onChangeText={(text) => { setEmail(text); setErrorMessage(null); }}
-          editable={!isBusy}
-        />
+        <View className="flex-row items-center bg-white border border-stone-300 rounded-xl mb-4 px-4">
+          <Ionicons name="mail-outline" size={20} color="#A8A29E" />
+          <TextInput
+            className="flex-1 p-4 text-base text-[#1C1917]"
+            placeholder="Email"
+            placeholderTextColor="#A8A29E"
+            autoCapitalize="none"
+            keyboardType="email-address"
+            value={email}
+            onChangeText={(text) => { setEmail(text); setErrorMessage(null); }}
+            editable={!isBusy}
+          />
+        </View>
 
-        <TextInput
-          className="bg-white border border-stone-300 p-4 rounded-xl mb-6 text-base text-[#1C1917]"
-          placeholder="Password"
-          placeholderTextColor="#A8A29E"
-          secureTextEntry
-          value={password}
-          onChangeText={(text) => { setPassword(text); setErrorMessage(null); }}
-          editable={!isBusy}
-        />
+        <View className="flex-row items-center bg-white border border-stone-300 rounded-xl mb-6 px-4">
+          <Ionicons name="lock-closed-outline" size={20} color="#A8A29E" />
+          <TextInput
+            className="flex-1 p-4 text-base text-[#1C1917]"
+            placeholder="Password"
+            placeholderTextColor="#A8A29E"
+            secureTextEntry
+            value={password}
+            onChangeText={(text) => { setPassword(text); setErrorMessage(null); }}
+            editable={!isBusy}
+          />
+        </View>
 
         <TouchableOpacity
           className="bg-[#A61C14] p-4 rounded-xl mb-4 items-center shadow-md active:bg-[#85140E]"
@@ -121,7 +149,7 @@ export default function Login() {
             </Text>
           </TouchableOpacity>
         </Link>
-      </View>
+      </Animated.View>
     </View>
   );
 }
