@@ -19,10 +19,11 @@ export default function MainLayout() {
       }}
     >
       <Tabs.Screen
-        name="index"
+        name="profile"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <Ionicons name="home" size={24} color={color} />,
+          title: 'Profile',
+          tabBarIcon: ({ color }) => <Ionicons name="person" size={24} color={color} />,
+          href: isAnonymous ? null : undefined,
         }}
       />
       <Tabs.Screen
@@ -33,11 +34,10 @@ export default function MainLayout() {
         }}
       />
       <Tabs.Screen
-        name="profile"
+        name="index"
         options={{
-          title: 'Profile',
-          tabBarIcon: ({ color }) => <Ionicons name="person" size={24} color={color} />,
-          href: isAnonymous ? null : undefined,
+          title: 'Change Location',
+          tabBarIcon: ({ color }) => <Ionicons name="location" size={24} color={color} />,
         }}
       />
 

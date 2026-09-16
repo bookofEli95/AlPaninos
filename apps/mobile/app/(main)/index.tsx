@@ -7,6 +7,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useCartStore } from '../../store/cartStore';
 import AddressAutocomplete from '../../components/AddressAutocomplete';
 import SkeletonBox from '../../components/Skeleton';
+import { saveLocationId } from '../../lib/locationPreference';
 
 export default function Home() {
   const router = useRouter();
@@ -106,8 +107,11 @@ export default function Home() {
           keyboardShouldPersistTaps="handled"
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <TouchableOpacity 
-              onPress={() => router.push(`/(main)/menu/${item.id}`)}
+            <TouchableOpacity
+              onPress={() => {
+                saveLocationId(item.id);
+                router.push(`/(main)/menu/${item.id}`);
+              }}
               className="bg-white p-6 rounded-2xl mb-4 border border-stone-200 shadow-sm"
             >
               <Text className="text-xl font-bold text-[#1C1917]">{item.name}</Text>
