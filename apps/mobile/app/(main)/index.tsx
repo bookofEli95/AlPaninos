@@ -1,11 +1,12 @@
 import { useEffect } from 'react';
-import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { useCartStore } from '../../store/cartStore';
 import AddressAutocomplete from '../../components/AddressAutocomplete';
+import SkeletonBox from '../../components/Skeleton';
 
 export default function Home() {
   const router = useRouter();
@@ -89,7 +90,11 @@ export default function Home() {
       )}
 
       {isLoading ? (
-        <ActivityIndicator size="large" color="#A61C14" className="mt-10" />
+        <View>
+          {[1, 2].map(i => (
+            <SkeletonBox key={i} height={92} borderRadius={16} style={{ marginBottom: 16 }} />
+          ))}
+        </View>
       ) : locationsError ? (
         <View className="mt-10 items-center px-6">
           <Text className="text-[#A61C14] font-bold text-lg mb-2">Couldn't load locations</Text>

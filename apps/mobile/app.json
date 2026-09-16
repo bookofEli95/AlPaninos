@@ -25,7 +25,15 @@
     "plugins": [
       "expo-router",
       "expo-status-bar",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/logo.jpg",
+          "backgroundColor": "#A61C14",
+          "imageWidth": 220
+        }
+      ]
     ]
   }
 }

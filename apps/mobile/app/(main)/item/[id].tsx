@@ -1,10 +1,12 @@
 import { useState, useMemo, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
+import * as Haptics from 'expo-haptics';
 import { supabase } from '../../../lib/supabase';
 import { useCartStore } from '../../../store/cartStore';
 import { Ionicons } from '@expo/vector-icons';
+import SkeletonBox from '../../../components/Skeleton';
 
 export default function ItemDetailScreen() {
   const { id: itemId } = useLocalSearchParams<{ id: string }>();
@@ -14,6 +16,7 @@ export default function ItemDetailScreen() {
   const [selections, setSelections] = useState<Record<string, string[]>>({});
   const [quantity, setQuantity] = useState(1);
   const [specialInstructions, setSpecialInstructions] = useState('');
+  const [justAdded, setJustAdded] = useState(false);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['item', itemId],
@@ -94,6 +97,7 @@ export default function ItemDetailScreen() {
   }, [data, selectedOptionIds]);
 
   const handleToggleOption = (groupId: string, optionId: string, maxSelections: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelections(prev => {
       const groupSelections = prev[groupId] || [];
       const isSelected = groupSelections.includes(optionId);
@@ -136,7 +140,7 @@ export default function ItemDetailScreen() {
   }, [data, visibleGroups, selections, quantity]);
 
   const handleAddToCart = () => {
-    if (!data) return;
+    if (!data || justAdded) return;
 
     const modifiers = visibleGroups.flatMap((group: any) => {
       const groupSelectedIds = selections[group.id] || [];
@@ -160,17 +164,29 @@ export default function ItemDetailScreen() {
       specialInstructions: specialInstructions.trim() || undefined,
     }, data.location_id!);
 
-    router.push(`/(main)/menu/${data.location_id}`);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setJustAdded(true);
+    setTimeout(() => {
+      router.push(`/(main)/menu/${data.location_id}`);
+    }, 600);
   };
 
   if (isLoading) {
     return (
-      <View className="flex-1 bg-[#FAF6F0] justify-center items-center">
-        <ActivityIndicator size="large" color="#A61C14" />
+      <View className="flex-1 bg-[#FAF6F0] pt-12 px-4">
+        <SkeletonBox width={80} height={24} style={{ marginBottom: 16 }} />
+        <SkeletonBox height={224} borderRadius={16} style={{ marginBottom: 16 }} />
+        <SkeletonBox width="60%" height={28} style={{ marginBottom: 12 }} />
+        <SkeletonBox width="90%" height={16} style={{ marginBottom: 8 }} />
+        <SkeletonBox width={80} height={22} style={{ marginBottom: 24 }} />
+        <SkeletonBox width="40%" height={20} style={{ marginBottom: 16 }} />
+        {[1, 2, 3].map(i => (
+          <SkeletonBox key={i} height={44} style={{ marginBottom: 12 }} />
+        ))}
       </View>
     );
   }
-  
+
   if (error) {
     return (
       <View className="flex-1 bg-[#FAF6F0] pt-20 px-4">
@@ -261,32 +277,45 @@ export default function ItemDetailScreen() {
         <View className="flex-row items-center justify-between mb-4">
           <Text className="text-lg font-bold text-[#1C1917]">Quantity:</Text>
           <View className="flex-row items-center bg-stone-100 rounded-xl p-1 border border-stone-200">
-            <TouchableOpacity 
+            <TouchableOpacity
               className="bg-white px-4 py-2 rounded-lg shadow-sm"
-              onPress={() => setQuantity(Math.max(1, quantity - 1))}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setQuantity(Math.max(1, quantity - 1));
+              }}
             >
               <Text className="text-xl font-bold text-[#1C1917]">-</Text>
             </TouchableOpacity>
             <Text className="px-6 text-xl font-bold text-[#1C1917]">{quantity}</Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               className="bg-white px-4 py-2 rounded-lg shadow-sm"
-              onPress={() => setQuantity(quantity + 1)}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setQuantity(quantity + 1);
+              }}
             >
               <Text className="text-xl font-bold text-[#1C1917]">+</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           onPress={handleAddToCart}
-          disabled={!isValid}
-          className={`py-4 rounded-xl items-center shadow-md ${
-            isValid ? 'bg-[#A61C14] active:bg-[#85140E]' : 'bg-stone-300'
+          disabled={!isValid || justAdded}
+          className={`py-4 rounded-xl items-center shadow-md flex-row justify-center ${
+            justAdded ? 'bg-green-600' : isValid ? 'bg-[#A61C14] active:bg-[#85140E]' : 'bg-stone-300'
           }`}
         >
-          <Text className={`font-bold text-lg ${isValid ? 'text-[#F4ECE1]' : 'text-stone-500'}`}>
-            Add to Cart - ${calculatedPrice.toFixed(2)}
-          </Text>
+          {justAdded ? (
+            <>
+              <Ionicons name="checkmark-circle" size={22} color="#F4ECE1" style={{ marginRight: 8 }} />
+              <Text className="font-bold text-lg text-[#F4ECE1]">Added to Cart</Text>
+            </>
+          ) : (
+            <Text className={`font-bold text-lg ${isValid ? 'text-[#F4ECE1]' : 'text-stone-500'}`}>
+              Add to Cart - ${calculatedPrice.toFixed(2)}
+            </Text>
+          )}
         </TouchableOpacity>
       </View>
     </View>

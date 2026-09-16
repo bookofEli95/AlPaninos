@@ -1,17 +1,27 @@
 import { useState, useEffect, useMemo } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
+import * as Haptics from 'expo-haptics';
 import { supabase } from '../../../lib/supabase';
 import { useCartStore } from '../../../store/cartStore';
+import SkeletonBox from '../../../components/Skeleton';
 
 export default function MenuScreen() {
   const { id: locationId } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
 
   const cartItems = useCartStore(state => state.items);
-  const incrementSimpleItem = useCartStore(state => state.incrementSimpleItem);
-  const decrementSimpleItem = useCartStore(state => state.decrementSimpleItem);
+  const incrementSimpleItemRaw = useCartStore(state => state.incrementSimpleItem);
+  const decrementSimpleItemRaw = useCartStore(state => state.decrementSimpleItem);
+  const incrementSimpleItem: typeof incrementSimpleItemRaw = (...args) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    incrementSimpleItemRaw(...args);
+  };
+  const decrementSimpleItem: typeof decrementSimpleItemRaw = (...args) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    decrementSimpleItemRaw(...args);
+  };
   const cartTotal = cartItems.reduce((sum, item) => sum + item.totalPrice, 0);
   const cartQuantity = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -50,8 +60,23 @@ export default function MenuScreen() {
 
   if (isLoading) {
     return (
-      <View className="flex-1 bg-[#FAF6F0] justify-center items-center">
-        <ActivityIndicator size="large" color="#A61C14" />
+      <View className="flex-1 bg-[#FAF6F0] pt-12 px-4">
+        <SkeletonBox width={100} height={28} style={{ marginBottom: 24 }} />
+        <View className="flex-row mb-6">
+          <SkeletonBox width={90} height={40} borderRadius={20} style={{ marginRight: 12 }} />
+          <SkeletonBox width={90} height={40} borderRadius={20} style={{ marginRight: 12 }} />
+          <SkeletonBox width={90} height={40} borderRadius={20} />
+        </View>
+        {[1, 2, 3, 4].map(i => (
+          <View key={i} className="flex-row items-center py-4 border-b border-stone-200">
+            <View className="flex-1 pr-4">
+              <SkeletonBox width="70%" height={18} style={{ marginBottom: 8 }} />
+              <SkeletonBox width="90%" height={14} style={{ marginBottom: 8 }} />
+              <SkeletonBox width={60} height={16} />
+            </View>
+            <SkeletonBox width={96} height={96} borderRadius={12} />
+          </View>
+        ))}
       </View>
     );
   }

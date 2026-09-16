@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
-import { View, Text, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { useRouter } from 'expo-router';
+import SkeletonBox from '../../components/Skeleton';
 
 const STATUS_CONFIG: Record<string, { bg: string; text: string }> = {
   received: { bg: 'bg-amber-100', text: 'text-amber-800' },
@@ -61,8 +62,20 @@ export default function OrdersScreen() {
 
   if (isLoading) {
     return (
-      <View className="flex-1 bg-[#FAF6F0] justify-center items-center">
-        <ActivityIndicator size="large" color="#A61C14" />
+      <View className="flex-1 bg-[#FAF6F0] pt-16 px-4">
+        <SkeletonBox width={160} height={30} style={{ marginBottom: 24 }} />
+        {[1, 2, 3].map(i => (
+          <View key={i} className="bg-white p-5 rounded-2xl mb-4 border border-stone-200">
+            <View className="flex-row justify-between items-center mb-3">
+              <SkeletonBox width={120} height={18} />
+              <SkeletonBox width={70} height={22} borderRadius={12} />
+            </View>
+            <View className="flex-row justify-between items-center">
+              <SkeletonBox width={80} height={14} />
+              <SkeletonBox width={60} height={18} />
+            </View>
+          </View>
+        ))}
       </View>
     );
   }

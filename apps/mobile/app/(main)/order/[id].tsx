@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
-import { View, Text, ActivityIndicator, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../../lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
+import SkeletonBox from '../../../components/Skeleton';
 
 const DELIVERY_STEPS = [
   { key: 'received', label: 'Received' },
@@ -80,8 +81,14 @@ export default function OrderDetailScreen() {
 
   if (isLoading) {
     return (
-      <View className="flex-1 bg-white justify-center items-center">
-        <ActivityIndicator size="large" color="#2563eb" />
+      <View className="flex-1 bg-white pt-16 px-4">
+        <SkeletonBox width={140} height={26} style={{ marginBottom: 24 }} />
+        <SkeletonBox height={140} borderRadius={16} style={{ marginBottom: 24 }} />
+        <SkeletonBox height={90} borderRadius={12} style={{ marginBottom: 24 }} />
+        <SkeletonBox width={80} height={22} style={{ marginBottom: 16 }} />
+        {[1, 2].map(i => (
+          <SkeletonBox key={i} height={50} style={{ marginBottom: 16 }} />
+        ))}
       </View>
     );
   }
