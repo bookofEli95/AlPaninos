@@ -222,6 +222,7 @@ export default function Register() {
             </View>
 
             <AddressAutocomplete
+              autoFocus
               defaultAddress={address}
               onAddressSelect={(selected) => {
                 setAddress(selected);

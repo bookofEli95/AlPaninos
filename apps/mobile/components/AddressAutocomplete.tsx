@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { View, TextInput, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { View, TextInput, Text, TouchableOpacity, StyleSheet, ScrollView, Keyboard } from 'react-native';
 
 type Props = {
   defaultAddress?: string;
   onAddressSelect: (address: string) => void;
   onFocus?: () => void;
+  autoFocus?: boolean;
 };
 
-export default function AddressAutocomplete({ defaultAddress = '', onAddressSelect, onFocus }: Props) {
+export default function AddressAutocomplete({ defaultAddress = '', onAddressSelect, onFocus, autoFocus }: Props) {
   const [query, setQuery] = useState(defaultAddress);
   const [results, setResults] = useState<any[]>([]);
 
@@ -44,6 +45,7 @@ export default function AddressAutocomplete({ defaultAddress = '', onAddressSele
   const handleSelect = (description: string) => {
     setQuery(description);
     setResults([]);
+    Keyboard.dismiss();
     onAddressSelect(description);
   };
 
@@ -56,6 +58,7 @@ export default function AddressAutocomplete({ defaultAddress = '', onAddressSele
         value={query}
         onChangeText={searchPlaces}
         onFocus={onFocus}
+        autoFocus={autoFocus}
       />
       {results.length > 0 && (
         <View style={styles.dropdown}>
