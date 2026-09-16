@@ -232,6 +232,7 @@ export type Database = {
           menu_item_id: string
           order_id: string
           quantity: number
+          special_instructions: string | null
           total_price: number
           unit_price: number
         }
@@ -240,6 +241,7 @@ export type Database = {
           menu_item_id: string
           order_id: string
           quantity: number
+          special_instructions?: string | null
           total_price?: number
           unit_price: number
         }
@@ -248,6 +250,7 @@ export type Database = {
           menu_item_id?: string
           order_id?: string
           quantity?: number
+          special_instructions?: string | null
           total_price?: number
           unit_price?: number
         }

@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Image } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../../lib/supabase';
@@ -13,6 +13,7 @@ export default function ItemDetailScreen() {
 
   const [selections, setSelections] = useState<Record<string, string[]>>({});
   const [quantity, setQuantity] = useState(1);
+  const [specialInstructions, setSpecialInstructions] = useState('');
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['item', itemId],
@@ -20,7 +21,7 @@ export default function ItemDetailScreen() {
       // 1. Fetch Item
       const { data: itemData, error: itemError } = await supabase
         .from('menu_items')
-        .select('*')
+        .select('*, menu_categories(name)')
         .eq('id', itemId)
         .single();
       if (itemError) throw itemError;
@@ -155,7 +156,8 @@ export default function ItemDetailScreen() {
       basePrice: data.base_price,
       quantity,
       modifiers,
-      totalPrice: calculatedPrice
+      totalPrice: calculatedPrice,
+      specialInstructions: specialInstructions.trim() || undefined,
     }, data.location_id!);
 
     router.push(`/(main)/menu/${data.location_id}`);
@@ -237,6 +239,21 @@ export default function ItemDetailScreen() {
             })}
           </View>
         ))}
+
+        {data.menu_categories?.name !== 'Drinks' && (
+          <View className="mt-6 border-t border-stone-200 pt-4">
+            <Text className="text-lg font-bold text-[#1C1917] mb-2">Special Instructions</Text>
+            <TextInput
+              className="bg-white border border-stone-300 rounded-xl p-4 text-base text-[#1C1917] min-h-[90px]"
+              placeholder="e.g. no onions please, extra napkins..."
+              placeholderTextColor="#A8A29E"
+              value={specialInstructions}
+              onChangeText={setSpecialInstructions}
+              multiline
+              textAlignVertical="top"
+            />
+          </View>
+        )}
       </ScrollView>
 
       {/* Bottom Action Bar */}

@@ -80,7 +80,8 @@ export default function CartScreen() {
             menu_item_id: item.menuItemId,
             quantity: item.quantity,
             unit_price: item.basePrice,
-            total_price: item.totalPrice
+            total_price: item.totalPrice,
+            special_instructions: item.specialInstructions || null
           })
           .select('id')
           .single();
@@ -137,6 +138,11 @@ export default function CartScreen() {
                     + {mod.name} {mod.price > 0 ? `($${mod.price.toFixed(2)})` : ''}
                   </Text>
                 ))}
+                {item.specialInstructions && (
+                  <Text className="text-gray-500 text-sm mt-1 italic">
+                    Note: {item.specialInstructions}
+                  </Text>
+                )}
               </View>
               <Text className="text-lg font-bold text-red-600">
                 ${item.totalPrice.toFixed(2)}

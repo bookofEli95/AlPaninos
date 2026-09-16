@@ -14,6 +14,7 @@ export type CartItem = {
   quantity: number;
   modifiers: CartModifier[];
   totalPrice: number;
+  specialInstructions?: string;
 };
 
 interface AccountCart {

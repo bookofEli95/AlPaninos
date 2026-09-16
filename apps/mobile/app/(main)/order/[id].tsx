@@ -36,6 +36,7 @@ export default function OrderDetailScreen() {
             quantity,
             unit_price,
             total_price,
+            special_instructions,
             menu_items ( name ),
             order_item_modifiers (
               price_adjustment,
@@ -191,6 +192,11 @@ export default function OrderDetailScreen() {
                 + {mod.modifier_options?.name} {mod.price_adjustment > 0 ? `($${Number(mod.price_adjustment).toFixed(2)})` : ''}
               </Text>
             ))}
+            {item.special_instructions && (
+              <Text className="text-gray-500 ml-2 mt-1 italic">
+                Note: {item.special_instructions}
+              </Text>
+            )}
           </View>
         )}
       />
