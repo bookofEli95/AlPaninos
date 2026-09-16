@@ -24,6 +24,8 @@ export default function AddressAutocomplete({ defaultAddress = '', onAddressSele
       const data = await res.json();
       if (data.status === 'OK') {
         setResults(data.predictions);
+      } else {
+        console.warn('Places API status:', data.status, data.error_message);
       }
     } catch (e) {
       console.warn("Places API error:", e);
