@@ -113,8 +113,12 @@ export const useCartStore = create<CartState>((set) => ({
     };
   }),
 
+  // Empties the items only -- location, order type, and delivery address are
+  // context the customer is still in, not part of "the cart", and clearing
+  // them too would (and did) strand navigation that relies on locationId.
   clearCart: () => set((state) => {
-    const updatedCart: AccountCart = { ...defaultCart };
+    const current = state.carts[state.activeUserId] || { ...defaultCart };
+    const updatedCart: AccountCart = { ...current, items: [] };
     return {
       ...updatedCart,
       carts: { ...state.carts, [state.activeUserId]: updatedCart },

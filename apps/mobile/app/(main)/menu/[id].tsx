@@ -6,6 +6,7 @@ import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../../lib/supabase';
 import { useCartStore } from '../../../store/cartStore';
+import { useAuthStore } from '../../../store/authStore';
 import SkeletonBox from '../../../components/Skeleton';
 import AddressAutocomplete from '../../../components/AddressAutocomplete';
 
@@ -16,6 +17,23 @@ export default function MenuScreen() {
   const [orderTypeModalVisible, setOrderTypeModalVisible] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const { orderType, setOrderType, deliveryAddress, setDeliveryAddress } = useCartStore();
+  const session = useAuthStore(state => state.session);
+  const isAnonymous = session?.user?.is_anonymous ?? false;
+
+  const handleSelectDelivery = async () => {
+    setOrderType('delivery');
+    if (deliveryAddress || isAnonymous || !session?.user?.id) return;
+    const { data, error } = await (supabase as any)
+      .from('profiles')
+      .select('address')
+      .eq('id', session.user.id)
+      .single();
+    if (error) {
+      console.warn('Failed to load saved address:', error.message);
+      return;
+    }
+    if (data?.address) setDeliveryAddress(data.address);
+  };
 
   useEffect(() => {
     const showSub = Keyboard.addListener('keyboardDidShow', (e) => setKeyboardHeight(e.endCoordinates.height));
@@ -111,14 +129,15 @@ export default function MenuScreen() {
 
         <TouchableOpacity
           onPress={() => setOrderTypeModalVisible(true)}
-          className="flex-row items-center bg-white border border-stone-300 rounded-full px-3 py-2"
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          className="flex-row items-center bg-white border border-stone-300 rounded-full px-4 py-3"
         >
           <Ionicons
             name={orderType === 'pickup' ? 'storefront-outline' : 'bicycle-outline'}
-            size={16}
+            size={18}
             color="#A61C14"
           />
-          <Text className="text-[#1C1917] font-semibold text-xs ml-1.5" numberOfLines={1} style={{ maxWidth: 90 }}>
+          <Text className="text-[#1C1917] font-semibold text-sm ml-2" numberOfLines={1} style={{ maxWidth: 100 }}>
             {orderType === 'pickup' ? 'Pickup' : (deliveryAddress || 'Delivery')}
           </Text>
         </TouchableOpacity>
@@ -310,7 +329,7 @@ export default function MenuScreen() {
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  onPress={() => setOrderType('delivery')}
+                  onPress={handleSelectDelivery}
                   className={`flex-1 py-3 rounded-lg items-center ${orderType === 'delivery' ? 'bg-white' : ''}`}
                   style={orderType === 'delivery' ? styles.activeToggleShadow : undefined}
                 >

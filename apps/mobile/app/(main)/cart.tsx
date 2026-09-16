@@ -133,9 +133,10 @@ export default function CartScreen() {
                 { text: 'Clear', style: 'destructive', onPress: clearCart },
               ]);
             }}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            className="px-3 py-2"
           >
-            <Text className="text-gray-400 font-medium text-sm">Clear</Text>
+            <Text className="text-gray-500 font-bold text-base">Clear</Text>
           </TouchableOpacity>
         )}
       </View>
