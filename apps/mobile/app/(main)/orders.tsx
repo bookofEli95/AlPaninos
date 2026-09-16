@@ -132,9 +132,9 @@ export default function OrdersScreen() {
           const badge = STATUS_CONFIG[item.status] || { bg: 'bg-stone-100', text: 'text-stone-800' };
 
           return (
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={() => router.push(`/(main)/order/${item.id}`)}
-              className="bg-white p-5 rounded-2xl mb-4 border border-stone-200 shadow-sm"
+              className="bg-white p-6 rounded-2xl mb-5 border border-stone-200 shadow-sm"
             >
               <View className="flex-row justify-between items-center mb-2">
                 <Text className="font-bold text-lg text-[#1C1917]">Order #{item.id.slice(0, 8)}</Text>
@@ -144,7 +144,7 @@ export default function OrdersScreen() {
                   </View>
                 )}
               </View>
-              <View className="flex-row justify-between items-center mt-2 mb-3">
+              <View className="flex-row justify-between items-center mt-2 mb-4">
                 <Text className="text-[#78716C]">
                   {new Date(item.created_at).toLocaleDateString()}
                 </Text>
@@ -156,7 +156,7 @@ export default function OrdersScreen() {
                   handleReorder(item.id);
                 }}
                 disabled={reorderingId === item.id}
-                className="bg-[#1C1917] py-2.5 rounded-xl items-center active:opacity-90"
+                className="bg-[#1C1917] py-3.5 rounded-xl items-center active:opacity-90 mt-2"
               >
                 {reorderingId === item.id ? (
                   <ActivityIndicator size="small" color="#F4ECE1" />

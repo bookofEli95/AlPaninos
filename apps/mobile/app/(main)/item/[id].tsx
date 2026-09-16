@@ -1,5 +1,5 @@
-import { useState, useMemo, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, Keyboard } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
@@ -17,6 +17,17 @@ export default function ItemDetailScreen() {
   const [quantity, setQuantity] = useState(1);
   const [specialInstructions, setSpecialInstructions] = useState('');
   const [justAdded, setJustAdded] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener('keyboardDidShow', (e) => setKeyboardHeight(e.endCoordinates.height));
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   // This screen is a hidden tab (see (main)/_layout.tsx), so navigating here
   // for a different item reuses the same mounted instance rather than
@@ -106,6 +117,31 @@ export default function ItemDetailScreen() {
     return result;
   }, [data, selectedOptionIds]);
 
+  // When an option that reveals a nested group (e.g. "Philly Fries" ->
+  // its own toppings group) gets deselected -- either directly, or by
+  // picking a different option in the same single-select group -- any
+  // selections made in that nested group (and further nested below it)
+  // need to be forgotten, or they'd silently reappear if the user picks
+  // the original option again.
+  const clearDescendantSelections = (
+    removedOptionIds: string[],
+    selections: Record<string, string[]>
+  ) => {
+    const allGroups = data?.modifier_groups || [];
+    const next = { ...selections };
+    const queue = [...removedOptionIds];
+    while (queue.length > 0) {
+      const optionId = queue.shift()!;
+      allGroups
+        .filter((g: any) => g.parent_option_id === optionId)
+        .forEach((g: any) => {
+          queue.push(...(next[g.id] || []));
+          delete next[g.id];
+        });
+    }
+    return next;
+  };
+
   const handleToggleOption = (groupId: string, optionId: string, maxSelections: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelections(prev => {
@@ -113,11 +149,13 @@ export default function ItemDetailScreen() {
       const isSelected = groupSelections.includes(optionId);
 
       if (isSelected) {
-        return { ...prev, [groupId]: groupSelections.filter(id => id !== optionId) };
+        const next = { ...prev, [groupId]: groupSelections.filter(id => id !== optionId) };
+        return clearDescendantSelections([optionId], next);
       }
 
       if (maxSelections === 1) {
-        return { ...prev, [groupId]: [optionId] };
+        const next = { ...prev, [groupId]: [optionId] };
+        return clearDescendantSelections(groupSelections, next);
       }
 
       if (groupSelections.length >= maxSelections) {
@@ -216,7 +254,13 @@ export default function ItemDetailScreen() {
 
   return (
     <View className="flex-1 bg-[#FAF6F0] pt-12">
-      <ScrollView className="flex-1 px-4">
+      <ScrollView
+        ref={scrollViewRef}
+        className="flex-1 px-4"
+        contentContainerStyle={{ paddingBottom: keyboardHeight }}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
         <TouchableOpacity
           onPress={() => router.replace(`/(main)/menu/${data.location_id}`)}
           className="flex-row items-center py-4 pr-8 -ml-2 mb-2"
@@ -275,6 +319,7 @@ export default function ItemDetailScreen() {
               placeholderTextColor="#A8A29E"
               value={specialInstructions}
               onChangeText={setSpecialInstructions}
+              onFocus={() => setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100)}
               multiline
               textAlignVertical="top"
             />

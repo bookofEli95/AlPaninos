@@ -186,6 +186,8 @@ export default function MenuScreen() {
       <ScrollView
         className="flex-1 px-4"
         contentContainerStyle={{ paddingBottom: cartItems.length > 0 ? 110 : 20 }}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
       >
         {filteredItems.map(item => {
           const categoryName = categoryNameById.get(item.category_id);

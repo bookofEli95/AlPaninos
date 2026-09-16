@@ -86,19 +86,30 @@ export default function ProfileScreen() {
           {profile ? `${profile.first_name} ${profile.last_name}` : 'Welcome back'}
         </Text>
         <Text className="text-[#F4ECE1] opacity-80 mt-1">{session?.user?.email}</Text>
+        <TouchableOpacity
+          onPress={() => router.push('/(main)/edit-profile')}
+          className="flex-row items-center bg-[#85140E] px-4 py-2 rounded-full mt-4"
+        >
+          <Ionicons name="pencil" size={14} color="#F4ECE1" />
+          <Text className="text-[#F4ECE1] font-bold text-sm ml-2">Edit Profile</Text>
+        </TouchableOpacity>
       </View>
 
       <View className="px-4 -mt-6">
         {/* Orders stat */}
-        <View className="bg-white rounded-2xl border border-stone-200 shadow-sm p-5 flex-row items-center mb-4">
+        <TouchableOpacity
+          onPress={() => router.push('/(main)/orders')}
+          className="bg-white rounded-2xl border border-stone-200 shadow-sm p-5 flex-row items-center mb-4"
+        >
           <View className="w-12 h-12 rounded-full bg-[#FAF6F0] items-center justify-center mr-4">
             <Ionicons name="receipt" size={22} color="#A61C14" />
           </View>
-          <View>
+          <View className="flex-1">
             <Text className="text-2xl font-extrabold text-[#1C1917]">{orderCount ?? '—'}</Text>
             <Text className="text-[#78716C] text-sm">Orders placed</Text>
           </View>
-        </View>
+          <Ionicons name="chevron-forward" size={20} color="#A8A29E" />
+        </TouchableOpacity>
 
         {/* Contact info */}
         {profile && (

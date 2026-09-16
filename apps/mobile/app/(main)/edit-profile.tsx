@@ -1,41 +1,44 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
-  Alert,
   ScrollView,
-  Image,
+  Alert,
   ActivityIndicator,
   Keyboard,
-  Dimensions
+  Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
+import { useAuthStore } from '../../store/authStore';
 import AddressAutocomplete from '../../components/AddressAutocomplete';
 import CountryPickerSheet from '../../components/CountryPickerSheet';
 import ErrorBanner from '../../components/ErrorBanner';
-import { getPasswordStrength, isValidEmail } from '../../lib/passwordStrength';
-import { Country, DEFAULT_COUNTRY, isValidPhoneForCountry } from '../../lib/countries';
+import { Country, DEFAULT_COUNTRY, isValidPhoneForCountry, parsePhone } from '../../lib/countries';
+import { isValidEmail } from '../../lib/passwordStrength';
 
-export default function Register() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+export default function EditProfile() {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const { session } = useAuthStore();
+  const userId = session?.user?.id;
+
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
   const [country, setCountry] = useState<Country>(DEFAULT_COUNTRY);
   const [address, setAddress] = useState('');
+  const [email, setEmail] = useState(session?.user?.email || '');
   const [loading, setLoading] = useState(false);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [formReady, setFormReady] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [addressPopupVisible, setAddressPopupVisible] = useState(false);
   const [countryPickerVisible, setCountryPickerVisible] = useState(false);
-  const router = useRouter();
-
-  const strength = useMemo(() => getPasswordStrength(password), [password]);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   useEffect(() => {
     const showSub = Keyboard.addListener('keyboardDidShow', (e) => setKeyboardHeight(e.endCoordinates.height));
@@ -46,10 +49,36 @@ export default function Register() {
     };
   }, []);
 
-  const handleRegister = async () => {
+  const { data: profile, isLoading } = useQuery({
+    queryKey: ['profile', userId],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!userId,
+  });
+
+  useEffect(() => {
+    if (profile && !formReady) {
+      setFirstName(profile.first_name || '');
+      setLastName(profile.last_name || '');
+      const { country: parsedCountry, digits } = parsePhone(profile.phone || '');
+      setCountry(parsedCountry);
+      setPhone(digits);
+      setAddress(profile.address || '');
+      setFormReady(true);
+    }
+  }, [profile, formReady]);
+
+  const handleSave = async () => {
     setErrorMessage(null);
 
-    if (!firstName.trim() || !lastName.trim() || !phone.trim() || !address.trim() || !email.trim() || !password.trim()) {
+    if (!firstName.trim() || !lastName.trim() || !phone.trim() || !address.trim() || !email.trim()) {
       setErrorMessage('Please fill out all fields.');
       return;
     }
@@ -61,56 +90,64 @@ export default function Register() {
       setErrorMessage(`Please enter a valid phone number for ${country.name}.`);
       return;
     }
-    if (password.length < 6) {
-      setErrorMessage('Password must be at least 6 characters long.');
-      return;
-    }
 
     setLoading(true);
-
-    const { error } = await supabase.auth.signUp({
-      email: email.trim(),
-      password: password,
-      options: {
-        data: {
+    try {
+      const { error: profileError } = await (supabase as any)
+        .from('profiles')
+        .update({
           first_name: firstName.trim(),
           last_name: lastName.trim(),
           phone: `+${country.dialCode}${phone.trim()}`,
           address: address.trim(),
-        },
-      },
-    });
+        })
+        .eq('id', userId);
+      if (profileError) throw profileError;
 
-    setLoading(false);
+      const emailChanged = email.trim() !== session?.user?.email;
+      if (emailChanged) {
+        const { error: emailError } = await supabase.auth.updateUser({ email: email.trim() });
+        if (emailError) throw emailError;
+      }
 
-    if (error) {
-      setErrorMessage(error.message);
-      return;
+      queryClient.invalidateQueries({ queryKey: ['profile', userId] });
+
+      Alert.alert(
+        emailChanged ? 'Confirm Your New Email' : 'Saved',
+        emailChanged
+          ? 'Your profile was updated. Check your inbox to confirm your new email address before it takes effect.'
+          : 'Your profile was updated.',
+        [{ text: 'OK', onPress: () => router.back() }]
+      );
+    } catch (e: any) {
+      setErrorMessage(e.message);
+    } finally {
+      setLoading(false);
     }
-
-    Alert.alert(
-      'Verification Email Sent',
-      'Please check your inbox and verify your email address before signing in.',
-      [{ text: 'OK', onPress: () => router.replace('/(auth)/login') }]
-    );
   };
+
+  if (isLoading || !formReady) {
+    return (
+      <View className="flex-1 bg-[#FAF6F0] justify-center items-center">
+        <ActivityIndicator size="large" color="#A61C14" />
+      </View>
+    );
+  }
 
   return (
     <View className="flex-1 bg-[#FAF6F0]">
       <ScrollView
-        className="flex-1 px-6 pt-12"
+        className="flex-1 px-6 pt-16"
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
       >
-        <View className="items-center mb-6">
-          <Image
-            source={require('../../assets/logo.jpg')}
-            className="w-24 h-24 rounded-full mb-3 shadow-md"
-            resizeMode="contain"
-          />
-          <Text className="text-3xl font-extrabold text-[#1C1917]">Create Account</Text>
-        </View>
+        <TouchableOpacity onPress={() => router.back()} className="flex-row items-center py-2 pr-8 -ml-2 mb-4">
+          <Ionicons name="chevron-back" size={28} color="#A61C14" />
+          <Text className="text-[#A61C14] font-bold text-xl">Back</Text>
+        </TouchableOpacity>
+
+        <Text className="text-3xl font-extrabold text-[#1C1917] mb-6">Edit Profile</Text>
 
         {errorMessage && <ErrorBanner message={errorMessage} />}
 
@@ -160,30 +197,6 @@ export default function Register() {
           onChangeText={setEmail}
         />
 
-        <TextInput
-          className="bg-white border border-stone-300 p-4 rounded-xl text-base text-[#1C1917]"
-          placeholder="Password (min 6 chars)"
-          placeholderTextColor="#A8A29E"
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-        />
-
-        {password.length > 0 && (
-          <View className="mb-4 mt-2">
-            <View className="h-1.5 bg-stone-200 rounded-full overflow-hidden">
-              <View
-                style={{ width: `${strength.percent}%`, backgroundColor: strength.color }}
-                className="h-full rounded-full"
-              />
-            </View>
-            <Text style={{ color: strength.color }} className="text-xs font-bold mt-1">
-              {strength.label} password
-            </Text>
-          </View>
-        )}
-        {password.length === 0 && <View className="mb-4" />}
-
         <TouchableOpacity
           onPress={() => setAddressPopupVisible(true)}
           className="flex-row items-center bg-white border border-stone-300 p-4 rounded-xl mb-6"
@@ -198,27 +211,18 @@ export default function Register() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          className="bg-[#A61C14] p-4 rounded-xl mb-4 items-center shadow-md active:bg-[#85140E]"
-          onPress={handleRegister}
+          className="bg-[#A61C14] p-4 rounded-xl mb-12 items-center shadow-md active:bg-[#85140E]"
+          onPress={handleSave}
           disabled={loading}
         >
           {loading ? (
             <ActivityIndicator color="#F4ECE1" />
           ) : (
-            <Text className="text-[#F4ECE1] text-center font-bold text-lg">Sign Up</Text>
+            <Text className="text-[#F4ECE1] text-center font-bold text-lg">Save Changes</Text>
           )}
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={() => router.back()} className="mb-12 py-2">
-          <Text className="text-[#78716C] text-center text-base font-semibold">Back to Login</Text>
         </TouchableOpacity>
       </ScrollView>
 
-      {/* Address popup -- a plain in-tree overlay rather than RN's Modal,
-          which crashes in this app when combined with certain style
-          toggles (see the menu screen's order-type sheet for the same
-          fix). Top-anchored so there's maximum room above the keyboard
-          for the full suggestion list to be visible without scrolling. */}
       {addressPopupVisible && (
         <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)' }}>
           <TouchableOpacity
