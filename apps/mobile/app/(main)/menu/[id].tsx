@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Image } from 'react-native';
+import { useState, useEffect, useMemo } from 'react';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Image } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../../lib/supabase';
@@ -19,6 +19,7 @@ export default function MenuScreen() {
     cartItems.find(i => i.menuItemId === menuItemId && i.modifiers.length === 0)?.quantity || 0;
 
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const { data: menuData, isLoading } = useQuery({
     queryKey: ['menu', locationId],
@@ -41,6 +42,12 @@ export default function MenuScreen() {
     }
   }, [menuData]);
 
+  const categoryNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    menuData?.categories?.forEach(c => map.set(c.id, c.name));
+    return map;
+  }, [menuData]);
+
   if (isLoading) {
     return (
       <View className="flex-1 bg-[#FAF6F0] justify-center items-center">
@@ -49,9 +56,12 @@ export default function MenuScreen() {
     );
   }
 
-  const filteredItems = menuData?.items?.filter(item => item.category_id === activeCategory) || [];
-  const activeCategoryName = menuData?.categories?.find(c => c.id === activeCategory)?.name;
-  const isExtras = activeCategoryName === 'Extras';
+  const isSearching = searchQuery.trim().length > 0;
+  const filteredItems = isSearching
+    ? (menuData?.items?.filter(item =>
+        item.name.toLowerCase().includes(searchQuery.trim().toLowerCase())
+      ) || [])
+    : (menuData?.items?.filter(item => item.category_id === activeCategory) || []);
 
   return (
     <View className="flex-1 bg-[#FAF6F0] pt-12">
@@ -63,10 +73,22 @@ export default function MenuScreen() {
         <Text className="text-3xl font-extrabold text-[#1C1917]">Menu</Text>
       </View>
 
+      {/* Search */}
+      <View className="px-4 mb-4">
+        <TextInput
+          className="bg-white border border-stone-300 rounded-xl px-4 py-3 text-base text-[#1C1917]"
+          placeholder="Search the menu..."
+          placeholderTextColor="#A8A29E"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+      </View>
+
       {/* Horizontal Category Tabs */}
+      {!isSearching && (
       <View className="h-14 mb-4">
-        <ScrollView 
-          horizontal 
+        <ScrollView
+          horizontal
           showsHorizontalScrollIndicator={false}
           className="px-4"
         >
@@ -87,6 +109,7 @@ export default function MenuScreen() {
           ))}
         </ScrollView>
       </View>
+      )}
 
       {/* Items List */}
       <ScrollView
@@ -94,6 +117,7 @@ export default function MenuScreen() {
         contentContainerStyle={{ paddingBottom: cartItems.length > 0 ? 110 : 20 }}
       >
         {filteredItems.map(item => {
+          const isExtras = categoryNameById.get(item.category_id) === 'Extras';
           const rowContent = (
             <>
               <View className="flex-1 pr-4">
@@ -173,7 +197,9 @@ export default function MenuScreen() {
         })}
 
         {filteredItems.length === 0 && (
-          <Text className="text-center text-[#78716C] mt-10 text-base">No items in this category.</Text>
+          <Text className="text-center text-[#78716C] mt-10 text-base">
+            {isSearching ? `No items match "${searchQuery.trim()}".` : 'No items in this category.'}
+          </Text>
         )}
       </ScrollView>
 
