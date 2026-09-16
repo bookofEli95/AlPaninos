@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, TextInput, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 
 type Props = {
@@ -10,6 +10,14 @@ type Props = {
 export default function AddressAutocomplete({ defaultAddress = '', onAddressSelect, onFocus }: Props) {
   const [query, setQuery] = useState(defaultAddress);
   const [results, setResults] = useState<any[]>([]);
+
+  // defaultAddress is only used to seed the initial value with plain
+  // useState -- if it arrives later (e.g. fetched from the profile after
+  // this component already mounted with an empty value), that update
+  // needs to be picked up explicitly.
+  useEffect(() => {
+    setQuery(defaultAddress);
+  }, [defaultAddress]);
   const API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY;
 
   const searchPlaces = async (text: string) => {
