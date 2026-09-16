@@ -5,14 +5,13 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { useCartStore } from '../../store/cartStore';
-import AddressAutocomplete from '../../components/AddressAutocomplete';
 import SkeletonBox from '../../components/Skeleton';
 import { saveLocationId } from '../../lib/locationPreference';
 
 export default function Home() {
   const router = useRouter();
   const { session, setSession } = useAuthStore();
-  const { orderType, setOrderType, deliveryAddress, setDeliveryAddress } = useCartStore();
+  const { deliveryAddress, setDeliveryAddress } = useCartStore();
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -42,7 +41,7 @@ export default function Home() {
       return data;
     }
   });
-  
+
   const handleSignOut = async () => {
     await supabase.auth.signOut().catch(console.warn);
     setSession(null);
@@ -53,8 +52,8 @@ export default function Home() {
     <View className="flex-1 bg-[#FAF6F0] px-4 pt-16">
       {/* Header aligned to pt-16 mb-6 */}
       <View style={styles.headerContainer}>
-        <Text className="text-3xl font-extrabold text-[#1C1917]">Start Order</Text>
-        <TouchableOpacity 
+        <Text className="text-3xl font-extrabold text-[#1C1917]">Select a Location</Text>
+        <TouchableOpacity
           onPress={handleSignOut}
           hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
           activeOpacity={0.6}
@@ -63,32 +62,6 @@ export default function Home() {
           <Text className="text-[#A61C14] font-bold text-base">Sign Out</Text>
         </TouchableOpacity>
       </View>
-
-      {/* Pickup / Delivery Toggle */}
-      <View style={styles.toggleContainer}>
-        <TouchableOpacity 
-          onPress={() => setOrderType('pickup')}
-          style={[styles.toggleButton, orderType === 'pickup' && styles.activeButton]}
-        >
-          <Text style={[styles.toggleText, orderType === 'pickup' && styles.activeText]}>Pickup</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          onPress={() => setOrderType('delivery')}
-          style={[styles.toggleButton, orderType === 'delivery' && styles.activeButton]}
-        >
-          <Text style={[styles.toggleText, orderType === 'delivery' && styles.activeText]}>Delivery</Text>
-        </TouchableOpacity>
-      </View>
-
-      {orderType === 'delivery' && (
-        <View style={{ marginBottom: 16, zIndex: 50 }}>
-          <Text style={{ color: '#1C1917', fontWeight: 'bold', marginBottom: 8 }}>Delivering to:</Text>
-          <AddressAutocomplete 
-            defaultAddress={deliveryAddress}
-            onAddressSelect={setDeliveryAddress}
-          />
-        </View>
-      )}
 
       {isLoading ? (
         <View>
@@ -136,35 +109,5 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 8,
-  },
-  toggleContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#E7E5E4',
-    padding: 4,
-    borderRadius: 12,
-    marginBottom: 16,
-  },
-  toggleButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    backgroundColor: 'transparent',
-  },
-  activeButton: {
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  toggleText: {
-    fontWeight: 'bold',
-    fontSize: 16,
-    color: '#78716C',
-  },
-  activeText: {
-    color: '#A61C14',
   },
 });

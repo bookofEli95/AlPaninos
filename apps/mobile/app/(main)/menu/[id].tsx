@@ -1,15 +1,20 @@
 import { useState, useEffect, useMemo } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, Modal } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
+import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../../lib/supabase';
 import { useCartStore } from '../../../store/cartStore';
 import SkeletonBox from '../../../components/Skeleton';
+import AddressAutocomplete from '../../../components/AddressAutocomplete';
 
 export default function MenuScreen() {
   const { id: locationId } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+
+  const [orderTypeModalVisible, setOrderTypeModalVisible] = useState(false);
+  const { orderType, setOrderType, deliveryAddress, setDeliveryAddress } = useCartStore();
 
   const cartItems = useCartStore(state => state.items);
   const incrementSimpleItemRaw = useCartStore(state => state.incrementSimpleItem);
@@ -91,12 +96,77 @@ export default function MenuScreen() {
   return (
     <View className="flex-1 bg-[#FAF6F0] pt-12">
       {/* Header */}
-      <View className="flex-row items-center px-4 mb-4">
-        <TouchableOpacity onPress={() => router.back()} className="mr-4 py-2">
-          <Text className="text-[#A61C14] font-bold text-lg">← Back</Text>
+      <View className="flex-row items-center justify-between px-4 mb-4">
+        <View className="flex-row items-center">
+          <TouchableOpacity onPress={() => router.back()} className="mr-4 py-2">
+            <Text className="text-[#A61C14] font-bold text-lg">← Back</Text>
+          </TouchableOpacity>
+          <Text className="text-3xl font-extrabold text-[#1C1917]">Menu</Text>
+        </View>
+
+        <TouchableOpacity
+          onPress={() => setOrderTypeModalVisible(true)}
+          className="flex-row items-center bg-white border border-stone-300 rounded-full px-3 py-2"
+        >
+          <Ionicons
+            name={orderType === 'pickup' ? 'storefront-outline' : 'bicycle-outline'}
+            size={16}
+            color="#A61C14"
+          />
+          <Text className="text-[#1C1917] font-semibold text-xs ml-1.5" numberOfLines={1} style={{ maxWidth: 90 }}>
+            {orderType === 'pickup' ? 'Pickup' : (deliveryAddress || 'Delivery')}
+          </Text>
         </TouchableOpacity>
-        <Text className="text-3xl font-extrabold text-[#1C1917]">Menu</Text>
       </View>
+
+      <Modal
+        visible={orderTypeModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setOrderTypeModalVisible(false)}
+      >
+        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' }}>
+          <View className="bg-[#FAF6F0] rounded-t-3xl p-5" style={{ paddingBottom: 32 }}>
+            <Text className="text-xl font-extrabold text-[#1C1917] mb-4">Order Type</Text>
+
+            <View className="flex-row bg-[#E7E5E4] p-1 rounded-xl mb-4">
+              <TouchableOpacity
+                onPress={() => setOrderType('pickup')}
+                className={`flex-1 py-3 rounded-lg items-center ${orderType === 'pickup' ? 'bg-white shadow-sm' : ''}`}
+              >
+                <Text className={`font-bold text-base ${orderType === 'pickup' ? 'text-[#A61C14]' : 'text-[#78716C]'}`}>
+                  Pickup
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setOrderType('delivery')}
+                className={`flex-1 py-3 rounded-lg items-center ${orderType === 'delivery' ? 'bg-white shadow-sm' : ''}`}
+              >
+                <Text className={`font-bold text-base ${orderType === 'delivery' ? 'text-[#A61C14]' : 'text-[#78716C]'}`}>
+                  Delivery
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {orderType === 'delivery' && (
+              <View className="mb-4">
+                <Text className="text-[#1C1917] font-bold mb-2">Delivering to:</Text>
+                <AddressAutocomplete
+                  defaultAddress={deliveryAddress}
+                  onAddressSelect={setDeliveryAddress}
+                />
+              </View>
+            )}
+
+            <TouchableOpacity
+              onPress={() => setOrderTypeModalVisible(false)}
+              className="bg-[#A61C14] rounded-xl py-4 items-center active:bg-[#85140E]"
+            >
+              <Text className="text-[#F4ECE1] font-bold text-lg">Done</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Search */}
       <View className="px-4 mb-4">
