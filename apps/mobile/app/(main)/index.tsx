@@ -15,11 +15,15 @@ export default function Home() {
   useEffect(() => {
     const loadProfile = async () => {
       if (session?.user?.id) {
-        const { data } = await (supabase as any)
+        const { data, error } = await (supabase as any)
           .from('profiles')
           .select('address')
           .eq('id', session.user.id)
           .single();
+        if (error) {
+          console.warn('Failed to load saved address:', error.message);
+          return;
+        }
         if (data?.address && !deliveryAddress) {
           setDeliveryAddress(data.address);
         }
@@ -28,7 +32,7 @@ export default function Home() {
     loadProfile();
   }, [session]);
 
-  const { data: locations, isLoading } = useQuery({
+  const { data: locations, isLoading, error: locationsError } = useQuery({
     queryKey: ['locations'],
     queryFn: async () => {
       const { data, error } = await supabase.from('locations').select('*').order('name');
@@ -86,6 +90,11 @@ export default function Home() {
 
       {isLoading ? (
         <ActivityIndicator size="large" color="#A61C14" className="mt-10" />
+      ) : locationsError ? (
+        <View className="mt-10 items-center px-6">
+          <Text className="text-[#A61C14] font-bold text-lg mb-2">Couldn't load locations</Text>
+          <Text className="text-[#78716C] text-center">{(locationsError as Error).message}</Text>
+        </View>
       ) : (
         <FlatList
           data={locations}

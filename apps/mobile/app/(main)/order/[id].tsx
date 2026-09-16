@@ -24,7 +24,7 @@ export default function OrderDetailScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  const { data: order, isLoading } = useQuery({
+  const { data: order, isLoading, error: orderError } = useQuery({
     queryKey: ['order', id],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
@@ -82,6 +82,18 @@ export default function OrderDetailScreen() {
     return (
       <View className="flex-1 bg-white justify-center items-center">
         <ActivityIndicator size="large" color="#2563eb" />
+      </View>
+    );
+  }
+
+  if (orderError) {
+    return (
+      <View className="flex-1 bg-white justify-center items-center p-4">
+        <Text className="text-red-600 font-bold text-lg mb-2">Couldn't load this order</Text>
+        <Text className="text-gray-500 text-center mb-4">{(orderError as Error).message}</Text>
+        <TouchableOpacity onPress={() => router.back()}>
+          <Text className="text-blue-600 font-bold">Go Back</Text>
+        </TouchableOpacity>
       </View>
     );
   }

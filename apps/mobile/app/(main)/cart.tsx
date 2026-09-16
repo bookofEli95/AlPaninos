@@ -41,16 +41,15 @@ export default function CartScreen() {
       let customerPhone = guestPhone.trim();
 
       if (!isAnonymous && user) {
-        const { data: profile } = await (supabase as any)
+        const { data: profile, error: profileError } = await (supabase as any)
           .from('profiles')
           .select('first_name, last_name, phone')
           .eq('id', user.id)
           .single();
 
-        if (profile) {
-          customerName = `${profile.first_name} ${profile.last_name}`;
-          customerPhone = profile.phone;
-        }
+        if (profileError) throw profileError;
+        customerName = `${profile.first_name} ${profile.last_name}`;
+        customerPhone = profile.phone;
       }
 
       // 1. Create Order

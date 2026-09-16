@@ -19,7 +19,7 @@ export default function OrdersScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  const { data: orders, isLoading } = useQuery({
+  const { data: orders, isLoading, error } = useQuery({
     queryKey: ['orders', session?.user?.id],
     queryFn: async () => {
       if (!session?.user?.id) return [];
@@ -63,6 +63,15 @@ export default function OrdersScreen() {
     return (
       <View className="flex-1 bg-[#FAF6F0] justify-center items-center">
         <ActivityIndicator size="large" color="#A61C14" />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View className="flex-1 bg-[#FAF6F0] justify-center items-center px-6">
+        <Text className="text-[#A61C14] font-bold text-lg mb-2">Couldn't load your orders</Text>
+        <Text className="text-[#78716C] text-center">{(error as Error).message}</Text>
       </View>
     );
   }
