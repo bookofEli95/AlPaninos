@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 const DELIVERY_STEPS = [
   { key: 'received', label: 'Received' },
   { key: 'preparing', label: 'Preparing' },
-  { key: 'on the way to you', label: 'On the Way' },
+  { key: 'out_for_delivery', label: 'On the Way' },
   { key: 'completed', label: 'Delivered' },
 ];
 

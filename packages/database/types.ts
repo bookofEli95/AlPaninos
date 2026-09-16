@@ -254,6 +254,7 @@ export type Database = {
           menu_item_id: string
           order_id: string
           quantity: number
+          total_price: number
           unit_price: number
         }
         Insert: {
@@ -261,6 +262,7 @@ export type Database = {
           menu_item_id: string
           order_id: string
           quantity: number
+          total_price?: number
           unit_price: number
         }
         Update: {
@@ -268,6 +270,7 @@ export type Database = {
           menu_item_id?: string
           order_id?: string
           quantity?: number
+          total_price?: number
           unit_price?: number
         }
         Relationships: [
@@ -290,41 +293,47 @@ export type Database = {
       orders: {
         Row: {
           created_at: string
+          customer_name: string | null
+          customer_phone: string | null
           delivery_address: string | null
           delivery_fee: number | null
           id: string
           location_id: string
+          order_type: Database["public"]["Enums"]["order_type"]
           points_earned: number | null
           points_redeemed: number | null
           status: Database["public"]["Enums"]["order_status"]
           total_amount: number
-          type: Database["public"]["Enums"]["order_type"]
           user_id: string | null
         }
         Insert: {
           created_at?: string
+          customer_name?: string | null
+          customer_phone?: string | null
           delivery_address?: string | null
           delivery_fee?: number | null
           id?: string
           location_id: string
+          order_type?: Database["public"]["Enums"]["order_type"]
           points_earned?: number | null
           points_redeemed?: number | null
           status?: Database["public"]["Enums"]["order_status"]
           total_amount: number
-          type?: Database["public"]["Enums"]["order_type"]
           user_id?: string | null
         }
         Update: {
           created_at?: string
+          customer_name?: string | null
+          customer_phone?: string | null
           delivery_address?: string | null
           delivery_fee?: number | null
           id?: string
           location_id?: string
+          order_type?: Database["public"]["Enums"]["order_type"]
           points_earned?: number | null
           points_redeemed?: number | null
           status?: Database["public"]["Enums"]["order_status"]
           total_amount?: number
-          type?: Database["public"]["Enums"]["order_type"]
           user_id?: string | null
         }
         Relationships: [
@@ -339,6 +348,41 @@ export type Database = {
             foreignKeyName: "orders_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          address: string | null
+          created_at: string
+          first_name: string | null
+          id: string
+          last_name: string | null
+          phone: string | null
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          first_name?: string | null
+          id: string
+          last_name?: string | null
+          phone?: string | null
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          phone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -379,6 +423,7 @@ export type Database = {
       order_status:
         | "received"
         | "preparing"
+        | "out_for_delivery"
         | "ready"
         | "completed"
         | "cancelled"
@@ -517,6 +562,7 @@ export const Constants = {
       order_status: [
         "received",
         "preparing",
+        "out_for_delivery",
         "ready",
         "completed",
         "cancelled",

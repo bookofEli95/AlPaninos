@@ -8,7 +8,7 @@ import { useRouter } from 'expo-router';
 const STATUS_CONFIG: Record<string, { bg: string; text: string }> = {
   received: { bg: 'bg-amber-100', text: 'text-amber-800' },
   preparing: { bg: 'bg-orange-100', text: 'text-orange-800' },
-  'on the way to you': { bg: 'bg-indigo-100', text: 'text-indigo-800' },
+  out_for_delivery: { bg: 'bg-indigo-100', text: 'text-indigo-800' },
   ready: { bg: 'bg-emerald-100', text: 'text-emerald-800' },
   completed: { bg: 'bg-stone-200', text: 'text-stone-800' },
   cancelled: { bg: 'bg-red-100', text: 'text-red-800' },
