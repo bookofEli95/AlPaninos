@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, TextInput, FlatList, Text, TouchableOpacity } from 'react-native';
+import { View, TextInput, Text, TouchableOpacity } from 'react-native';
 
 type Props = {
   defaultAddress?: string;
@@ -9,7 +9,7 @@ type Props = {
 export default function AddressAutocomplete({ defaultAddress = '', onAddressSelect }: Props) {
   const [query, setQuery] = useState(defaultAddress);
   const [results, setResults] = useState<any[]>([]);
-  const API_KEY = 'AIzaSyAFzPHR7X3_eDSIVZeh3N7aDZ7KfPD1OBE';
+  const API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY;
 
   const searchPlaces = async (text: string) => {
     setQuery(text);
@@ -46,19 +46,15 @@ export default function AddressAutocomplete({ defaultAddress = '', onAddressSele
       />
       {results.length > 0 && (
         <View className="absolute top-16 left-0 right-0 bg-white shadow-xl rounded-lg border border-gray-200 z-50 max-h-60 overflow-hidden">
-          <FlatList
-            data={results}
-            keyboardShouldPersistTaps="handled"
-            keyExtractor={item => item.place_id}
-            renderItem={({ item }) => (
-              <TouchableOpacity 
-                className="p-4 border-b border-gray-100"
-                onPress={() => handleSelect(item.description)}
-              >
-                <Text className="text-gray-800 text-base">{item.description}</Text>
-              </TouchableOpacity>
-            )}
-          />
+          {results.map(item => (
+            <TouchableOpacity
+              key={item.place_id}
+              className="p-4 border-b border-gray-100"
+              onPress={() => handleSelect(item.description)}
+            >
+              <Text className="text-gray-800 text-base">{item.description}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
       )}
     </View>
