@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, StyleSheet } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
@@ -266,7 +266,8 @@ export default function MenuScreen() {
             <View className="flex-row bg-[#E7E5E4] p-1 rounded-xl mb-4">
               <TouchableOpacity
                 onPress={() => setOrderType('pickup')}
-                className={`flex-1 py-3 rounded-lg items-center ${orderType === 'pickup' ? 'bg-white shadow-sm' : ''}`}
+                className={`flex-1 py-3 rounded-lg items-center ${orderType === 'pickup' ? 'bg-white' : ''}`}
+                style={orderType === 'pickup' ? styles.activeToggleShadow : undefined}
               >
                 <Text className={`font-bold text-base ${orderType === 'pickup' ? 'text-[#A61C14]' : 'text-[#78716C]'}`}>
                   Pickup
@@ -274,7 +275,8 @@ export default function MenuScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => setOrderType('delivery')}
-                className={`flex-1 py-3 rounded-lg items-center ${orderType === 'delivery' ? 'bg-white shadow-sm' : ''}`}
+                className={`flex-1 py-3 rounded-lg items-center ${orderType === 'delivery' ? 'bg-white' : ''}`}
+                style={orderType === 'delivery' ? styles.activeToggleShadow : undefined}
               >
                 <Text className={`font-bold text-base ${orderType === 'delivery' ? 'text-[#A61C14]' : 'text-[#78716C]'}`}>
                   Delivery
@@ -320,3 +322,17 @@ export default function MenuScreen() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  // Applied conditionally via `style`, not `className` -- toggling shadow-*
+  // (or opacity-*/color-with-alpha) utility classes on and off is a known
+  // NativeWind bug that crashes with a bogus "no navigation context" error.
+  // See https://github.com/nativewind/nativewind/issues/1536
+  activeToggleShadow: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+});
