@@ -217,8 +217,8 @@ export default function ItemDetailScreen() {
   return (
     <View className="flex-1 bg-[#FAF6F0] pt-12">
       <ScrollView className="flex-1 px-4">
-        <TouchableOpacity 
-          onPress={() => router.back()} 
+        <TouchableOpacity
+          onPress={() => router.replace(`/(main)/menu/${data.location_id}`)}
           className="flex-row items-center py-4 pr-8 -ml-2 mb-2"
         >
           <Ionicons name="chevron-back" size={28} color="#A61C14" />

@@ -6,12 +6,13 @@ import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { useCartStore } from '../../store/cartStore';
 import SkeletonBox from '../../components/Skeleton';
-import { saveLocationId } from '../../lib/locationPreference';
+import { useLocationStore } from '../../store/locationStore';
 
 export default function Home() {
   const router = useRouter();
   const { session, setSession } = useAuthStore();
   const { deliveryAddress, setDeliveryAddress } = useCartStore();
+  const setLocationId = useLocationStore(state => state.setLocationId);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -82,8 +83,8 @@ export default function Home() {
           renderItem={({ item }) => (
             <TouchableOpacity
               onPress={() => {
-                saveLocationId(item.id);
-                router.push(`/(main)/menu/${item.id}`);
+                setLocationId(item.id);
+                router.replace(`/(main)/menu/${item.id}`);
               }}
               className="bg-white p-6 rounded-2xl mb-4 border border-stone-200 shadow-sm"
             >

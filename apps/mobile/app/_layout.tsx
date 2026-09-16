@@ -13,7 +13,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { supabase } from "../lib/supabase";
 import { useAuthStore } from "../store/authStore";
-import { getSavedLocationId } from "../lib/locationPreference";
+import { useLocationStore } from "../store/locationStore";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 const queryClient = new QueryClient();
@@ -111,7 +111,8 @@ export default function Layout() {
       router.replace('/(auth)/login');
     } else if (session && inAuthGroup) {
       navigationAttempted.current = true;
-      getSavedLocationId().then((savedId) => {
+      useLocationStore.getState().loadSavedLocation().then(() => {
+        const savedId = useLocationStore.getState().locationId;
         router.replace(savedId ? `/(main)/menu/${savedId}` : '/(main)');
       });
     }

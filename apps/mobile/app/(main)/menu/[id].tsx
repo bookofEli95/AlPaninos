@@ -107,12 +107,7 @@ export default function MenuScreen() {
     <View className="flex-1 bg-[#FAF6F0] pt-12">
       {/* Header */}
       <View className="flex-row items-center justify-between px-4 mb-4">
-        <View className="flex-row items-center">
-          <TouchableOpacity onPress={() => router.back()} className="mr-4 py-2">
-            <Text className="text-[#A61C14] font-bold text-lg">← Back</Text>
-          </TouchableOpacity>
-          <Text className="text-3xl font-extrabold text-[#1C1917]">Menu</Text>
-        </View>
+        <Text className="text-3xl font-extrabold text-[#1C1917]">Menu</Text>
 
         <TouchableOpacity
           onPress={() => setOrderTypeModalVisible(true)}

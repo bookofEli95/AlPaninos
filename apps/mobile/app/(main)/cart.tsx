@@ -115,7 +115,7 @@ export default function CartScreen() {
     <View className="flex-1 bg-white pt-12">
       <View className="flex-row items-center px-4 mb-4">
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={() => router.replace(locationId ? `/(main)/menu/${locationId}` : '/(main)')}
           className="flex-row items-center py-4 pr-8 -ml-2"
         >
           <Ionicons name="chevron-back" size={28} color="#dc2626" />

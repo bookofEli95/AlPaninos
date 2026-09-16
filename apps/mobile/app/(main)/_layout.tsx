@@ -1,14 +1,21 @@
+import { useEffect } from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
+import { useLocationStore } from '../../store/locationStore';
 
 export default function MainLayout() {
   const { session } = useAuthStore();
   const isAnonymous = session?.user?.is_anonymous ?? false;
+  const { locationId, isLoaded, loadSavedLocation } = useLocationStore();
+
+  useEffect(() => {
+    if (!isLoaded) loadSavedLocation();
+  }, [isLoaded]);
 
   return (
-    <Tabs 
-      screenOptions={{ 
+    <Tabs
+      screenOptions={{
         tabBarActiveTintColor: '#A61C14',
         tabBarInactiveTintColor: '#78716C',
         tabBarStyle: {
@@ -24,6 +31,14 @@ export default function MainLayout() {
           title: 'Profile',
           tabBarIcon: ({ color }) => <Ionicons name="person" size={24} color={color} />,
           href: isAnonymous ? null : undefined,
+        }}
+      />
+      <Tabs.Screen
+        name="menu/[id]"
+        options={{
+          title: 'Menu',
+          tabBarIcon: ({ color }) => <Ionicons name="restaurant" size={24} color={color} />,
+          href: locationId ? { pathname: '/(main)/menu/[id]', params: { id: locationId } } : null,
         }}
       />
       <Tabs.Screen
@@ -43,7 +58,6 @@ export default function MainLayout() {
 
       {/* Hidden screens */}
       <Tabs.Screen name="cart" options={{ href: null }} />
-      <Tabs.Screen name="menu/[id]" options={{ href: null }} />
       <Tabs.Screen name="item/[id]" options={{ href: null }} />
       <Tabs.Screen name="order/[id]" options={{ href: null }} />
     </Tabs>

@@ -98,7 +98,7 @@ export default function OrderDetailScreen() {
       <View className="flex-1 bg-white justify-center items-center p-4">
         <Text className="text-red-600 font-bold text-lg mb-2">Couldn't load this order</Text>
         <Text className="text-gray-500 text-center mb-4">{(orderError as Error).message}</Text>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.replace('/(main)/orders')}>
           <Text className="text-blue-600 font-bold">Go Back</Text>
         </TouchableOpacity>
       </View>
@@ -109,7 +109,7 @@ export default function OrderDetailScreen() {
     return (
       <View className="flex-1 bg-white justify-center items-center p-4">
         <Text className="text-gray-500 text-lg mb-4">Order not found.</Text>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.replace('/(main)/orders')}>
           <Text className="text-blue-600 font-bold">Go Back</Text>
         </TouchableOpacity>
       </View>
@@ -124,7 +124,7 @@ export default function OrderDetailScreen() {
     <View className="flex-1 bg-white pt-16 px-4">
       <View className="flex-row items-center mb-6">
         <TouchableOpacity 
-          onPress={() => router.back()} 
+          onPress={() => router.replace('/(main)/orders')} 
           className="flex-row items-center py-4 pr-8 -ml-2 mr-2"
         >
           <Ionicons name="chevron-back" size={28} color="#2563eb" />
