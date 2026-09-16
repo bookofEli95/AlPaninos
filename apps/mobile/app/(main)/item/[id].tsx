@@ -18,6 +18,16 @@ export default function ItemDetailScreen() {
   const [specialInstructions, setSpecialInstructions] = useState('');
   const [justAdded, setJustAdded] = useState(false);
 
+  // This screen is a hidden tab (see (main)/_layout.tsx), so navigating here
+  // for a different item reuses the same mounted instance rather than
+  // remounting -- reset all per-item state whenever the item id changes.
+  useEffect(() => {
+    setSelections({});
+    setQuantity(1);
+    setSpecialInstructions('');
+    setJustAdded(false);
+  }, [itemId]);
+
   const { data, isLoading, error } = useQuery({
     queryKey: ['item', itemId],
     queryFn: async () => {
