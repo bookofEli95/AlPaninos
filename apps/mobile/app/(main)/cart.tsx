@@ -113,15 +113,31 @@ export default function CartScreen() {
 
   return (
     <View className="flex-1 bg-white pt-12">
-      <View className="flex-row items-center px-4 mb-4">
-        <TouchableOpacity
-          onPress={() => router.replace(locationId ? `/(main)/menu/${locationId}` : '/(main)')}
-          className="flex-row items-center py-4 pr-8 -ml-2"
-        >
-          <Ionicons name="chevron-back" size={28} color="#dc2626" />
-          <Text className="text-red-600 font-bold text-xl">Back</Text>
-        </TouchableOpacity>
-        <Text className="text-2xl font-bold ml-2">Cart</Text>
+      <View className="flex-row items-center justify-between px-4 mb-4">
+        <View className="flex-row items-center">
+          <TouchableOpacity
+            onPress={() => router.replace(locationId ? `/(main)/menu/${locationId}` : '/(main)')}
+            className="flex-row items-center py-4 pr-8 -ml-2"
+          >
+            <Ionicons name="chevron-back" size={28} color="#dc2626" />
+            <Text className="text-red-600 font-bold text-xl">Back</Text>
+          </TouchableOpacity>
+          <Text className="text-2xl font-bold ml-2">Cart</Text>
+        </View>
+
+        {items.length > 0 && (
+          <TouchableOpacity
+            onPress={() => {
+              Alert.alert('Clear Cart', 'Remove everything from your cart?', [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Clear', style: 'destructive', onPress: clearCart },
+              ]);
+            }}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Text className="text-gray-400 font-medium text-sm">Clear</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView className="flex-1 px-4">
