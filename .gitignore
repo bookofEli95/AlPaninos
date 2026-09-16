@@ -1,0 +1,27 @@
+# dependencies
+node_modules/
+
+# expo
+.expo/
+dist/
+web-build/
+
+# native
+ios/Pods/
+ios/build/
+android/.gradle/
+android/app/build/
+*.keystore
+
+# env / secrets
+.env
+.env.*
+google-services.json
+GoogleService-Info.plist
+
+# misc
+.DS_Store
+*.log
+
+packages/database/supabase/.temp/
+packages/database/supabase/.branches/

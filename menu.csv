@@ -1,0 +1,10 @@
+category,name,description,base_price,image_filename,modifiers
+Side,Al's Tiramisu,Authentic tiramisu,10,tiramisu.jpg,
+Side,Al's Toasted Coconut Cheesecake,Toasted coconut cheesecake,10,,
+Side,Caesar Salad,Classic caesar salad with loads of parmesan reggiano and bacon,17.2,caesarsalad.jpg,
+Side,Fries,French fries,7.2,fries.jpg,
+Side,Fries N Gravy,French fries and gravy,11,,
+Side,Greek Fries,"tomato, onion, cucumber, tzatziki, burnt lemon, feta, oregano",17,greekfries.jpg,
+Side,Greek Salad,classic greek salad,16,greeksalad.jpg,
+Side,Philly Fries,"rib eye steak, cheese sauce or provolone, sauteed onion",17.8,phillyfries.jpg,
+Side,Pulled Pork Fries,"pulled pork, crispy onion, horseradish aioli, bbq sauce, cheese sauce",17.8,pulledfries.jpg,

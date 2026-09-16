@@ -1,0 +1,46 @@
+category,name,description,base_price,image_filename,modifiers
+The Mob,Alfie,"chicken cutlet, garlic parmesan sauce, bacon, parmesan, mozzarella, garlic butter focaccia - Al's Chicken Alfredo sandwich",20,,
+The Mob,Barry Goldstein,Greek Quesadillas With Gyro Meat,19.2,barryg.jpg,"[{""name"":""Options"",""is_required"":false,""min_selections"":0,""max_selections"":7,""options"":[{""name"":""No Sauce"",""price_adjustment"":0},{""name"":""No Gyro"",""price_adjustment"":0},{""name"":""No Tomato"",""price_adjustment"":0},{""name"":""No Red Onion"",""price_adjustment"":0},{""name"":""Extra Cheese"",""price_adjustment"":3.00},{""name"":""Add Bacon"",""price_adjustment"":3.00},{""name"":""Extra Gyro"",""price_adjustment"":4.00}]}]"
+The Mob,Big Al,Classic Meatball Sub,21.6,bigal.jpg,"[{""name"":""Options"",""is_required"":false,""min_selections"":0,""max_selections"":7,""options"":[{""name"":""No Pistachio Pesto"",""price_adjustment"":0},{""name"":""No Parm"",""price_adjustment"":0},{""name"":""Extra Cheese"",""price_adjustment"":3.00},{""name"":""Extra Meatball"",""price_adjustment"":4.00},{""name"":""Add Bacon"",""price_adjustment"":3.00},{""name"":""Spicy"",""price_adjustment"":0},{""name"":""Add Hot Peppers"",""price_adjustment"":2.00}]}]"
+The Mob,Castro,a classic cubano sandwich,21.6,castro.jpg,
+The Mob,Cousin Nicky,,21.6,cousinnicky.jpg,"[{""name"":""Options"",""is_required"":false,""min_selections"":0,""max_selections"":10,""options"":[{""name"":""No Sauteed Peppers"",""price_adjustment"":0},{""name"":""No Onion"",""price_adjustment"":0},{""name"":""No Mushroom"",""price_adjustment"":0},{""name"":""No Parm"",""price_adjustment"":0},{""name"":""Add Banana Peppers"",""price_adjustment"":3.00},{""name"":""Add Hot Sauce"",""price_adjustment"":2.00},{""name"":""Extra Veal"",""price_adjustment"":7.00},{""name"":""Extra Cheese"",""price_adjustment"":3.00},{""name"":""Add Bacon"",""price_adjustment"":3.00},{""name"":""Spicy"",""price_adjustment"":0}]}]"
+The Mob,Diamond Jims,"Sliced Rib Eye Topped With Cheese, Sauteed Mushroom, Sauteed Peppers and Horseradish Aioli",21.6,diamondjims.jpg,"[{""name"":""Options"",""is_required"":false,""min_selections"":0,""max_selections"":8,""options"":[{""name"":""No Onion"",""price_adjustment"":0},{""name"":""Extra Onion"",""price_adjustment"":2.00},{""name"":""Add Cheddar Cheese"",""price_adjustment"":3.00},{""name"":""Extra Beef"",""price_adjustment"":6.00},{""name"":""Add Bacon"",""price_adjustment"":3.00},{""name"":""No Peppers"",""price_adjustment"":0},{""name"":""No Mushrooms"",""price_adjustment"":0},{""name"":""No Aioli"",""price_adjustment"":0}]}]"
+The Mob,Fat Tony,Classic Chicken Parm Sandy,19.2,fattony.jpg,"[{""name"":""Options"",""is_required"":false,""min_selections"":0,""max_selections"":10,""options"":[{""name"":""No Pesto"",""price_adjustment"":0},{""name"":""No Mozzarella"",""price_adjustment"":0},{""name"":""Extra Cheese"",""price_adjustment"":3.00},{""name"":""Add Bacon"",""price_adjustment"":3.00},{""name"":""Add Balsamic Glaze"",""price_adjustment"":2.00},{""name"":""Add Basil"",""price_adjustment"":2.00},{""name"":""Sub Chicken Parm"",""price_adjustment"":0},{""name"":""Spicy"",""price_adjustment"":0},{""name"":""No Basil"",""price_adjustment"":0},{""name"":""No Balsamic Glaze"",""price_adjustment"":0}]}]"
+The Mob,Hi Bubba,"Choice of grilled chicken or smoke ham, bacon, red onion, tomato, spicy honey mustard, cheese, arugula",19.2,hibubba.jpg,"[{""name"":""Options"",""is_required"":false,""min_selections"":0,""max_selections"":9,""options"":[{""name"":""No Red Onion"",""price_adjustment"":0},{""name"":""No Romaine"",""price_adjustment"":0},{""name"":""No Tomato"",""price_adjustment"":0},{""name"":""Extra Cheese"",""price_adjustment"":3.00},{""name"":""Add Bacon"",""price_adjustment"":3.00},{""name"":""Ham"",""price_adjustment"":0},{""name"":""Grilled Chicken"",""price_adjustment"":0},{""name"":""No Arugula"",""price_adjustment"":0},{""name"":""Spicy"",""price_adjustment"":0}]}]"
+The Mob,Jimmy the Greek,"grilled chicken, bacon, tomato, shredded lettuce, shredded cheddar and topped with ranch. Stuffed in a warm pita",20,jimmythegreek.jpg,
+The Mob,Julius Caesar,"chicken cutlet, caesar salad, bacon, parmesan on a toasted focaccia",20.4,juliuscaesar.jpg,"[{""name"":""Options"",""is_required"":false,""min_selections"":0,""max_selections"":7,""options"":[{""name"":""No Bacon"",""price_adjustment"":0},{""name"":""No Parm"",""price_adjustment"":0},{""name"":""Extra Cheese"",""price_adjustment"":3.00},{""name"":""Add Bacon"",""price_adjustment"":3.00},{""name"":""Extra Parm"",""price_adjustment"":3.00},{""name"":""Sub Grilled Chicken"",""price_adjustment"":0},{""name"":""Spicy"",""price_adjustment"":0}]}]"
+The Mob,La Madrina,"thinly sliced pepper, cucumber, tomato, kalamata olive, red onion, parmesan, oregano, mozzarella, shredded iceberg",19,lamadrina.jpg,
+The Mob,Little John,rib eye / sauteed mushroom / swiss cheese / brie cheese / horseradish aioli / dusted onion / garlic butter focaccia,22.8,littlejohn.jpg,
+The Mob,Lucky Looch,Chicken Cutlet / Spicy Marinara / provolone / arugula / honey / whipped ricotta / pistashio spread,20.4,luckylooch.jpg,
+The Mob,My Cousin Vinny,chicken cutlet / roasted jalapeno cream cheese / cheese sauce,19.2,mycousinvinny.jpg,
+The Mob,NONOS with Chicken,"burnt lemon chicken, tzatziki, tomato, red onion, cucumber, feta, fries",19.2,nonoswithchicken.jpg,
+The Mob,NONOS with Gyro,"gyro, tzatziki, tomato, red onion, cucumber, feta, fries",19.2,nonoswithgyro.jpg,
+The Mob,Patty Two Times,"grilled chicken, bacon onion jam, green apple, brie, cranberry aioli, arugula, focaccia",19.2,pattytwotimes.jpg,
+The Mob,Soprano,"Cured Pepperoni, Smoked Ham, Mozzarella, Parm, Focaccia",18,soprano.jpg,
+The Mob,Spicy Spyro,"grilled chicken, pistachio pesto, roasted garlic aioli, balsamic glaze, hot sauce, goat cheese, bacon, arugula, roasted peppers",19.2,spicyspyro.jpg,
+The Mob,The Accountant,"toasted focaccia, layers of corned beef, swiss cheese, russian dressing and sauerkraut",19.2,theaccountant.jpg,
+The Mob,The Balboa,classic philly cheesesteak,21.6,thebalboa.jpg,
+The Mob,The Bambino,"spicy feta spread, burnt lemon grilled chicken, tomato, bacon, pistachio pesto, roasted garlic aioli, goat cheese",20.4,thebambino.jpg,
+The Mob,The Barber,"pistachio spread, layers of mortadella, provolone, crushed pistachio, balsamic glaze, honey, pistachio pesto, arugula, served on focaccia",20.4,thebarber.jpg,
+The Mob,The Bear,layers of rib and cheddar with horseradish and horseradish aioli served with gravy to dunk in,22.8,thebear.jpg,
+The Mob,The Butcher,"chicken cutlet, pistachio pesto, fried mortadella, roasted peppers, balsamic glaze, provolone, hot honey, served on focaccia",20.4,thebutcher.jpg,
+The Mob,The Capone,in house pulled pork / smokey bbq / roasted garlic aioli / dusted onion / horseradish aioli / garlic butter focaccia,20.4,thecapone.jpg,
+The Mob,The Chooch,"tomato, red onion, smoked ham, cucumber, panino sauce, mayo, cheese, shredded iceberg lettuce",19.2,thechooch.jpg,
+The Mob,The CLEMENZA,"brie cheese, goat cheese, swiss, cheddar, fried onion, balsamic glaze, served with marinara",19.2,theclemenza.jpg,
+The Mob,The Made Man,"meatballs, smoked ham, pepperoni, mozzarella, white onion, pizza sauce, and served with marinara on the side",20,themademan.jpg,
+The Mob,The Napolean,"smoked ham, chicken cutled, roasted garlic sauce, cheese (a cordon bleu in-between focaccia)",19.2,thenapolean.jpg,
+The Mob,The Paisano,"grilled chicken, pepperoni, provolone, marinara, parmesan. served on a toasted hoagie",20,thepaisano.jpg,
+The Mob,The Rothstein,Layers of corned beef / mustard / toasted focaccia,20.4,therothstein.jpg,
+The Mob,VIRGIN MARY,"VEGETARIAN: fried zucchini, caramelized peppers and onions, goat cheese, arugula, balsamic glaze, pistachio pesto, baba ganoush, lemon whipped ricotta",16.8,virginmary.jpg,
+Al's Wraps,Beethoven Wrap,"buffalo crispy chicken, tomato, bacon, shaved cheddar, iceberg lettuce, ranch, hot sauce",20.4,beethoven.jpg,
+Al's Wraps,The Blanco Wrap,classic chicken caesar wrap,19.2,blanco.jpg,
+Al's Wraps,Uncle Sal Wrap,"grilled chicken, pistachio pesto, balsamic glaze, goat cheese, arugula, bacon, roasted peppers and spicy spread",20.4,unclesal.jpg,
+Sides,Al's Tiramisu,Authentic tiramisu,10,tiramisu.jpg,
+Sides,Al's Toasted Coconut Cheesecake,Toasted coconut cheesecake,10,,
+Sides,Caesar Salad,Classic caesar salad with loads of parmesan reggiano and bacon,17.2,caesarsalad.jpg,
+Sides,Fries,French fries,7.2,fries.jpg,
+Sides,Fries N Gravy,French fries and gravy,11,,
+Sides,Greek Fries,"tomato, onion, cucumber, tzatziki, burnt lemon, feta, oregano",17,greekfries.jpg,
+Sides,Greek Salad,classic greek salad,16,greeksalad.jpg,
+Sides,Philly Fries,"rib eye steak, cheese sauce or provolone, sauteed onion",17.8,phillyfries.jpg,
+Sides,Pulled Pork Fries,"pulled pork, crispy onion, horseradish aioli, bbq sauce, cheese sauce",17.8,pulledfries.jpg,

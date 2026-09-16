@@ -1,0 +1,108 @@
+import { useEffect } from 'react';
+import { View, Text, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '../../lib/supabase';
+import { useAuthStore } from '../../store/authStore';
+import { useRouter } from 'expo-router';
+
+const STATUS_CONFIG: Record<string, { bg: string; text: string }> = {
+  received: { bg: 'bg-amber-100', text: 'text-amber-800' },
+  preparing: { bg: 'bg-orange-100', text: 'text-orange-800' },
+  'on the way to you': { bg: 'bg-indigo-100', text: 'text-indigo-800' },
+  ready: { bg: 'bg-emerald-100', text: 'text-emerald-800' },
+  completed: { bg: 'bg-stone-200', text: 'text-stone-800' },
+  cancelled: { bg: 'bg-red-100', text: 'text-red-800' },
+};
+
+export default function OrdersScreen() {
+  const { session } = useAuthStore();
+  const router = useRouter();
+  const queryClient = useQueryClient();
+
+  const { data: orders, isLoading } = useQuery({
+    queryKey: ['orders', session?.user?.id],
+    queryFn: async () => {
+      if (!session?.user?.id) return [];
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false });
+        
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!session?.user?.id,
+  });
+
+  useEffect(() => {
+    if (!session?.user?.id) return;
+
+    const channel = supabase
+      .channel('orders-list-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'orders',
+          filter: `user_id=eq.${session.user.id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['orders', session?.user?.id] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [session?.user?.id, queryClient]);
+
+  if (isLoading) {
+    return (
+      <View className="flex-1 bg-[#FAF6F0] justify-center items-center">
+        <ActivityIndicator size="large" color="#A61C14" />
+      </View>
+    );
+  }
+
+  return (
+    <View className="flex-1 bg-[#FAF6F0] pt-16 px-4">
+      <Text className="text-3xl font-extrabold text-[#1C1917] mb-6">Your Orders</Text>
+      
+      <FlatList
+        data={orders}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => {
+          const badge = STATUS_CONFIG[item.status] || { bg: 'bg-stone-100', text: 'text-stone-800' };
+
+          return (
+            <TouchableOpacity 
+              onPress={() => router.push(`/(main)/order/${item.id}`)}
+              className="bg-white p-5 rounded-2xl mb-4 border border-stone-200 shadow-sm"
+            >
+              <View className="flex-row justify-between items-center mb-2">
+                <Text className="font-bold text-lg text-[#1C1917]">Order #{item.id.slice(0, 8)}</Text>
+                {item.status && (
+                  <View className={`${badge.bg} px-3 py-1 rounded-full`}>
+                    <Text className={`${badge.text} font-semibold capitalize text-xs`}>{item.status}</Text>
+                  </View>
+                )}
+              </View>
+              <View className="flex-row justify-between items-center mt-2">
+                <Text className="text-[#78716C]">
+                  {new Date(item.created_at).toLocaleDateString()}
+                </Text>
+                <Text className="font-bold text-lg text-[#A61C14]">${Number(item.total_amount).toFixed(2)}</Text>
+              </View>
+            </TouchableOpacity>
+          );
+        }}
+        ListEmptyComponent={
+          <Text className="text-center text-[#78716C] mt-10 text-base">No past orders found.</Text>
+        }
+      />
+    </View>
+  );
+}

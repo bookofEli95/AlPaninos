@@ -1,0 +1,132 @@
+import { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Image } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '../../../lib/supabase';
+import { useCartStore } from '../../../store/cartStore';
+
+export default function MenuScreen() {
+  const { id: locationId } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
+
+  const cartItems = useCartStore(state => state.items);
+  const cartTotal = cartItems.reduce((sum, item) => sum + item.totalPrice, 0);
+  const cartQuantity = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+
+  const { data: menuData, isLoading } = useQuery({
+    queryKey: ['menu', locationId],
+    queryFn: async () => {
+      const [catRes, itemRes] = await Promise.all([
+        supabase.from('menu_categories').select('*').eq('location_id', locationId).order('sort_order'),
+        supabase.from('menu_items').select('*').eq('location_id', locationId).eq('is_available', true)
+      ]);
+
+      if (catRes.error) throw catRes.error;
+      if (itemRes.error) throw itemRes.error;
+
+      return { categories: catRes.data, items: itemRes.data };
+    }
+  });
+
+  useEffect(() => {
+    if (menuData?.categories?.length && !activeCategory) {
+      setActiveCategory(menuData.categories[0].id);
+    }
+  }, [menuData]);
+
+  if (isLoading) {
+    return (
+      <View className="flex-1 bg-[#FAF6F0] justify-center items-center">
+        <ActivityIndicator size="large" color="#A61C14" />
+      </View>
+    );
+  }
+
+  const filteredItems = menuData?.items?.filter(item => item.category_id === activeCategory) || [];
+
+  return (
+    <View className="flex-1 bg-[#FAF6F0] pt-12">
+      {/* Header */}
+      <View className="flex-row items-center px-4 mb-4">
+        <TouchableOpacity onPress={() => router.back()} className="mr-4 py-2">
+          <Text className="text-[#A61C14] font-bold text-lg">← Back</Text>
+        </TouchableOpacity>
+        <Text className="text-3xl font-extrabold text-[#1C1917]">Menu</Text>
+      </View>
+
+      {/* Horizontal Category Tabs */}
+      <View className="h-14 mb-4">
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          className="px-4"
+        >
+          {menuData?.categories?.map((cat) => (
+            <TouchableOpacity
+              key={cat.id}
+              onPress={() => setActiveCategory(cat.id)}
+              className={`mr-3 px-5 py-2.5 rounded-full justify-center ${
+                activeCategory === cat.id ? 'bg-[#A61C14]' : 'bg-[#E7E5E4]'
+              }`}
+            >
+              <Text className={`font-bold text-sm ${
+                activeCategory === cat.id ? 'text-[#F4ECE1]' : 'text-[#78716C]'
+              }`}>
+                {cat.name}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
+      {/* Items List */}
+      <ScrollView className="flex-1 px-4">
+        {filteredItems.map(item => (
+          <TouchableOpacity 
+            key={item.id}
+            className="flex-row justify-between items-center py-4 border-b border-stone-200"
+            onPress={() => router.push(`/(main)/item/${item.id}`)}
+          >
+            <View className="flex-1 pr-4">
+              <Text className="text-lg font-bold text-[#1C1917]">{item.name}</Text>
+              {item.description && (
+                <Text className="text-[#78716C] mt-1" numberOfLines={2}>{item.description}</Text>
+              )}
+              <Text className="text-[#A61C14] font-bold mt-2 text-base">${item.base_price.toFixed(2)}</Text>
+            </View>
+
+            {item.image_url && (
+              <Image 
+                source={{ uri: item.image_url }} 
+                className="w-24 h-24 rounded-xl bg-stone-200"
+                resizeMode="cover"
+              />
+            )}
+          </TouchableOpacity>
+        ))}
+
+        {filteredItems.length === 0 && (
+          <Text className="text-center text-[#78716C] mt-10 text-base">No items in this category.</Text>
+        )}
+      </ScrollView>
+
+      {/* Floating Cart Button */}
+      {cartItems.length > 0 && (
+        <View className="absolute bottom-8 left-4 right-4">
+          <TouchableOpacity 
+            className="bg-[#A61C14] rounded-2xl p-4 flex-row justify-between items-center shadow-lg active:bg-[#85140E]"
+            onPress={() => router.push('/(main)/cart')}
+          >
+            <View className="bg-[#85140E] rounded-full w-8 h-8 items-center justify-center">
+              <Text className="text-[#F4ECE1] font-bold">{cartQuantity}</Text>
+            </View>
+            <Text className="text-[#F4ECE1] font-bold text-lg">View Cart</Text>
+            <Text className="text-[#F4ECE1] font-bold text-lg">${cartTotal.toFixed(2)}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </View>
+  );
+}

@@ -1,0 +1,219 @@
+import { useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { supabase } from '../../lib/supabase';
+import { useCartStore, CartItem } from '../../store/cartStore';
+import { useAuthStore } from '../../store/authStore';
+
+export default function CartScreen() {
+  const router = useRouter();
+  const { items, locationId, removeItem, clearCart, orderType, deliveryAddress } = useCartStore();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { session } = useAuthStore();
+  const isAnonymous = session?.user?.is_anonymous ?? false;
+
+  const [guestFirstName, setGuestFirstName] = useState('');
+  const [guestLastName, setGuestLastName] = useState('');
+  const [guestPhone, setGuestPhone] = useState('');
+  const cartTotal = items.reduce((sum: number, item: CartItem) => sum + item.totalPrice, 0);
+
+  const handleCheckout = async () => {
+    if (!locationId || items.length === 0) return;
+    
+    if (orderType === 'delivery' && !deliveryAddress) {
+      Alert.alert('Missing Address', 'Please provide a delivery address on the Home screen before checking out.');
+      return;
+    }
+
+    if (isAnonymous && (!guestFirstName.trim() || !guestLastName.trim() || !guestPhone.trim())) {
+      Alert.alert('Missing Details', 'Please enter your name and phone number for the order.');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+
+      let customerName = `${guestFirstName.trim()} ${guestLastName.trim()}`;
+      let customerPhone = guestPhone.trim();
+
+      if (!isAnonymous && user) {
+        const { data: profile } = await (supabase as any)
+          .from('profiles')
+          .select('first_name, last_name, phone')
+          .eq('id', user.id)
+          .single();
+
+        if (profile) {
+          customerName = `${profile.first_name} ${profile.last_name}`;
+          customerPhone = profile.phone;
+        }
+      }
+
+      // 1. Create Order
+      const { data: orderData, error: orderError } = await (supabase as any)
+        .from('orders')
+        .insert({
+          location_id: locationId,
+          user_id: user?.id,
+          customer_name: customerName,
+          customer_phone: customerPhone,
+          total_amount: cartTotal,
+          status: 'received',
+          order_type: orderType,
+          delivery_address: orderType === 'delivery' ? deliveryAddress : null
+        })
+        .select('id')
+        .single();
+
+      if (orderError) throw orderError;
+
+      // 2. Insert Order Items and Modifiers
+      for (const item of items) {
+        const { data: orderItemData, error: itemError } = await (supabase as any)
+          .from('order_items')
+          .insert({
+            order_id: orderData.id,
+            menu_item_id: item.menuItemId,
+            quantity: item.quantity,
+            unit_price: item.basePrice,
+            total_price: item.totalPrice
+          })
+          .select('id')
+          .single();
+
+        if (itemError) throw itemError;
+
+        if (item.modifiers && item.modifiers.length > 0) {
+          const modsToInsert = item.modifiers.map((mod: any) => ({
+            order_item_id: orderItemData.id,
+            modifier_option_id: mod.optionId,
+            price_adjustment: mod.price
+          }));
+          
+          const { error: modError } = await (supabase as any).from('order_item_modifiers').insert(modsToInsert);
+          if (modError) throw modError;
+        }
+      }
+
+      clearCart();
+      Alert.alert('Success', 'Order placed successfully!', [
+        { text: 'OK', onPress: () => router.push(`/(main)/menu/${locationId}`) }
+      ]);
+
+    } catch (error: any) {
+      Alert.alert('Checkout Failed', error.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <View className="flex-1 bg-white pt-12">
+      <View className="flex-row items-center px-4 mb-4">
+        <TouchableOpacity
+          onPress={() => router.back()}
+          className="flex-row items-center py-4 pr-8 -ml-2"
+        >
+          <Ionicons name="chevron-back" size={28} color="#dc2626" />
+          <Text className="text-red-600 font-bold text-xl">Back</Text>
+        </TouchableOpacity>
+        <Text className="text-2xl font-bold ml-2">Cart</Text>
+      </View>
+
+      <ScrollView className="flex-1 px-4">
+        {items.map(item => (
+          <View key={item.cartItemId} className="py-4 border-b border-gray-100">
+            <View className="flex-row justify-between items-start mb-2">
+              <View className="flex-1 pr-4">
+                <Text className="text-lg font-bold">
+                  {item.quantity}x {item.name}
+                </Text>
+                {item.modifiers.map(mod => (
+                  <Text key={mod.optionId} className="text-gray-500 text-sm mt-1">
+                    + {mod.name} {mod.price > 0 ? `($${mod.price.toFixed(2)})` : ''}
+                  </Text>
+                ))}
+              </View>
+              <Text className="text-lg font-bold text-red-600">
+                ${item.totalPrice.toFixed(2)}
+              </Text>
+            </View>
+            <TouchableOpacity 
+              onPress={() => removeItem(item.cartItemId)}
+              className="self-start mt-2"
+            >
+              <Text className="text-red-500 font-bold">Remove</Text>
+            </TouchableOpacity>
+          </View>
+        ))}
+        {items.length === 0 && (
+          <Text className="text-center text-gray-500 mt-10">Your cart is empty</Text>
+        )}
+        {items.length > 0 && isAnonymous && (
+          <View className="my-4 p-4 bg-gray-50 rounded-xl border border-gray-200">
+            <Text className="text-lg font-bold mb-3 text-gray-900">Contact Details</Text>
+            
+            <View className="flex-row justify-between mb-3">
+              <TextInput
+                className="bg-white border border-gray-300 p-3 rounded-lg flex-1 mr-2 text-base"
+                placeholder="First Name"
+                value={guestFirstName}
+                onChangeText={setGuestFirstName}
+              />
+              <TextInput
+                className="bg-white border border-gray-300 p-3 rounded-lg flex-1 ml-2 text-base"
+                placeholder="Last Name"
+                value={guestLastName}
+                onChangeText={setGuestLastName}
+              />
+            </View>
+
+            <TextInput
+              className="bg-white border border-gray-300 p-3 rounded-lg text-base"
+              placeholder="Phone Number"
+              keyboardType="phone-pad"
+              value={guestPhone}
+              onChangeText={setGuestPhone}
+            />
+          </View>
+        )}
+      </ScrollView>
+
+      {items.length > 0 && (
+        <View className="p-4 border-t border-gray-200">
+          <View className="flex-row justify-between mb-2">
+            <Text className="text-lg text-gray-600">Order Type</Text>
+            <Text className="text-lg font-bold uppercase">{orderType}</Text>
+          </View>
+          {orderType === 'delivery' && (
+            <View className="mb-4">
+              <Text className="text-sm text-gray-500">Delivering to:</Text>
+              <Text className="text-md font-bold" numberOfLines={2}>{deliveryAddress}</Text>
+            </View>
+          )}
+          <View className="flex-row justify-between mb-6">
+            <Text className="text-2xl font-bold">Total</Text>
+            <Text className="text-2xl font-bold text-red-600">
+              ${cartTotal.toFixed(2)}
+            </Text>
+          </View>
+          <TouchableOpacity
+            className={`p-4 rounded-xl items-center ${isSubmitting ? 'bg-red-400' : 'bg-red-600'}`}
+            onPress={handleCheckout}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text className="text-white text-xl font-bold">Place Order</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
+    </View>
+  );
+}
