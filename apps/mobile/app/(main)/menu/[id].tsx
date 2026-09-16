@@ -10,8 +10,13 @@ export default function MenuScreen() {
   const router = useRouter();
 
   const cartItems = useCartStore(state => state.items);
+  const incrementSimpleItem = useCartStore(state => state.incrementSimpleItem);
+  const decrementSimpleItem = useCartStore(state => state.decrementSimpleItem);
   const cartTotal = cartItems.reduce((sum, item) => sum + item.totalPrice, 0);
   const cartQuantity = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+
+  const getSimpleQuantity = (menuItemId: string) =>
+    cartItems.find(i => i.menuItemId === menuItemId && i.modifiers.length === 0)?.quantity || 0;
 
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
@@ -45,6 +50,8 @@ export default function MenuScreen() {
   }
 
   const filteredItems = menuData?.items?.filter(item => item.category_id === activeCategory) || [];
+  const activeCategoryName = menuData?.categories?.find(c => c.id === activeCategory)?.name;
+  const isExtras = activeCategoryName === 'Extras';
 
   return (
     <View className="flex-1 bg-[#FAF6F0] pt-12">
@@ -86,29 +93,84 @@ export default function MenuScreen() {
         className="flex-1 px-4"
         contentContainerStyle={{ paddingBottom: cartItems.length > 0 ? 110 : 20 }}
       >
-        {filteredItems.map(item => (
-          <TouchableOpacity 
-            key={item.id}
-            className="flex-row justify-between items-center py-4 border-b border-stone-200"
-            onPress={() => router.push(`/(main)/item/${item.id}`)}
-          >
-            <View className="flex-1 pr-4">
-              <Text className="text-lg font-bold text-[#1C1917]">{item.name}</Text>
-              {item.description && (
-                <Text className="text-[#78716C] mt-1" numberOfLines={2}>{item.description}</Text>
-              )}
-              <Text className="text-[#A61C14] font-bold mt-2 text-base">${item.base_price.toFixed(2)}</Text>
-            </View>
+        {filteredItems.map(item => {
+          const rowContent = (
+            <>
+              <View className="flex-1 pr-4">
+                <Text className="text-lg font-bold text-[#1C1917]">{item.name}</Text>
+                {item.description && (
+                  <Text className="text-[#78716C] mt-1" numberOfLines={2}>{item.description}</Text>
+                )}
+                <Text className="text-[#A61C14] font-bold mt-2 text-base">${item.base_price.toFixed(2)}</Text>
+              </View>
 
-            {item.image_url && (
-              <Image 
-                source={{ uri: item.image_url }} 
-                className="w-24 h-24 rounded-xl bg-stone-200"
-                resizeMode="cover"
-              />
-            )}
-          </TouchableOpacity>
-        ))}
+              {isExtras ? (
+                (() => {
+                  const qty = getSimpleQuantity(item.id);
+                  if (qty === 0) {
+                    return (
+                      <TouchableOpacity
+                        className="bg-[#A61C14] px-4 py-2.5 rounded-xl active:bg-[#85140E]"
+                        onPress={() => incrementSimpleItem(
+                          { menuItemId: item.id, name: item.name, basePrice: item.base_price },
+                          item.location_id
+                        )}
+                      >
+                        <Text className="text-[#F4ECE1] font-bold text-sm">Add to Cart</Text>
+                      </TouchableOpacity>
+                    );
+                  }
+                  return (
+                    <View className="flex-row items-center bg-stone-100 rounded-xl p-1 border border-stone-200">
+                      <TouchableOpacity
+                        className="bg-white w-9 h-9 rounded-lg shadow-sm items-center justify-center"
+                        onPress={() => decrementSimpleItem(item.id)}
+                      >
+                        <Text className="text-lg font-bold text-[#1C1917]">-</Text>
+                      </TouchableOpacity>
+                      <Text className="px-4 text-lg font-bold text-[#1C1917]">{qty}</Text>
+                      <TouchableOpacity
+                        className="bg-white w-9 h-9 rounded-lg shadow-sm items-center justify-center"
+                        onPress={() => incrementSimpleItem(
+                          { menuItemId: item.id, name: item.name, basePrice: item.base_price },
+                          item.location_id
+                        )}
+                      >
+                        <Text className="text-lg font-bold text-[#1C1917]">+</Text>
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })()
+              ) : (
+                item.image_url && (
+                  <Image
+                    source={{ uri: item.image_url }}
+                    className="w-24 h-24 rounded-xl bg-stone-200"
+                    resizeMode="cover"
+                  />
+                )
+              )}
+            </>
+          );
+
+          if (isExtras) {
+            return (
+              <View key={item.id} className="flex-row justify-between items-center py-4 border-b border-stone-200">
+                {rowContent}
+              </View>
+            );
+          }
+
+          return (
+            <TouchableOpacity
+              key={item.id}
+              className="flex-row justify-between items-center py-4 border-b border-stone-200"
+              onPress={() => router.push(`/(main)/item/${item.id}`)}
+            >
+              {rowContent}
+            </TouchableOpacity>
+          );
+        })}
 
         {filteredItems.length === 0 && (
           <Text className="text-center text-[#78716C] mt-10 text-base">No items in this category.</Text>
