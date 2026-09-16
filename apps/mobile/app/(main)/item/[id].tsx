@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Image } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -54,6 +54,31 @@ export default function ItemDetailScreen() {
     }
   });
 
+  // Pre-check any options marked is_default (e.g. a combo's included side/drink)
+  useEffect(() => {
+    if (!data?.modifier_groups) return;
+    setSelections(prev => {
+      if (Object.keys(prev).length > 0) return prev;
+      const defaults: Record<string, string[]> = {};
+      data.modifier_groups.forEach((group: any) => {
+        const defaultIds = group.modifier_options
+          ?.filter((opt: any) => opt.is_default)
+          .map((opt: any) => opt.id) || [];
+        if (defaultIds.length > 0) defaults[group.id] = defaultIds;
+      });
+      return defaults;
+    });
+  }, [data]);
+
+  // A group nested under a parent_option_id only applies once that option is
+  // selected (e.g. "Greek Fries" toppings only show once "Greek Fries" is chosen)
+  const selectedOptionIds = useMemo(() => new Set(Object.values(selections).flat()), [selections]);
+  const visibleGroups = useMemo(() => {
+    return (data?.modifier_groups || []).filter((group: any) =>
+      !group.parent_option_id || selectedOptionIds.has(group.parent_option_id)
+    );
+  }, [data, selectedOptionIds]);
+
   const handleToggleOption = (groupId: string, optionId: string, maxSelections: number) => {
     setSelections(prev => {
       const groupSelections = prev[groupId] || [];
@@ -76,40 +101,39 @@ export default function ItemDetailScreen() {
   };
 
   const isValid = useMemo(() => {
-    if (!data?.modifier_groups) return true;
-    return data.modifier_groups.every((group: any) => {
+    return visibleGroups.every((group: any) => {
       const count = (selections[group.id] || []).length;
       return count >= group.min_selections;
     });
-  }, [data, selections]);
+  }, [visibleGroups, selections]);
 
   const calculatedPrice = useMemo(() => {
     if (!data) return 0;
     let total = data.base_price;
-    data.modifier_groups?.forEach((group: any) => {
-      const selectedOptionIds = selections[group.id] || [];
+    visibleGroups.forEach((group: any) => {
+      const groupSelectedIds = selections[group.id] || [];
       group.modifier_options?.forEach((opt: any) => {
-        if (selectedOptionIds.includes(opt.id)) {
+        if (groupSelectedIds.includes(opt.id)) {
           total += opt.price_adjustment;
         }
       });
     });
     return total * quantity;
-  }, [data, selections, quantity]);
+  }, [data, visibleGroups, selections, quantity]);
 
   const handleAddToCart = () => {
     if (!data) return;
-    
-    const modifiers = data.modifier_groups?.flatMap((group: any) => {
-      const selectedOptionIds = selections[group.id] || [];
+
+    const modifiers = visibleGroups.flatMap((group: any) => {
+      const groupSelectedIds = selections[group.id] || [];
       return group.modifier_options
-        .filter((opt: any) => selectedOptionIds.includes(opt.id))
+        .filter((opt: any) => groupSelectedIds.includes(opt.id))
         .map((opt: any) => ({
           optionId: opt.id,
           name: opt.name,
           price: opt.price_adjustment
         }));
-    }) || [];
+    });
 
     addItem({
       cartItemId: Math.random().toString(36).substr(2, 9),
@@ -172,7 +196,7 @@ export default function ItemDetailScreen() {
         {data.description && <Text className="text-[#78716C] mt-2 text-base">{data.description}</Text>}
         <Text className="text-2xl font-bold mt-2 text-[#A61C14]">${data.base_price.toFixed(2)}</Text>
 
-        {data.modifier_groups?.map((group: any) => (
+        {visibleGroups.map((group: any) => (
           <View key={group.id} className="mt-6 border-t border-stone-200 pt-4">
             <View className="flex-row justify-between items-center mb-4">
               <Text className="text-lg font-bold text-[#1C1917]">{group.name}</Text>

@@ -94,12 +94,16 @@ async function runImport() {
         continue;
       }
 
-      // Insert modifier groups & options
-      for (const group of modifiers) {
+      // Insert modifier groups & options. A group may be nested under a specific
+      // parent option (via that option's own "modifiers" array) so it only makes
+      // sense to show once that option is selected -- e.g. picking "Greek Fries"
+      // reveals a Greek-Fries-specific toppings group.
+      const insertGroup = async (group, parentOptionId) => {
         const { data: groupData, error: groupError } = await supabase
           .from('modifier_groups')
           .insert({
             menu_item_id: itemData.id,
+            parent_option_id: parentOptionId ?? null,
             name: group.name,
             is_required: Boolean(group.is_required),
             min_selections: parseInt(group.min_selections, 10) || 0,
@@ -110,24 +114,38 @@ async function runImport() {
 
         if (groupError) {
           console.error(`Failed to insert group "${group.name}" for item "${itemName}":`, groupError.message);
-          continue;
+          return;
         }
 
-        if (Array.isArray(group.options) && group.options.length > 0) {
-          const optionsPayload = group.options.map(opt => ({
-            group_id: groupData.id,
-            name: opt.name,
-            price_adjustment: parseFloat(opt.price_adjustment) || 0,
-          }));
+        if (!Array.isArray(group.options) || group.options.length === 0) return;
 
-          const { error: optError } = await supabase
+        for (const opt of group.options) {
+          const { data: optionData, error: optError } = await supabase
             .from('modifier_options')
-            .insert(optionsPayload);
+            .insert({
+              group_id: groupData.id,
+              name: opt.name,
+              price_adjustment: parseFloat(opt.price_adjustment) || 0,
+              is_default: Boolean(opt.is_default),
+            })
+            .select('id')
+            .single();
 
           if (optError) {
-            console.error(`Failed to insert options for group "${group.name}":`, optError.message);
+            console.error(`Failed to insert option "${opt.name}" for group "${group.name}":`, optError.message);
+            continue;
+          }
+
+          if (Array.isArray(opt.modifiers)) {
+            for (const childGroup of opt.modifiers) {
+              await insertGroup(childGroup, optionData.id);
+            }
           }
         }
+      };
+
+      for (const group of modifiers) {
+        await insertGroup(group, null);
       }
     }
   }

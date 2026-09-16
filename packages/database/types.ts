@@ -162,18 +162,21 @@ export type Database = {
         Row: {
           group_id: string
           id: string
+          is_default: boolean
           name: string
           price_adjustment: number | null
         }
         Insert: {
           group_id: string
           id?: string
+          is_default?: boolean
           name: string
           price_adjustment?: number | null
         }
         Update: {
           group_id?: string
           id?: string
+          is_default?: boolean
           name?: string
           price_adjustment?: number | null
         }
