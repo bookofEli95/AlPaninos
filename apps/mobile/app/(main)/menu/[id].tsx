@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, StyleSheet, Keyboard } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
@@ -14,7 +14,17 @@ export default function MenuScreen() {
   const router = useRouter();
 
   const [orderTypeModalVisible, setOrderTypeModalVisible] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const { orderType, setOrderType, deliveryAddress, setDeliveryAddress } = useCartStore();
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener('keyboardDidShow', (e) => setKeyboardHeight(e.endCoordinates.height));
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const cartItems = useCartStore(state => state.items);
   const incrementSimpleItemRaw = useCartStore(state => state.incrementSimpleItem);
@@ -260,7 +270,7 @@ export default function MenuScreen() {
             activeOpacity={1}
             onPress={() => setOrderTypeModalVisible(false)}
           />
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <View style={{ marginBottom: keyboardHeight }}>
             <View className="bg-[#FAF6F0] rounded-t-3xl p-5" style={{ paddingBottom: 32 }}>
               <Text className="text-xl font-extrabold text-[#1C1917] mb-4">Order Type</Text>
 
@@ -302,7 +312,7 @@ export default function MenuScreen() {
                 <Text className="text-[#F4ECE1] font-bold text-lg">Done</Text>
               </TouchableOpacity>
             </View>
-          </KeyboardAvoidingView>
+          </View>
         </View>
       )}
 
