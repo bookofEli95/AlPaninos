@@ -255,7 +255,24 @@ export default function MenuScreen() {
         )}
       </ScrollView>
 
-      {/* Order Type Sheet */}
+      {/* Floating Cart Button */}
+      {cartItems.length > 0 && (
+        <View className="absolute bottom-8 left-4 right-4">
+          <TouchableOpacity
+            className="bg-[#A61C14] rounded-2xl p-4 flex-row justify-between items-center shadow-lg active:bg-[#85140E]"
+            onPress={() => router.push('/(main)/cart')}
+          >
+            <View className="bg-[#85140E] rounded-full w-8 h-8 items-center justify-center">
+              <Text className="text-[#F4ECE1] font-bold">{cartQuantity}</Text>
+            </View>
+            <Text className="text-[#F4ECE1] font-bold text-lg">View Cart</Text>
+            <Text className="text-[#F4ECE1] font-bold text-lg">${cartTotal.toFixed(2)}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Order Type Sheet -- rendered after the floating cart button so it
+          paints on top of it (and its backdrop covers it) while open */}
       {orderTypeModalVisible && (
         <View
           style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' }}
@@ -308,22 +325,6 @@ export default function MenuScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
-      )}
-
-      {/* Floating Cart Button */}
-      {cartItems.length > 0 && (
-        <View className="absolute bottom-8 left-4 right-4">
-          <TouchableOpacity 
-            className="bg-[#A61C14] rounded-2xl p-4 flex-row justify-between items-center shadow-lg active:bg-[#85140E]"
-            onPress={() => router.push('/(main)/cart')}
-          >
-            <View className="bg-[#85140E] rounded-full w-8 h-8 items-center justify-center">
-              <Text className="text-[#F4ECE1] font-bold">{cartQuantity}</Text>
-            </View>
-            <Text className="text-[#F4ECE1] font-bold text-lg">View Cart</Text>
-            <Text className="text-[#F4ECE1] font-bold text-lg">${cartTotal.toFixed(2)}</Text>
-          </TouchableOpacity>
         </View>
       )}
     </View>
