@@ -1,11 +1,12 @@
-import { useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View, Text, FlatList, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { useLocationStore } from '../../store/locationStore';
 import { useRouter } from 'expo-router';
 import SkeletonBox from '../../components/Skeleton';
+import { reorderFromOrder } from '../../lib/reorder';
 
 const STATUS_CONFIG: Record<string, { bg: string; text: string }> = {
   received: { bg: 'bg-amber-100', text: 'text-amber-800' },
@@ -22,6 +23,25 @@ export default function OrdersScreen() {
   const queryClient = useQueryClient();
   const locationId = useLocationStore(state => state.locationId);
   const isAnonymous = session?.user?.is_anonymous ?? false;
+  const [reorderingId, setReorderingId] = useState<string | null>(null);
+
+  const handleReorder = async (orderId: string) => {
+    setReorderingId(orderId);
+    try {
+      const { skippedCount } = await reorderFromOrder(orderId);
+      if (skippedCount > 0) {
+        Alert.alert(
+          'Some items unavailable',
+          `${skippedCount} item(s) from this order are no longer available and were left out.`
+        );
+      }
+      router.push('/(main)/cart');
+    } catch (e: any) {
+      Alert.alert('Couldn\'t reorder', e.message);
+    } finally {
+      setReorderingId(null);
+    }
+  };
 
   // Hidden from guests' tab bar, but the route itself is still reachable
   // (e.g. an OS back gesture) -- guest order history isn't reliable enough
@@ -124,12 +144,26 @@ export default function OrdersScreen() {
                   </View>
                 )}
               </View>
-              <View className="flex-row justify-between items-center mt-2">
+              <View className="flex-row justify-between items-center mt-2 mb-3">
                 <Text className="text-[#78716C]">
                   {new Date(item.created_at).toLocaleDateString()}
                 </Text>
                 <Text className="font-bold text-lg text-[#A61C14]">${Number(item.total_amount).toFixed(2)}</Text>
               </View>
+              <TouchableOpacity
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleReorder(item.id);
+                }}
+                disabled={reorderingId === item.id}
+                className="bg-[#1C1917] py-2.5 rounded-xl items-center active:opacity-90"
+              >
+                {reorderingId === item.id ? (
+                  <ActivityIndicator size="small" color="#F4ECE1" />
+                ) : (
+                  <Text className="text-[#F4ECE1] font-bold text-sm">Reorder</Text>
+                )}
+              </TouchableOpacity>
             </TouchableOpacity>
           );
         }}
