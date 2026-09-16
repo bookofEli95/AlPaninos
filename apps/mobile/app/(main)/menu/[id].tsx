@@ -82,7 +82,10 @@ export default function MenuScreen() {
       </View>
 
       {/* Items List */}
-      <ScrollView className="flex-1 px-4">
+      <ScrollView
+        className="flex-1 px-4"
+        contentContainerStyle={{ paddingBottom: cartItems.length > 0 ? 110 : 20 }}
+      >
         {filteredItems.map(item => (
           <TouchableOpacity 
             key={item.id}
