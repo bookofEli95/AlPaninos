@@ -86,21 +86,21 @@ export default function MenuScreen() {
 
       {/* Horizontal Category Tabs */}
       {!isSearching && (
-      <View className="h-14 mb-4">
+      <View className="h-16 mb-4">
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          className="px-4"
+          contentContainerStyle={{ paddingHorizontal: 16 }}
         >
           {menuData?.categories?.map((cat) => (
             <TouchableOpacity
               key={cat.id}
               onPress={() => setActiveCategory(cat.id)}
-              className={`mr-3 px-5 py-2.5 rounded-full justify-center ${
+              className={`mr-3 px-6 py-3.5 rounded-full justify-center ${
                 activeCategory === cat.id ? 'bg-[#A61C14]' : 'bg-[#E7E5E4]'
               }`}
             >
-              <Text className={`font-bold text-sm ${
+              <Text className={`font-bold text-base ${
                 activeCategory === cat.id ? 'text-[#F4ECE1]' : 'text-[#78716C]'
               }`}>
                 {cat.name}
