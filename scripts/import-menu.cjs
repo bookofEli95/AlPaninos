@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const csv = require('csv-parser');
 const { createClient } = require('@supabase/supabase-js');
+const { insertGroup } = require('./modifier-tree.cjs');
 
 // 1. Config: Replace or ensure these environment variables exist
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://<YOUR-PROJECT-REF>.supabase.co';
@@ -98,54 +99,8 @@ async function runImport() {
       // parent option (via that option's own "modifiers" array) so it only makes
       // sense to show once that option is selected -- e.g. picking "Greek Fries"
       // reveals a Greek-Fries-specific toppings group.
-      const insertGroup = async (group, parentOptionId) => {
-        const { data: groupData, error: groupError } = await supabase
-          .from('modifier_groups')
-          .insert({
-            menu_item_id: itemData.id,
-            parent_option_id: parentOptionId ?? null,
-            name: group.name,
-            is_required: Boolean(group.is_required),
-            min_selections: parseInt(group.min_selections, 10) || 0,
-            max_selections: parseInt(group.max_selections, 10) || 1,
-          })
-          .select('id')
-          .single();
-
-        if (groupError) {
-          console.error(`Failed to insert group "${group.name}" for item "${itemName}":`, groupError.message);
-          return;
-        }
-
-        if (!Array.isArray(group.options) || group.options.length === 0) return;
-
-        for (const opt of group.options) {
-          const { data: optionData, error: optError } = await supabase
-            .from('modifier_options')
-            .insert({
-              group_id: groupData.id,
-              name: opt.name,
-              price_adjustment: parseFloat(opt.price_adjustment) || 0,
-              is_default: Boolean(opt.is_default),
-            })
-            .select('id')
-            .single();
-
-          if (optError) {
-            console.error(`Failed to insert option "${opt.name}" for group "${group.name}":`, optError.message);
-            continue;
-          }
-
-          if (Array.isArray(opt.modifiers)) {
-            for (const childGroup of opt.modifiers) {
-              await insertGroup(childGroup, optionData.id);
-            }
-          }
-        }
-      };
-
       for (const group of modifiers) {
-        await insertGroup(group, null);
+        await insertGroup(supabase, itemData.id, itemName, group, null);
       }
     }
   }
