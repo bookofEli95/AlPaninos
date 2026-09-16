@@ -71,12 +71,25 @@ export default function ItemDetailScreen() {
   }, [data]);
 
   // A group nested under a parent_option_id only applies once that option is
-  // selected (e.g. "Greek Fries" toppings only show once "Greek Fries" is chosen)
+  // selected (e.g. "Greek Fries" toppings only show once "Greek Fries" is chosen).
+  // Groups are walked depth-first so a nested group always renders directly
+  // after the option that revealed it, regardless of the order the database
+  // happens to return rows in.
   const selectedOptionIds = useMemo(() => new Set(Object.values(selections).flat()), [selections]);
   const visibleGroups = useMemo(() => {
-    return (data?.modifier_groups || []).filter((group: any) =>
-      !group.parent_option_id || selectedOptionIds.has(group.parent_option_id)
-    );
+    const allGroups = data?.modifier_groups || [];
+    const result: any[] = [];
+    const addWithChildren = (group: any) => {
+      result.push(group);
+      (group.modifier_options || []).forEach((opt: any) => {
+        if (!selectedOptionIds.has(opt.id)) return;
+        allGroups
+          .filter((g: any) => g.parent_option_id === opt.id)
+          .forEach(addWithChildren);
+      });
+    };
+    allGroups.filter((g: any) => !g.parent_option_id).forEach(addWithChildren);
+    return result;
   }, [data, selectedOptionIds]);
 
   const handleToggleOption = (groupId: string, optionId: string, maxSelections: number) => {
@@ -201,7 +214,7 @@ export default function ItemDetailScreen() {
             <View className="flex-row justify-between items-center mb-4">
               <Text className="text-lg font-bold text-[#1C1917]">{group.name}</Text>
               <Text className="text-[#78716C] text-xs font-semibold uppercase">
-                {group.is_required ? `Required (Min ${group.min_selections})` : `Optional (Max ${group.max_selections})`}
+                {group.is_required ? 'Required' : 'Optional'} (Max {group.max_selections})
               </Text>
             </View>
             
