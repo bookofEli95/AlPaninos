@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -27,11 +27,18 @@ export default function Register() {
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const router = useRouter();
+  const scrollRef = useRef<ScrollView>(null);
+  const isAddressFocusedRef = useRef(false);
 
   const strength = useMemo(() => getPasswordStrength(password), [password]);
 
   useEffect(() => {
-    const showSub = Keyboard.addListener('keyboardDidShow', (e) => setKeyboardHeight(e.endCoordinates.height));
+    const showSub = Keyboard.addListener('keyboardDidShow', (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+      if (isAddressFocusedRef.current) {
+        scrollRef.current?.scrollToEnd({ animated: true });
+      }
+    });
     const hideSub = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0));
     return () => {
       showSub.remove();
@@ -87,6 +94,7 @@ export default function Register() {
   return (
     <View className="flex-1 bg-[#FAF6F0]">
       <ScrollView
+        ref={scrollRef}
         className="flex-1 px-6 pt-12"
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -110,6 +118,7 @@ export default function Register() {
             placeholderTextColor="#A8A29E"
             value={firstName}
             onChangeText={setFirstName}
+            onFocus={() => { isAddressFocusedRef.current = false; }}
           />
           <TextInput
             className="bg-white border border-stone-300 p-4 rounded-xl flex-1 ml-2 text-base text-[#1C1917]"
@@ -117,6 +126,7 @@ export default function Register() {
             placeholderTextColor="#A8A29E"
             value={lastName}
             onChangeText={setLastName}
+            onFocus={() => { isAddressFocusedRef.current = false; }}
           />
         </View>
 
@@ -127,6 +137,7 @@ export default function Register() {
           keyboardType="phone-pad"
           value={phone}
           onChangeText={setPhone}
+          onFocus={() => { isAddressFocusedRef.current = false; }}
         />
 
         <TextInput
@@ -137,6 +148,7 @@ export default function Register() {
           keyboardType="email-address"
           value={email}
           onChangeText={setEmail}
+          onFocus={() => { isAddressFocusedRef.current = false; }}
         />
 
         <TextInput
@@ -146,6 +158,7 @@ export default function Register() {
           secureTextEntry
           value={password}
           onChangeText={setPassword}
+          onFocus={() => { isAddressFocusedRef.current = false; }}
         />
 
         {password.length > 0 && (
@@ -167,6 +180,12 @@ export default function Register() {
           <AddressAutocomplete
             defaultAddress={address}
             onAddressSelect={setAddress}
+            onFocus={() => {
+              isAddressFocusedRef.current = true;
+              // If the keyboard is already up (re-focusing the field), the
+              // keyboardDidShow handler above won't fire again -- scroll now too.
+              scrollRef.current?.scrollToEnd({ animated: true });
+            }}
           />
         </View>
 

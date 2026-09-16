@@ -4,9 +4,10 @@ import { View, TextInput, Text, TouchableOpacity, StyleSheet } from 'react-nativ
 type Props = {
   defaultAddress?: string;
   onAddressSelect: (address: string) => void;
+  onFocus?: () => void;
 };
 
-export default function AddressAutocomplete({ defaultAddress = '', onAddressSelect }: Props) {
+export default function AddressAutocomplete({ defaultAddress = '', onAddressSelect, onFocus }: Props) {
   const [query, setQuery] = useState(defaultAddress);
   const [results, setResults] = useState<any[]>([]);
   const API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY;
@@ -46,6 +47,7 @@ export default function AddressAutocomplete({ defaultAddress = '', onAddressSele
         placeholderTextColor="#9CA3AF"
         value={query}
         onChangeText={searchPlaces}
+        onFocus={onFocus}
       />
       {results.length > 0 && (
         <View style={styles.dropdown}>
