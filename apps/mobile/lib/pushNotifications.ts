@@ -1,17 +1,16 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
-import Constants, { ExecutionEnvironment } from 'expo-constants';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { supabase } from './supabase';
 
-// Expo Go (SDK 53+) throws rather than no-ops when Android remote-push APIs
-// are touched at all -- not just when fetching a token, but potentially
-// from permission/handler setup too. Everything in this module is gated on
-// this check so none of expo-notifications' native calls ever run there;
-// only a real development or production build reaches them.
-const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
-
-if (!isExpoGo) {
+// Expo Go (SDK 53+) throws real Errors -- not rejected promises we can rely
+// on a targeted try/catch for, and apparently not limited to just the token
+// call -- when its Android remote-push APIs are touched at all. Detecting
+// Expo Go up front turned out not to be reliable across SDK versions, so
+// instead every expo-notifications call below (handler registration
+// included) is inside one try/catch that swallows whatever throws.
+try {
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowAlert: true,
@@ -21,53 +20,50 @@ if (!isExpoGo) {
       shouldShowList: true,
     }),
   });
+} catch (e) {
+  console.warn('Could not set notification handler:', e);
 }
 
 // Registers this device for push and returns its Expo push token, or null
-// if this is Expo Go (needs a development build instead -- see above),
-// permission was denied, this is a simulator, or no EAS project is linked
-// yet (`eas init` writes the project ID app.json needs).
+// if this is Expo Go (needs a development build instead), permission was
+// denied, this is a simulator, or no EAS project is linked yet (`eas init`
+// writes the project ID app.json needs).
 export async function registerForPushNotificationsAsync(): Promise<string | null> {
-  if (isExpoGo) {
-    console.warn('Push notifications need a development build -- Expo Go no longer supports them.');
-    return null;
-  }
-
-  if (!Device.isDevice) {
-    console.warn('Push notifications require a physical device.');
-    return null;
-  }
-
-  const { status: existingStatus } = await Notifications.getPermissionsAsync();
-  let finalStatus = existingStatus;
-  if (existingStatus !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
-  }
-  if (finalStatus !== 'granted') {
-    console.warn('Push notification permission was not granted.');
-    return null;
-  }
-
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
-      name: 'default',
-      importance: Notifications.AndroidImportance.DEFAULT,
-      lightColor: '#A61C14',
-    });
-  }
-
-  const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
-  if (!projectId) {
-    console.warn('No EAS project linked -- run `eas init` to enable push notifications.');
-    return null;
-  }
-
   try {
+    if (!Device.isDevice) {
+      console.warn('Push notifications require a physical device.');
+      return null;
+    }
+
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    if (finalStatus !== 'granted') {
+      console.warn('Push notification permission was not granted.');
+      return null;
+    }
+
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'default',
+        importance: Notifications.AndroidImportance.DEFAULT,
+        lightColor: '#A61C14',
+      });
+    }
+
+    const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+    if (!projectId) {
+      console.warn('No EAS project linked -- run `eas init` to enable push notifications.');
+      return null;
+    }
+
     const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });
     return token;
   } catch (e) {
-    console.warn('Failed to get push token:', e);
+    console.warn('Push notification registration unavailable (expected in Expo Go):', e);
     return null;
   }
 }
