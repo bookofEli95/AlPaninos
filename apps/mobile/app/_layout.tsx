@@ -14,6 +14,7 @@ import Animated, {
 import { supabase } from "../lib/supabase";
 import { useAuthStore } from "../store/authStore";
 import { useLocationStore } from "../store/locationStore";
+import { registerForPushNotificationsAsync, savePushToken } from "../lib/pushNotifications";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 const queryClient = new QueryClient();
@@ -96,6 +97,16 @@ export default function Layout() {
       subscription.unsubscribe();
     };
   }, []);
+
+  // 2b. Push registration -- runs for guests too, since their sessions
+  // persist the same way a registered user's does (see orders.tsx).
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    (async () => {
+      const token = await registerForPushNotificationsAsync();
+      if (token) await savePushToken(token);
+    })();
+  }, [session?.user?.id]);
 
   // 3. Navigation Guard (Blocks until initial route group is resolved)
   useEffect(() => {

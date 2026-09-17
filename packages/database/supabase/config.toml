@@ -395,6 +395,11 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+# Invoked by a database trigger (on_order_status_change), not by an
+# end-user request, so there's no user JWT to verify.
+[functions.send-order-notification]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327
