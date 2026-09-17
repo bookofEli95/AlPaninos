@@ -3,7 +3,7 @@ import { View, Text, FlatList, TouchableOpacity, Alert, ActivityIndicator } from
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
-import { useRouter } from 'expo-router';
+import { useRouter, useNavigation } from 'expo-router';
 import SkeletonBox from '../../components/Skeleton';
 import { reorderFromOrder } from '../../lib/reorder';
 
@@ -19,8 +19,20 @@ const STATUS_CONFIG: Record<string, { bg: string; text: string }> = {
 export default function OrdersScreen() {
   const { session } = useAuthStore();
   const router = useRouter();
+  const navigation = useNavigation();
   const queryClient = useQueryClient();
   const [reorderingId, setReorderingId] = useState<string | null>(null);
+
+  // Tab screens stay mounted when you switch away, so a newly placed order
+  // wouldn't otherwise show up here until the realtime listener below
+  // catches it. This is a backstop for that -- refetch every time this tab
+  // is actually looked at, not just when it first mounts.
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      queryClient.invalidateQueries({ queryKey: ['orders', session?.user?.id] });
+    });
+    return unsubscribe;
+  }, [navigation, session?.user?.id, queryClient]);
 
   const handleReorder = async (orderId: string) => {
     setReorderingId(orderId);
