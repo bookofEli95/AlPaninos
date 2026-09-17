@@ -13,7 +13,13 @@ export default function CartScreen() {
   const { items, locationId, removeItem, clearCart, orderType, deliveryAddress } = useCartStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { session } = useAuthStore();
-  const isAnonymous = session?.user?.is_anonymous ?? false;
+  // Verifying email during guest checkout (below) flips the session's
+  // is_anonymous flag mid-flow, since it attaches a real email to the
+  // anonymous user -- captured once at mount so the rest of this screen
+  // keeps treating this as a guest checkout instead of switching to the
+  // registered-user path (which would look up name/phone/email from an
+  // empty profile row) partway through.
+  const [isAnonymous] = useState(() => session?.user?.is_anonymous ?? false);
 
   const [guestFirstName, setGuestFirstName] = useState('');
   const [guestLastName, setGuestLastName] = useState('');
@@ -22,6 +28,14 @@ export default function CartScreen() {
   const [notifyEmail, setNotifyEmail] = useState(true);
   const [notifySms, setNotifySms] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [sendingOtp, setSendingOtp] = useState(false);
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
+  // Tracks which exact email address was verified -- if the guest edits the
+  // field afterwards it no longer matches, so they have to re-verify.
+  const [verifiedEmail, setVerifiedEmail] = useState<string | null>(null);
+  const emailVerified = !!verifiedEmail && verifiedEmail === guestEmail.trim();
   const cartTotal = items.reduce((sum: number, item: CartItem) => sum + item.totalPrice, 0);
 
   useEffect(() => {
@@ -51,6 +65,46 @@ export default function CartScreen() {
     })();
   }, [session?.user?.id, isAnonymous]);
 
+  const handleSendCode = async () => {
+    if (!isValidEmail(guestEmail)) {
+      Alert.alert('Invalid Email', 'Please enter a valid email address first.');
+      return;
+    }
+    setSendingOtp(true);
+    try {
+      // Attaches the email to this guest's existing anonymous session and
+      // emails a 6-digit code (see the custom "email_change" template) --
+      // there's no separate password or account to create.
+      const { error } = await supabase.auth.updateUser({ email: guestEmail.trim() });
+      if (error) throw error;
+      setOtpSent(true);
+      setOtpCode('');
+    } catch (e: any) {
+      Alert.alert("Couldn't send code", e.message);
+    } finally {
+      setSendingOtp(false);
+    }
+  };
+
+  const handleVerifyCode = async () => {
+    setVerifyingOtp(true);
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        email: guestEmail.trim(),
+        token: otpCode.trim(),
+        type: 'email_change',
+      });
+      if (error) throw error;
+      setVerifiedEmail(guestEmail.trim());
+      setOtpSent(false);
+      setOtpCode('');
+    } catch (e: any) {
+      Alert.alert('Invalid Code', e.message);
+    } finally {
+      setVerifyingOtp(false);
+    }
+  };
+
   const handleCheckout = async () => {
     if (!locationId || items.length === 0) return;
     
@@ -65,6 +119,10 @@ export default function CartScreen() {
     }
     if (isAnonymous && !isValidEmail(guestEmail)) {
       Alert.alert('Invalid Email', 'Please enter a valid email address.');
+      return;
+    }
+    if (isAnonymous && !emailVerified) {
+      Alert.alert('Verify Your Email', 'Please verify your email address before placing the order.');
       return;
     }
     if (!notifyEmail && !notifySms) {
@@ -258,7 +316,59 @@ export default function CartScreen() {
               keyboardType="email-address"
               value={guestEmail}
               onChangeText={setGuestEmail}
+              editable={!emailVerified}
             />
+
+            {emailVerified ? (
+              <View className="flex-row items-center mt-3">
+                <Ionicons name="checkmark-circle" size={16} color="#16a34a" />
+                <Text className="text-green-700 font-semibold text-sm ml-1">Email verified</Text>
+              </View>
+            ) : otpSent ? (
+              <View className="mt-3">
+                <Text className="text-gray-500 text-sm mb-2">
+                  Enter the 6-digit code we emailed to {guestEmail.trim()}.
+                </Text>
+                <TextInput
+                  className="bg-white border border-gray-300 p-3 rounded-lg text-base mb-2"
+                  placeholder="6-digit code"
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  value={otpCode}
+                  onChangeText={setOtpCode}
+                />
+                <View className="flex-row items-center">
+                  <TouchableOpacity
+                    onPress={handleVerifyCode}
+                    disabled={verifyingOtp || otpCode.trim().length !== 6}
+                    className={`py-2.5 rounded-lg items-center flex-1 mr-2 ${
+                      verifyingOtp || otpCode.trim().length !== 6 ? 'bg-gray-400' : 'bg-gray-900'
+                    }`}
+                  >
+                    {verifyingOtp ? (
+                      <ActivityIndicator size="small" color="white" />
+                    ) : (
+                      <Text className="text-white font-bold text-sm">Verify</Text>
+                    )}
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={handleSendCode} disabled={sendingOtp} className="px-3 py-2.5">
+                    <Text className="text-gray-600 font-semibold text-sm">Resend</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <TouchableOpacity
+                onPress={handleSendCode}
+                disabled={sendingOtp}
+                className="bg-gray-900 py-2.5 rounded-lg items-center mt-3"
+              >
+                {sendingOtp ? (
+                  <ActivityIndicator size="small" color="white" />
+                ) : (
+                  <Text className="text-white font-bold text-sm">Send Verification Code</Text>
+                )}
+              </TouchableOpacity>
+            )}
           </View>
         )}
         {items.length > 0 && (
@@ -290,14 +400,18 @@ export default function CartScreen() {
             </Text>
           </View>
           <TouchableOpacity
-            className={`p-4 rounded-xl items-center ${isSubmitting ? 'bg-red-400' : 'bg-red-600'}`}
+            className={`p-4 rounded-xl items-center ${
+              isSubmitting || (isAnonymous && !emailVerified) ? 'bg-red-400' : 'bg-red-600'
+            }`}
             onPress={handleCheckout}
-            disabled={isSubmitting}
+            disabled={isSubmitting || (isAnonymous && !emailVerified)}
           >
             {isSubmitting ? (
               <ActivityIndicator color="white" />
             ) : (
-              <Text className="text-white text-xl font-bold">Place Order</Text>
+              <Text className="text-white text-xl font-bold">
+                {isAnonymous && !emailVerified ? 'Verify Email to Continue' : 'Place Order'}
+              </Text>
             )}
           </TouchableOpacity>
         </View>
