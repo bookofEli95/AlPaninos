@@ -48,9 +48,9 @@ export default function CartScreen() {
     };
   }, []);
 
-  // Registered users set a default notification preference on their profile
-  // (register.tsx / edit-profile.tsx) -- prefill it here so they don't have
-  // to re-pick it on every order, though they can still adjust it per order.
+  // Registered users set their notification preference once, on their
+  // profile (register.tsx / edit-profile.tsx) -- fetched here purely to
+  // carry it onto the order at insert time, not shown as a checkout step.
   useEffect(() => {
     if (isAnonymous || !session?.user?.id) return;
     (async () => {
@@ -383,7 +383,11 @@ export default function CartScreen() {
             )}
           </View>
         )}
-        {items.length > 0 && (
+        {/* Registered users already picked this at signup (editable from
+            Edit Profile) -- re-asking at checkout every time is friction for
+            a decision they already made. Guests have no profile to default
+            from, so it's asked here instead. */}
+        {items.length > 0 && isAnonymous && (
           <NotifyPreferenceToggle
             notifyEmail={notifyEmail}
             notifySms={notifySms}
