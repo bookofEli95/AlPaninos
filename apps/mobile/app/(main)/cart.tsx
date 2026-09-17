@@ -7,6 +7,7 @@ import { useCartStore, CartItem } from '../../store/cartStore';
 import { useAuthStore } from '../../store/authStore';
 import NotifyPreferenceToggle from '../../components/NotifyPreferenceToggle';
 import { isValidEmail } from '../../lib/passwordStrength';
+import { estimateReadyMinutes } from '../../lib/orderTiming';
 
 export default function CartScreen() {
   const router = useRouter();
@@ -152,6 +153,11 @@ export default function CartScreen() {
       }
 
       // 1. Create Order
+      const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
+      const estimatedReadyAt = new Date(
+        Date.now() + estimateReadyMinutes(orderType, itemCount) * 60000
+      ).toISOString();
+
       const { data: orderData, error: orderError } = await (supabase as any)
         .from('orders')
         .insert({
@@ -165,7 +171,8 @@ export default function CartScreen() {
           total_amount: cartTotal,
           status: 'received',
           order_type: orderType,
-          delivery_address: orderType === 'delivery' ? deliveryAddress : null
+          delivery_address: orderType === 'delivery' ? deliveryAddress : null,
+          estimated_ready_at: estimatedReadyAt
         })
         .select('id')
         .single();
@@ -214,17 +221,17 @@ export default function CartScreen() {
   };
 
   return (
-    <View className="flex-1 bg-white pt-12">
+    <View className="flex-1 bg-[#FAF6F0] pt-12">
       <View className="flex-row items-center justify-between px-4 mb-4">
         <View className="flex-row items-center">
           <TouchableOpacity
             onPress={() => router.replace(locationId ? `/(main)/menu/${locationId}` : '/(main)')}
             className="flex-row items-center py-4 pr-8 -ml-2"
           >
-            <Ionicons name="chevron-back" size={28} color="#dc2626" />
-            <Text className="text-red-600 font-bold text-xl">Back</Text>
+            <Ionicons name="chevron-back" size={28} color="#A61C14" />
+            <Text className="text-[#A61C14] font-bold text-xl">Back</Text>
           </TouchableOpacity>
-          <Text className="text-2xl font-bold ml-2">Cart</Text>
+          <Text className="text-2xl font-bold ml-2 text-[#1C1917]">Cart</Text>
         </View>
 
         {items.length > 0 && (
@@ -238,7 +245,7 @@ export default function CartScreen() {
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             className="px-3 py-2"
           >
-            <Text className="text-gray-500 font-bold text-base">Clear</Text>
+            <Text className="text-[#78716C] font-bold text-base">Clear</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -250,68 +257,72 @@ export default function CartScreen() {
         keyboardDismissMode="on-drag"
       >
         {items.map(item => (
-          <View key={item.cartItemId} className="py-4 border-b border-gray-100">
+          <View key={item.cartItemId} className="py-4 border-b border-stone-200">
             <View className="flex-row justify-between items-start mb-2">
               <View className="flex-1 pr-4">
-                <Text className="text-lg font-bold">
+                <Text className="text-lg font-bold text-[#1C1917]">
                   {item.quantity}x {item.name}
                 </Text>
                 {item.modifiers.map(mod => (
-                  <Text key={mod.optionId} className="text-gray-500 text-sm mt-1">
+                  <Text key={mod.optionId} className="text-[#78716C] text-sm mt-1">
                     + {mod.name} {mod.price > 0 ? `($${mod.price.toFixed(2)})` : ''}
                   </Text>
                 ))}
                 {item.specialInstructions && (
-                  <Text className="text-gray-500 text-sm mt-1 italic">
+                  <Text className="text-[#78716C] text-sm mt-1 italic">
                     Note: {item.specialInstructions}
                   </Text>
                 )}
               </View>
-              <Text className="text-lg font-bold text-red-600">
+              <Text className="text-lg font-bold text-[#A61C14]">
                 ${item.totalPrice.toFixed(2)}
               </Text>
             </View>
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={() => removeItem(item.cartItemId)}
               className="self-start mt-2"
             >
-              <Text className="text-red-500 font-bold">Remove</Text>
+              <Text className="text-[#A61C14] font-bold">Remove</Text>
             </TouchableOpacity>
           </View>
         ))}
         {items.length === 0 && (
-          <Text className="text-center text-gray-500 mt-10">Your cart is empty</Text>
+          <Text className="text-center text-[#78716C] mt-10">Your cart is empty</Text>
         )}
         {items.length > 0 && isAnonymous && (
-          <View className="my-4 p-4 bg-gray-50 rounded-xl border border-gray-200">
-            <Text className="text-lg font-bold mb-3 text-gray-900">Contact Details</Text>
-            
+          <View className="my-4 p-4 bg-white rounded-2xl border border-stone-200 shadow-sm">
+            <Text className="text-lg font-bold mb-3 text-[#1C1917]">Contact Details</Text>
+
             <View className="flex-row justify-between mb-3">
               <TextInput
-                className="bg-white border border-gray-300 p-3 rounded-lg flex-1 mr-2 text-base"
+                className="bg-white border border-stone-300 p-3 rounded-lg flex-1 mr-2 text-base text-[#1C1917]"
                 placeholder="First Name"
+                placeholderTextColor="#A8A29E"
                 value={guestFirstName}
                 onChangeText={setGuestFirstName}
               />
               <TextInput
-                className="bg-white border border-gray-300 p-3 rounded-lg flex-1 ml-2 text-base"
+                className="bg-white border border-stone-300 p-3 rounded-lg flex-1 ml-2 text-base text-[#1C1917]"
                 placeholder="Last Name"
+                placeholderTextColor="#A8A29E"
                 value={guestLastName}
                 onChangeText={setGuestLastName}
               />
             </View>
 
             <TextInput
-              className="bg-white border border-gray-300 p-3 rounded-lg text-base mb-3"
+              className="bg-white border border-stone-300 p-3 rounded-lg text-base text-[#1C1917] mb-3"
               placeholder="Phone Number"
+              placeholderTextColor="#A8A29E"
               keyboardType="phone-pad"
               value={guestPhone}
               onChangeText={setGuestPhone}
             />
 
             <TextInput
-              className="bg-white border border-gray-300 p-3 rounded-lg text-base"
+              className="bg-white border border-stone-300 p-3 rounded-lg text-base text-[#1C1917]"
               placeholder="Email"
+              placeholderTextColor="#A8A29E"
               autoCapitalize="none"
               keyboardType="email-address"
               value={guestEmail}
@@ -326,12 +337,13 @@ export default function CartScreen() {
               </View>
             ) : otpSent ? (
               <View className="mt-3">
-                <Text className="text-gray-500 text-sm mb-2">
+                <Text className="text-[#78716C] text-sm mb-2">
                   Enter the 6-digit code we emailed to {guestEmail.trim()}.
                 </Text>
                 <TextInput
-                  className="bg-white border border-gray-300 p-3 rounded-lg text-base mb-2"
+                  className="bg-white border border-stone-300 p-3 rounded-lg text-base text-[#1C1917] mb-2"
                   placeholder="6-digit code"
+                  placeholderTextColor="#A8A29E"
                   keyboardType="number-pad"
                   maxLength={6}
                   value={otpCode}
@@ -342,17 +354,17 @@ export default function CartScreen() {
                     onPress={handleVerifyCode}
                     disabled={verifyingOtp || otpCode.trim().length !== 6}
                     className={`py-2.5 rounded-lg items-center flex-1 mr-2 ${
-                      verifyingOtp || otpCode.trim().length !== 6 ? 'bg-gray-400' : 'bg-gray-900'
+                      verifyingOtp || otpCode.trim().length !== 6 ? 'bg-stone-300' : 'bg-[#1C1917]'
                     }`}
                   >
                     {verifyingOtp ? (
-                      <ActivityIndicator size="small" color="white" />
+                      <ActivityIndicator size="small" color="#F4ECE1" />
                     ) : (
-                      <Text className="text-white font-bold text-sm">Verify</Text>
+                      <Text className="text-[#F4ECE1] font-bold text-sm">Verify</Text>
                     )}
                   </TouchableOpacity>
                   <TouchableOpacity onPress={handleSendCode} disabled={sendingOtp} className="px-3 py-2.5">
-                    <Text className="text-gray-600 font-semibold text-sm">Resend</Text>
+                    <Text className="text-[#78716C] font-semibold text-sm">Resend</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -360,12 +372,12 @@ export default function CartScreen() {
               <TouchableOpacity
                 onPress={handleSendCode}
                 disabled={sendingOtp}
-                className="bg-gray-900 py-2.5 rounded-lg items-center mt-3"
+                className="bg-[#1C1917] py-2.5 rounded-lg items-center mt-3"
               >
                 {sendingOtp ? (
-                  <ActivityIndicator size="small" color="white" />
+                  <ActivityIndicator size="small" color="#F4ECE1" />
                 ) : (
-                  <Text className="text-white font-bold text-sm">Send Verification Code</Text>
+                  <Text className="text-[#F4ECE1] font-bold text-sm">Send Verification Code</Text>
                 )}
               </TouchableOpacity>
             )}
@@ -382,34 +394,34 @@ export default function CartScreen() {
       </ScrollView>
 
       {items.length > 0 && (
-        <View className="p-4 border-t border-gray-200">
+        <View className="p-4 border-t border-stone-200 bg-[#FAF6F0]">
           <View className="flex-row justify-between mb-2">
-            <Text className="text-lg text-gray-600">Order Type</Text>
-            <Text className="text-lg font-bold uppercase">{orderType}</Text>
+            <Text className="text-lg text-[#78716C]">Order Type</Text>
+            <Text className="text-lg font-bold uppercase text-[#1C1917]">{orderType}</Text>
           </View>
           {orderType === 'delivery' && (
             <View className="mb-4">
-              <Text className="text-sm text-gray-500">Delivering to:</Text>
-              <Text className="text-md font-bold" numberOfLines={2}>{deliveryAddress}</Text>
+              <Text className="text-sm text-[#78716C]">Delivering to:</Text>
+              <Text className="text-md font-bold text-[#1C1917]" numberOfLines={2}>{deliveryAddress}</Text>
             </View>
           )}
           <View className="flex-row justify-between mb-6">
-            <Text className="text-2xl font-bold">Total</Text>
-            <Text className="text-2xl font-bold text-red-600">
+            <Text className="text-2xl font-bold text-[#1C1917]">Total</Text>
+            <Text className="text-2xl font-bold text-[#A61C14]">
               ${cartTotal.toFixed(2)}
             </Text>
           </View>
           <TouchableOpacity
-            className={`p-4 rounded-xl items-center ${
-              isSubmitting || (isAnonymous && !emailVerified) ? 'bg-red-400' : 'bg-red-600'
+            className={`p-4 rounded-xl items-center shadow-md ${
+              isAnonymous && !emailVerified ? 'bg-stone-300' : 'bg-[#A61C14] active:bg-[#85140E]'
             }`}
             onPress={handleCheckout}
             disabled={isSubmitting || (isAnonymous && !emailVerified)}
           >
             {isSubmitting ? (
-              <ActivityIndicator color="white" />
+              <ActivityIndicator color="#F4ECE1" />
             ) : (
-              <Text className="text-white text-xl font-bold">
+              <Text className={`text-xl font-bold ${isAnonymous && !emailVerified ? 'text-stone-500' : 'text-[#F4ECE1]'}`}>
                 {isAnonymous && !emailVerified ? 'Verify Email to Continue' : 'Place Order'}
               </Text>
             )}

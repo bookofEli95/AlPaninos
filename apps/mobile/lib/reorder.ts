@@ -67,3 +67,63 @@ export async function reorderFromOrder(orderId: string): Promise<ReorderResult> 
 
   return { locationId: order.location_id, skippedCount };
 }
+
+export type UsualItemResult = {
+  locationId: string;
+  skipped: boolean;
+};
+
+// Adds "Your Usual" (index.tsx) to the cart, cloning the modifiers from the
+// customer's most recent order of that item rather than just the bare item --
+// closer to what "the usual" actually means.
+export async function reorderUsualItem(menuItemId: string): Promise<UsualItemResult> {
+  const { data: menuItem, error: itemError } = await supabase
+    .from('menu_items')
+    .select('id, name, base_price, location_id, is_available')
+    .eq('id', menuItemId)
+    .single();
+  if (itemError) throw itemError;
+
+  if (!menuItem.is_available) {
+    return { locationId: menuItem.location_id, skipped: true };
+  }
+
+  const { data: lastOrderItem, error: lastError } = await (supabase as any)
+    .from('order_items')
+    .select(`
+      unit_price,
+      special_instructions,
+      order_item_modifiers (
+        modifier_option_id,
+        price_adjustment,
+        modifier_options ( name )
+      ),
+      orders!inner ( created_at )
+    `)
+    .eq('menu_item_id', menuItemId)
+    .order('created_at', { ascending: false, referencedTable: 'orders' })
+    .limit(1)
+    .maybeSingle();
+  if (lastError) throw lastError;
+
+  const unitPrice = lastOrderItem?.unit_price ?? menuItem.base_price;
+  const modifiers = (lastOrderItem?.order_item_modifiers || []).map((m: any) => ({
+    optionId: m.modifier_option_id,
+    name: m.modifier_options?.name ?? '',
+    price: m.price_adjustment,
+  }));
+
+  const cartItem: CartItem = {
+    cartItemId: Math.random().toString(36).substr(2, 9),
+    menuItemId: menuItem.id,
+    name: menuItem.name,
+    basePrice: unitPrice,
+    quantity: 1,
+    modifiers,
+    totalPrice: unitPrice + modifiers.reduce((sum: number, m: any) => sum + m.price, 0),
+    specialInstructions: lastOrderItem?.special_instructions || undefined,
+  };
+
+  useCartStore.getState().addItem(cartItem, menuItem.location_id);
+  return { locationId: menuItem.location_id, skipped: false };
+}
