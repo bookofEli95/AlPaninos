@@ -1,9 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
-import { useLocationStore } from '../../store/locationStore';
 import { useRouter } from 'expo-router';
 import SkeletonBox from '../../components/Skeleton';
 import { reorderFromOrder } from '../../lib/reorder';
@@ -21,8 +20,6 @@ export default function OrdersScreen() {
   const { session } = useAuthStore();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const locationId = useLocationStore(state => state.locationId);
-  const isAnonymous = session?.user?.is_anonymous ?? false;
   const [reorderingId, setReorderingId] = useState<string | null>(null);
 
   const handleReorder = async (orderId: string) => {
@@ -42,15 +39,6 @@ export default function OrdersScreen() {
       setReorderingId(null);
     }
   };
-
-  // Hidden from guests' tab bar, but the route itself is still reachable
-  // (e.g. an OS back gesture) -- guest order history isn't reliable enough
-  // to show (tied to a throwaway anonymous session), so bounce them out.
-  useEffect(() => {
-    if (isAnonymous) {
-      router.replace(locationId ? `/(main)/menu/${locationId}` : '/(main)');
-    }
-  }, [isAnonymous]);
 
   const { data: orders, isLoading, error } = useQuery({
     queryKey: ['orders', session?.user?.id],

@@ -46,7 +46,10 @@ export default function MainLayout() {
         options={{
           title: 'Orders',
           tabBarIcon: ({ color }) => <Ionicons name="receipt" size={24} color={color} />,
-          href: isAnonymous ? null : undefined,
+          // Guest sessions are anonymous Supabase users, not throwaway --
+          // the session (and its orders) persists until they explicitly
+          // sign out via the guest-exit tab, so tracking works the same as
+          // for registered users.
         }}
       />
       <Tabs.Screen

@@ -5,6 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { useCartStore, CartItem } from '../../store/cartStore';
 import { useAuthStore } from '../../store/authStore';
+import NotifyPreferenceToggle from '../../components/NotifyPreferenceToggle';
+import { isValidEmail } from '../../lib/passwordStrength';
 
 export default function CartScreen() {
   const router = useRouter();
@@ -16,6 +18,9 @@ export default function CartScreen() {
   const [guestFirstName, setGuestFirstName] = useState('');
   const [guestLastName, setGuestLastName] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
+  const [guestEmail, setGuestEmail] = useState('');
+  const [notifyEmail, setNotifyEmail] = useState(true);
+  const [notifySms, setNotifySms] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const cartTotal = items.reduce((sum: number, item: CartItem) => sum + item.totalPrice, 0);
 
@@ -28,6 +33,24 @@ export default function CartScreen() {
     };
   }, []);
 
+  // Registered users set a default notification preference on their profile
+  // (register.tsx / edit-profile.tsx) -- prefill it here so they don't have
+  // to re-pick it on every order, though they can still adjust it per order.
+  useEffect(() => {
+    if (isAnonymous || !session?.user?.id) return;
+    (async () => {
+      const { data, error } = await (supabase as any)
+        .from('profiles')
+        .select('notify_email, notify_sms')
+        .eq('id', session.user.id)
+        .single();
+      if (!error && data) {
+        setNotifyEmail(data.notify_email ?? true);
+        setNotifySms(data.notify_sms ?? false);
+      }
+    })();
+  }, [session?.user?.id, isAnonymous]);
+
   const handleCheckout = async () => {
     if (!locationId || items.length === 0) return;
     
@@ -36,8 +59,16 @@ export default function CartScreen() {
       return;
     }
 
-    if (isAnonymous && (!guestFirstName.trim() || !guestLastName.trim() || !guestPhone.trim())) {
-      Alert.alert('Missing Details', 'Please enter your name and phone number for the order.');
+    if (isAnonymous && (!guestFirstName.trim() || !guestLastName.trim() || !guestPhone.trim() || !guestEmail.trim())) {
+      Alert.alert('Missing Details', 'Please enter your name, phone number, and email for the order.');
+      return;
+    }
+    if (isAnonymous && !isValidEmail(guestEmail)) {
+      Alert.alert('Invalid Email', 'Please enter a valid email address.');
+      return;
+    }
+    if (!notifyEmail && !notifySms) {
+      Alert.alert('Notification Preference', 'Choose at least one way to receive order updates.');
       return;
     }
 
@@ -70,6 +101,9 @@ export default function CartScreen() {
           user_id: user?.id,
           customer_name: customerName,
           customer_phone: customerPhone,
+          customer_email: isAnonymous ? guestEmail.trim() : user?.email,
+          notify_email: notifyEmail,
+          notify_sms: notifySms,
           total_amount: cartTotal,
           status: 'received',
           order_type: orderType,
@@ -110,8 +144,8 @@ export default function CartScreen() {
       }
 
       clearCart();
-      Alert.alert('Success', 'Order placed successfully!', [
-        { text: 'OK', onPress: () => router.replace(`/(main)/menu/${locationId}`) }
+      Alert.alert('Order Placed!', 'You can track its status now.', [
+        { text: 'Track Order', onPress: () => router.replace(`/(main)/order/${orderData.id}`) }
       ]);
 
     } catch (error: any) {
@@ -210,13 +244,30 @@ export default function CartScreen() {
             </View>
 
             <TextInput
-              className="bg-white border border-gray-300 p-3 rounded-lg text-base"
+              className="bg-white border border-gray-300 p-3 rounded-lg text-base mb-3"
               placeholder="Phone Number"
               keyboardType="phone-pad"
               value={guestPhone}
               onChangeText={setGuestPhone}
             />
+
+            <TextInput
+              className="bg-white border border-gray-300 p-3 rounded-lg text-base"
+              placeholder="Email"
+              autoCapitalize="none"
+              keyboardType="email-address"
+              value={guestEmail}
+              onChangeText={setGuestEmail}
+            />
           </View>
+        )}
+        {items.length > 0 && (
+          <NotifyPreferenceToggle
+            notifyEmail={notifyEmail}
+            notifySms={notifySms}
+            onChangeEmail={setNotifyEmail}
+            onChangeSms={setNotifySms}
+          />
         )}
       </ScrollView>
 

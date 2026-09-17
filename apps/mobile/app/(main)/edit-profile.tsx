@@ -17,6 +17,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import AddressAutocomplete from '../../components/AddressAutocomplete';
 import CountryPickerSheet from '../../components/CountryPickerSheet';
+import NotifyPreferenceToggle from '../../components/NotifyPreferenceToggle';
 import ErrorBanner from '../../components/ErrorBanner';
 import { Country, DEFAULT_COUNTRY, isValidPhoneForCountry, parsePhone } from '../../lib/countries';
 import { isValidEmail } from '../../lib/passwordStrength';
@@ -33,6 +34,8 @@ export default function EditProfile() {
   const [country, setCountry] = useState<Country>(DEFAULT_COUNTRY);
   const [address, setAddress] = useState('');
   const [email, setEmail] = useState(session?.user?.email || '');
+  const [notifyEmail, setNotifyEmail] = useState(true);
+  const [notifySms, setNotifySms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formReady, setFormReady] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -71,6 +74,8 @@ export default function EditProfile() {
       setCountry(parsedCountry);
       setPhone(digits);
       setAddress(profile.address || '');
+      setNotifyEmail(profile.notify_email ?? true);
+      setNotifySms(profile.notify_sms ?? false);
       setFormReady(true);
     }
   }, [profile, formReady]);
@@ -90,6 +95,10 @@ export default function EditProfile() {
       setErrorMessage(`Please enter a valid phone number for ${country.name}.`);
       return;
     }
+    if (!notifyEmail && !notifySms) {
+      setErrorMessage('Choose at least one way to receive order updates.');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -100,6 +109,8 @@ export default function EditProfile() {
           last_name: lastName.trim(),
           phone: `+${country.dialCode}${phone.trim()}`,
           address: address.trim(),
+          notify_email: notifyEmail,
+          notify_sms: notifySms,
         })
         .eq('id', userId);
       if (profileError) throw profileError;
@@ -209,6 +220,13 @@ export default function EditProfile() {
             {address || 'Enter delivery address...'}
           </Text>
         </TouchableOpacity>
+
+        <NotifyPreferenceToggle
+          notifyEmail={notifyEmail}
+          notifySms={notifySms}
+          onChangeEmail={setNotifyEmail}
+          onChangeSms={setNotifySms}
+        />
 
         <TouchableOpacity
           className="bg-[#A61C14] p-4 rounded-xl mb-12 items-center shadow-md active:bg-[#85140E]"

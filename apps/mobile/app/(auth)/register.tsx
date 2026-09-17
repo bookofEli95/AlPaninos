@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import AddressAutocomplete from '../../components/AddressAutocomplete';
 import CountryPickerSheet from '../../components/CountryPickerSheet';
+import NotifyPreferenceToggle from '../../components/NotifyPreferenceToggle';
 import ErrorBanner from '../../components/ErrorBanner';
 import { getPasswordStrength, isValidEmail } from '../../lib/passwordStrength';
 import { Country, DEFAULT_COUNTRY, isValidPhoneForCountry } from '../../lib/countries';
@@ -33,6 +34,8 @@ export default function Register() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [addressPopupVisible, setAddressPopupVisible] = useState(false);
   const [countryPickerVisible, setCountryPickerVisible] = useState(false);
+  const [notifyEmail, setNotifyEmail] = useState(true);
+  const [notifySms, setNotifySms] = useState(false);
   const router = useRouter();
 
   const strength = useMemo(() => getPasswordStrength(password), [password]);
@@ -61,6 +64,10 @@ export default function Register() {
       setErrorMessage(`Please enter a valid phone number for ${country.name}.`);
       return;
     }
+    if (!notifyEmail && !notifySms) {
+      setErrorMessage('Choose at least one way to receive order updates.');
+      return;
+    }
     if (password.length < 6) {
       setErrorMessage('Password must be at least 6 characters long.');
       return;
@@ -77,6 +84,8 @@ export default function Register() {
           last_name: lastName.trim(),
           phone: `+${country.dialCode}${phone.trim()}`,
           address: address.trim(),
+          notify_email: notifyEmail,
+          notify_sms: notifySms,
         },
       },
     });
@@ -196,6 +205,13 @@ export default function Register() {
             {address || 'Enter delivery address...'}
           </Text>
         </TouchableOpacity>
+
+        <NotifyPreferenceToggle
+          notifyEmail={notifyEmail}
+          notifySms={notifySms}
+          onChangeEmail={setNotifyEmail}
+          onChangeSms={setNotifySms}
+        />
 
         <TouchableOpacity
           className="bg-[#A61C14] p-4 rounded-xl mb-4 items-center shadow-md active:bg-[#85140E]"
