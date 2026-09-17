@@ -22,7 +22,11 @@ export default function ProfileScreen() {
 
   // Profile is hidden from guests' tab bar, but the route itself is still
   // reachable (e.g. the Android back gesture can land here regardless) --
-  // there's nothing here for a guest, so bounce them out immediately.
+  // there's nothing here for a guest, so bounce them out immediately. The
+  // redirect below only fires *after* the first render, so without this
+  // early return a guest would see a flash of an empty profile card first
+  // (no profile row worth showing, is_anonymous just hasn't been acted on
+  // yet) -- bailing out of the render entirely avoids that.
   useEffect(() => {
     if (isAnonymous) {
       router.replace(locationId ? `/(main)/menu/${locationId}` : '/(main)');
@@ -41,7 +45,7 @@ export default function ProfileScreen() {
       if (error) throw error;
       return data as ProfileData;
     },
-    enabled: !!session?.user?.id
+    enabled: !isAnonymous && !!session?.user?.id
   });
 
   const { data: orderCount } = useQuery({
@@ -54,7 +58,7 @@ export default function ProfileScreen() {
       if (error) throw error;
       return count ?? 0;
     },
-    enabled: !!session?.user?.id
+    enabled: !isAnonymous && !!session?.user?.id
   });
 
   const handleSignOut = async () => {
@@ -67,7 +71,7 @@ export default function ProfileScreen() {
     ? `${profile.first_name?.[0] ?? ''}${profile.last_name?.[0] ?? ''}`.toUpperCase()
     : (session?.user?.email?.[0] ?? '?').toUpperCase();
 
-  if (isLoading) {
+  if (isAnonymous || isLoading) {
     return (
       <View className="flex-1 bg-[#FAF6F0] justify-center items-center">
         <ActivityIndicator size="large" color="#A61C14" />

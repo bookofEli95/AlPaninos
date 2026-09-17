@@ -55,8 +55,8 @@ export default function MainLayout() {
       <Tabs.Screen
         name="guest-exit"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <Ionicons name="home-outline" size={24} color={color} />,
+          title: 'Sign Out',
+          tabBarIcon: ({ color }) => <Ionicons name="log-out-outline" size={24} color={color} />,
           href: isAnonymous ? undefined : null,
         }}
       />

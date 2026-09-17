@@ -6,8 +6,10 @@ import { supabase } from '../../lib/supabase';
 import { useCartStore, CartItem } from '../../store/cartStore';
 import { useAuthStore } from '../../store/authStore';
 import NotifyPreferenceToggle from '../../components/NotifyPreferenceToggle';
+import CountryPickerSheet from '../../components/CountryPickerSheet';
 import { isValidEmail } from '../../lib/passwordStrength';
 import { estimateReadyMinutes } from '../../lib/orderTiming';
+import { Country, DEFAULT_COUNTRY, isValidPhoneForCountry, parsePhone } from '../../lib/countries';
 
 export default function CartScreen() {
   const router = useRouter();
@@ -25,7 +27,13 @@ export default function CartScreen() {
   const [guestFirstName, setGuestFirstName] = useState('');
   const [guestLastName, setGuestLastName] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
-  const [guestEmail, setGuestEmail] = useState('');
+  const [guestCountry, setGuestCountry] = useState<Country>(DEFAULT_COUNTRY);
+  const [countryPickerVisible, setCountryPickerVisible] = useState(false);
+  // A guest's anonymous session persists across app restarts (see
+  // orders.tsx) -- if they already verified an email in a previous order
+  // this same session, Supabase already has it confirmed, so seed from
+  // that instead of making them redo the whole OTP flow every order.
+  const [guestEmail, setGuestEmail] = useState(() => session?.user?.email ?? '');
   const [notifyEmail, setNotifyEmail] = useState(true);
   const [notifySms, setNotifySms] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -35,7 +43,7 @@ export default function CartScreen() {
   const [verifyingOtp, setVerifyingOtp] = useState(false);
   // Tracks which exact email address was verified -- if the guest edits the
   // field afterwards it no longer matches, so they have to re-verify.
-  const [verifiedEmail, setVerifiedEmail] = useState<string | null>(null);
+  const [verifiedEmail, setVerifiedEmail] = useState<string | null>(() => session?.user?.email ?? null);
   const emailVerified = !!verifiedEmail && verifiedEmail === guestEmail.trim();
   const cartTotal = items.reduce((sum: number, item: CartItem) => sum + item.totalPrice, 0);
 
@@ -65,6 +73,33 @@ export default function CartScreen() {
       }
     })();
   }, [session?.user?.id, isAnonymous]);
+
+  // Guests keep the same session across orders too (see orders.tsx), so
+  // rather than making a returning guest retype everything, prefill from
+  // whatever they entered on their most recent order in this session.
+  useEffect(() => {
+    if (!isAnonymous || !session?.user?.id) return;
+    (async () => {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('customer_name, customer_phone, notify_email, notify_sms')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error || !data) return;
+
+      const [firstName, ...rest] = (data.customer_name || '').trim().split(/\s+/);
+      setGuestFirstName(firstName || '');
+      setGuestLastName(rest.join(' '));
+      setNotifyEmail(data.notify_email ?? true);
+      setNotifySms(data.notify_sms ?? false);
+
+      const { country: parsedCountry, digits } = parsePhone(data.customer_phone || '');
+      setGuestCountry(parsedCountry);
+      setGuestPhone(digits);
+    })();
+  }, [isAnonymous, session?.user?.id]);
 
   const handleSendCode = async () => {
     if (!isValidEmail(guestEmail)) {
@@ -122,6 +157,10 @@ export default function CartScreen() {
       Alert.alert('Invalid Email', 'Please enter a valid email address.');
       return;
     }
+    if (isAnonymous && !isValidPhoneForCountry(guestPhone, guestCountry)) {
+      Alert.alert('Invalid Phone', `Please enter a valid phone number for ${guestCountry.name}.`);
+      return;
+    }
     if (isAnonymous && !emailVerified) {
       Alert.alert('Verify Your Email', 'Please verify your email address before placing the order.');
       return;
@@ -138,7 +177,7 @@ export default function CartScreen() {
       if (userError) throw userError;
 
       let customerName = `${guestFirstName.trim()} ${guestLastName.trim()}`;
-      let customerPhone = guestPhone.trim();
+      let customerPhone = `+${guestCountry.dialCode}${guestPhone.trim()}`;
 
       if (!isAnonymous && user) {
         const { data: profile, error: profileError } = await (supabase as any)
@@ -310,14 +349,24 @@ export default function CartScreen() {
               />
             </View>
 
-            <TextInput
-              className="bg-white border border-stone-300 p-3 rounded-lg text-base text-[#1C1917] mb-3"
-              placeholder="Phone Number"
-              placeholderTextColor="#A8A29E"
-              keyboardType="phone-pad"
-              value={guestPhone}
-              onChangeText={setGuestPhone}
-            />
+            <View className="flex-row mb-3">
+              <TouchableOpacity
+                onPress={() => setCountryPickerVisible(true)}
+                className="flex-row items-center bg-white border border-stone-300 rounded-lg px-3 mr-2"
+              >
+                <Text className="text-base mr-1">{guestCountry.flag}</Text>
+                <Text className="text-base font-semibold text-[#1C1917] mr-1">+{guestCountry.dialCode}</Text>
+                <Ionicons name="chevron-down" size={14} color="#A8A29E" />
+              </TouchableOpacity>
+              <TextInput
+                className="bg-white border border-stone-300 p-3 rounded-lg flex-1 text-base text-[#1C1917]"
+                placeholder="Phone Number"
+                placeholderTextColor="#A8A29E"
+                keyboardType="phone-pad"
+                value={guestPhone}
+                onChangeText={(text) => setGuestPhone(text.replace(/[^0-9]/g, ''))}
+              />
+            </View>
 
             <TextInput
               className="bg-white border border-stone-300 p-3 rounded-lg text-base text-[#1C1917]"
@@ -432,6 +481,16 @@ export default function CartScreen() {
           </TouchableOpacity>
         </View>
       )}
+
+      <CountryPickerSheet
+        visible={countryPickerVisible}
+        onClose={() => setCountryPickerVisible(false)}
+        onSelect={(selected) => {
+          setGuestCountry(selected);
+          setCountryPickerVisible(false);
+        }}
+        keyboardHeight={keyboardHeight}
+      />
     </View>
   );
 }

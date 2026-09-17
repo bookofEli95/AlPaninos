@@ -15,6 +15,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
+import { useLocationStore } from '../../store/locationStore';
 import AddressAutocomplete from '../../components/AddressAutocomplete';
 import CountryPickerSheet from '../../components/CountryPickerSheet';
 import NotifyPreferenceToggle from '../../components/NotifyPreferenceToggle';
@@ -27,6 +28,18 @@ export default function EditProfile() {
   const queryClient = useQueryClient();
   const { session } = useAuthStore();
   const userId = session?.user?.id;
+  const isAnonymous = session?.user?.is_anonymous ?? false;
+  const locationId = useLocationStore(state => state.locationId);
+
+  // Reachable via the Profile screen's Edit button, but that screen itself
+  // bounces guests away -- still guard this route directly too, since a
+  // guest could otherwise reach it via a back gesture or stale navigation
+  // state. There's no profile row worth editing for a guest.
+  useEffect(() => {
+    if (isAnonymous) {
+      router.replace(locationId ? `/(main)/menu/${locationId}` : '/(main)');
+    }
+  }, [isAnonymous]);
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -63,7 +76,7 @@ export default function EditProfile() {
       if (error) throw error;
       return data;
     },
-    enabled: !!userId,
+    enabled: !isAnonymous && !!userId,
   });
 
   useEffect(() => {
@@ -137,7 +150,7 @@ export default function EditProfile() {
     }
   };
 
-  if (isLoading || !formReady) {
+  if (isAnonymous || isLoading || !formReady) {
     return (
       <View className="flex-1 bg-[#FAF6F0] justify-center items-center">
         <ActivityIndicator size="large" color="#A61C14" />
