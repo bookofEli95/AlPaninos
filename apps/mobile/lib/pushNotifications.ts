@@ -1,27 +1,18 @@
-import * as Notifications from 'expo-notifications';
-import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { supabase } from './supabase';
 
-// Expo Go (SDK 53+) throws real Errors -- not rejected promises we can rely
-// on a targeted try/catch for, and apparently not limited to just the token
-// call -- when its Android remote-push APIs are touched at all. Detecting
-// Expo Go up front turned out not to be reliable across SDK versions, so
-// instead every expo-notifications call below (handler registration
-// included) is inside one try/catch that swallows whatever throws.
-try {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: false,
-      shouldShowBanner: true,
-      shouldShowList: true,
-    }),
-  });
-} catch (e) {
-  console.warn('Could not set notification handler:', e);
+// Two earlier attempts wrapped calls into expo-notifications (and then the
+// whole function body) in try/catch and the crash was identical either way.
+// That only makes sense if the throw happens at module-evaluation time --
+// i.e. from the `import * as Notifications from 'expo-notifications'`
+// statement itself -- since a static import is hoisted and runs before any
+// try/catch in the file even exists, so neither fix could ever have caught
+// it. Fix: never even load the module while running in Expo Go, using a
+// deferred require() (a real function call, unlike import) inside a
+// try/catch, gated by an explicit Expo Go check as a first line of defense.
+function isExpoGo(): boolean {
+  return Constants.appOwnership === 'expo' || Constants.executionEnvironment === 'storeClient';
 }
 
 // Registers this device for push and returns its Expo push token, or null
@@ -29,7 +20,27 @@ try {
 // denied, this is a simulator, or no EAS project is linked yet (`eas init`
 // writes the project ID app.json needs).
 export async function registerForPushNotificationsAsync(): Promise<string | null> {
+  if (isExpoGo()) {
+    console.warn('Push notifications need a development build -- Expo Go no longer supports them.');
+    return null;
+  }
+
   try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const Notifications = require('expo-notifications');
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const Device = require('expo-device');
+
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+
     if (!Device.isDevice) {
       console.warn('Push notifications require a physical device.');
       return null;
@@ -63,7 +74,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
     const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });
     return token;
   } catch (e) {
-    console.warn('Push notification registration unavailable (expected in Expo Go):', e);
+    console.warn('Push notification registration unavailable:', e);
     return null;
   }
 }
