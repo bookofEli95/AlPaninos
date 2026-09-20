@@ -38,7 +38,7 @@ export default function CustomerSupportScreen() {
   return (
     <View className="flex-1 bg-[#FAF6F0] pt-16 px-4">
       <View className="flex-row items-center mb-6">
-        <TouchableOpacity onPress={() => router.back()} className="flex-row items-center py-4 pr-8 -ml-2">
+        <TouchableOpacity onPress={() => router.replace('/(main)/more')} className="flex-row items-center py-4 pr-8 -ml-2">
           <Ionicons name="chevron-back" size={28} color="#A61C14" />
           <Text className="text-[#A61C14] font-bold text-xl">Back</Text>
         </TouchableOpacity>

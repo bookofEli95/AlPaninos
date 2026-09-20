@@ -1,14 +1,19 @@
-import { View, Text, TouchableOpacity, FlatList } from 'react-native';
+import { useRef, useState } from 'react';
+import { View, Text, TouchableOpacity, FlatList, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { useLocationStore } from '../../store/locationStore';
+import { usePromoStore } from '../../store/promoStore';
 import SkeletonBox from '../../components/Skeleton';
 
 export default function DealsScreen() {
   const router = useRouter();
   const locationId = useLocationStore(state => state.locationId);
+  const { appliedPromo, setAppliedPromo } = usePromoStore();
+  const [toast, setToast] = useState<string | null>(null);
+  const toastOpacity = useRef(new Animated.Value(0)).current;
 
   const { data: promotions, isLoading, error } = useQuery({
     queryKey: ['promotions', locationId, 'all'],
@@ -24,6 +29,31 @@ export default function DealsScreen() {
     },
     enabled: !!locationId,
   });
+
+  const showToast = (message: string) => {
+    setToast(message);
+    Animated.sequence([
+      Animated.timing(toastOpacity, { toValue: 1, duration: 150, useNativeDriver: true }),
+      Animated.delay(1500),
+      Animated.timing(toastOpacity, { toValue: 0, duration: 200, useNativeDriver: true }),
+    ]).start(() => setToast(null));
+  };
+
+  const handleTogglePromo = (item: any) => {
+    if (!item.code) return;
+    if (appliedPromo?.code === item.code) {
+      setAppliedPromo(null);
+      showToast('Promo removed');
+      return;
+    }
+    setAppliedPromo({
+      code: item.code,
+      title: item.title,
+      discountPercent: Number(item.discount_percent) || 0,
+      categoryId: item.category_id,
+    });
+    showToast('Promo applied');
+  };
 
   return (
     <View className="flex-1 bg-[#FAF6F0] pt-16 px-4">
@@ -53,23 +83,64 @@ export default function DealsScreen() {
         <FlatList
           data={promotions}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <View className="bg-white rounded-2xl border border-stone-200 shadow-sm p-5 mb-4">
-              <Text className="text-lg font-bold text-[#1C1917] mb-1">{item.title}</Text>
-              {item.description && (
-                <Text className="text-[#78716C] mb-3">{item.description}</Text>
-              )}
-              {item.code && (
-                <View className="self-start bg-[#FAF6F0] border border-stone-300 rounded-lg px-3 py-1.5">
-                  <Text className="text-[#A61C14] font-bold tracking-wider">CODE: {item.code}</Text>
+          renderItem={({ item }) => {
+            const isApplied = !!item.code && appliedPromo?.code === item.code;
+            const card = (
+              <View
+                className={`bg-white rounded-2xl border shadow-sm p-5 mb-4 ${
+                  isApplied ? 'border-[#A61C14]' : 'border-stone-200'
+                }`}
+              >
+                <View className="flex-row items-center justify-between mb-1">
+                  <Text className="text-lg font-bold text-[#1C1917] flex-1 mr-2">{item.title}</Text>
+                  {isApplied && <Ionicons name="checkmark-circle" size={22} color="#A61C14" />}
                 </View>
-              )}
-            </View>
-          )}
+                {item.description && (
+                  <Text className="text-[#78716C] mb-3">{item.description}</Text>
+                )}
+                {item.code && (
+                  <View
+                    className={`self-start rounded-lg px-3 py-1.5 border ${
+                      isApplied ? 'bg-[#A61C14] border-[#A61C14]' : 'bg-[#FAF6F0] border-stone-300'
+                    }`}
+                  >
+                    <Text className={`font-bold tracking-wider ${isApplied ? 'text-[#F4ECE1]' : 'text-[#A61C14]'}`}>
+                      {isApplied ? 'APPLIED -- TAP TO REMOVE' : `CODE: ${item.code}`}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            );
+
+            return item.code ? (
+              <TouchableOpacity onPress={() => handleTogglePromo(item)} activeOpacity={0.8}>
+                {card}
+              </TouchableOpacity>
+            ) : (
+              card
+            );
+          }}
           ListEmptyComponent={
             <Text className="text-center text-[#78716C] mt-10 text-base">No deals right now -- check back soon!</Text>
           }
         />
+      )}
+
+      {toast && (
+        <Animated.View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            bottom: 40,
+            left: 24,
+            right: 24,
+            opacity: toastOpacity,
+          }}
+        >
+          <View className="bg-[#1C1917] rounded-full py-3 px-5 items-center">
+            <Text className="text-[#F4ECE1] font-bold">{toast}</Text>
+          </View>
+        </Animated.View>
       )}
     </View>
   );

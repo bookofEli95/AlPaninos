@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { useCartStore, CartItem } from '../../store/cartStore';
 import { useAuthStore } from '../../store/authStore';
+import { usePromoStore } from '../../store/promoStore';
 import NotifyPreferenceToggle from '../../components/NotifyPreferenceToggle';
 import CountryPickerSheet from '../../components/CountryPickerSheet';
 import { isValidEmail } from '../../lib/passwordStrength';
@@ -48,19 +49,29 @@ export default function CartScreen() {
   const [taxRate, setTaxRate] = useState(0.13);
   const [promoCode, setPromoCode] = useState('');
   const [applyingPromo, setApplyingPromo] = useState(false);
-  const [appliedPromo, setAppliedPromo] = useState<{
-    code: string;
-    title: string;
-    discountPercent: number;
-    categoryId: string | null;
-  } | null>(null);
-  // Category per menu item for this location, fetched once a promo code is
-  // applied -- lets the discount keep applying correctly if the cart
-  // changes afterward (an item removed, or another qualifying item added),
-  // rather than freezing the discount amount at the moment of applying.
+  // Shared with the Deals screen -- applying a code there shows up applied
+  // here too, and vice versa.
+  const { appliedPromo, setAppliedPromo } = usePromoStore();
+  // Category per menu item for this location -- fetched whenever a
+  // category-scoped promo is applied, regardless of whether it was applied
+  // here or from the Deals screen, so the discount is never stuck at $0
+  // just because this screen didn't do the fetching itself.
   const [menuItemCategoryMap, setMenuItemCategoryMap] = useState<Record<string, string>>({});
 
   const cartTotal = items.reduce((sum: number, item: CartItem) => sum + item.totalPrice, 0);
+
+  useEffect(() => {
+    if (!appliedPromo?.categoryId || !locationId) return;
+    (async () => {
+      const { data, error } = await supabase
+        .from('menu_items')
+        .select('id, category_id')
+        .eq('location_id', locationId);
+      if (!error && data) {
+        setMenuItemCategoryMap(Object.fromEntries(data.map((m: any) => [m.id, m.category_id])));
+      }
+    })();
+  }, [appliedPromo?.categoryId, locationId]);
 
   const discountAmount = useMemo(() => {
     if (!appliedPromo) return 0;
