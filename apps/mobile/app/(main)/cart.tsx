@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Keyboard } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -46,9 +46,34 @@ export default function CartScreen() {
   const [verifiedEmail, setVerifiedEmail] = useState<string | null>(() => session?.user?.email ?? null);
   const emailVerified = !!verifiedEmail && verifiedEmail === guestEmail.trim();
   const [taxRate, setTaxRate] = useState(0.13);
+  const [promoCode, setPromoCode] = useState('');
+  const [applyingPromo, setApplyingPromo] = useState(false);
+  const [appliedPromo, setAppliedPromo] = useState<{
+    code: string;
+    title: string;
+    discountPercent: number;
+    categoryId: string | null;
+  } | null>(null);
+  // Category per menu item for this location, fetched once a promo code is
+  // applied -- lets the discount keep applying correctly if the cart
+  // changes afterward (an item removed, or another qualifying item added),
+  // rather than freezing the discount amount at the moment of applying.
+  const [menuItemCategoryMap, setMenuItemCategoryMap] = useState<Record<string, string>>({});
+
   const cartTotal = items.reduce((sum: number, item: CartItem) => sum + item.totalPrice, 0);
-  const taxAmount = cartTotal * taxRate;
-  const grandTotal = cartTotal + taxAmount;
+
+  const discountAmount = useMemo(() => {
+    if (!appliedPromo) return 0;
+    const eligibleItems = items.filter((item) =>
+      appliedPromo.categoryId ? menuItemCategoryMap[item.menuItemId] === appliedPromo.categoryId : true
+    );
+    const eligibleSubtotal = eligibleItems.reduce((sum, item) => sum + item.totalPrice, 0);
+    return eligibleSubtotal * (appliedPromo.discountPercent / 100);
+  }, [items, appliedPromo, menuItemCategoryMap]);
+
+  const discountedSubtotal = Math.max(0, cartTotal - discountAmount);
+  const taxAmount = discountedSubtotal * taxRate;
+  const grandTotal = discountedSubtotal + taxAmount;
 
   // Tax rate lives per-location (see locations.tax_rate) since it can vary
   // by province -- 13% (Ontario HST) is just the fallback while this loads.
@@ -63,6 +88,56 @@ export default function CartScreen() {
       if (!error && data) setTaxRate(Number(data.tax_rate));
     })();
   }, [locationId]);
+
+  const handleApplyPromo = async () => {
+    if (!promoCode.trim()) return;
+    setApplyingPromo(true);
+    try {
+      const { data: promo, error } = await (supabase as any)
+        .from('promotions')
+        .select('*')
+        .ilike('code', promoCode.trim())
+        .eq('is_active', true)
+        .maybeSingle();
+      if (error) throw error;
+      if (!promo) {
+        Alert.alert('Invalid Code', "That promo code doesn't exist or is no longer active.");
+        return;
+      }
+
+      let categoryMap = menuItemCategoryMap;
+      if (promo.category_id && Object.keys(categoryMap).length === 0) {
+        const { data: menuItems, error: miError } = await supabase
+          .from('menu_items')
+          .select('id, category_id')
+          .eq('location_id', locationId);
+        if (miError) throw miError;
+        categoryMap = Object.fromEntries((menuItems || []).map((m: any) => [m.id, m.category_id]));
+        setMenuItemCategoryMap(categoryMap);
+      }
+
+      const eligibleItems = items.filter((item) =>
+        promo.category_id ? categoryMap[item.menuItemId] === promo.category_id : true
+      );
+      const eligibleSubtotal = eligibleItems.reduce((sum, item) => sum + item.totalPrice, 0);
+      if (eligibleSubtotal <= 0) {
+        Alert.alert('No Eligible Items', "None of the items currently in your cart qualify for this promo code.");
+        return;
+      }
+
+      setAppliedPromo({
+        code: promo.code,
+        title: promo.title,
+        discountPercent: Number(promo.discount_percent) || 0,
+        categoryId: promo.category_id,
+      });
+      setPromoCode('');
+    } catch (e: any) {
+      Alert.alert("Couldn't apply code", e.message);
+    } finally {
+      setApplyingPromo(false);
+    }
+  };
 
   useEffect(() => {
     const showSub = Keyboard.addListener('keyboardDidShow', (e) => setKeyboardHeight(e.endCoordinates.height));
@@ -225,6 +300,8 @@ export default function CartScreen() {
           notify_email: notifyEmail,
           notify_sms: notifySms,
           subtotal_amount: cartTotal,
+          discount_amount: discountAmount,
+          promo_code: appliedPromo?.code ?? null,
           tax_amount: taxAmount,
           total_amount: grandTotal,
           status: 'received',
@@ -451,6 +528,48 @@ export default function CartScreen() {
             )}
           </View>
         )}
+        {items.length > 0 && (
+          <View className="my-4 p-4 bg-white rounded-2xl border border-stone-200 shadow-sm">
+            <Text className="text-lg font-bold mb-3 text-[#1C1917]">Promo Code</Text>
+            {appliedPromo ? (
+              <View className="flex-row items-center justify-between bg-[#FAF6F0] border border-stone-300 rounded-lg px-4 py-3">
+                <View className="flex-row items-center flex-1 mr-2">
+                  <Ionicons name="pricetag" size={16} color="#A61C14" />
+                  <Text className="text-[#1C1917] font-bold ml-2" numberOfLines={1}>
+                    {appliedPromo.code} applied
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={() => setAppliedPromo(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Ionicons name="close-circle" size={22} color="#78716C" />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View className="flex-row">
+                <TextInput
+                  className="bg-white border border-stone-300 p-3 rounded-lg flex-1 mr-2 text-base text-[#1C1917]"
+                  placeholder="Enter code"
+                  placeholderTextColor="#A8A29E"
+                  autoCapitalize="characters"
+                  value={promoCode}
+                  onChangeText={setPromoCode}
+                />
+                <TouchableOpacity
+                  onPress={handleApplyPromo}
+                  disabled={applyingPromo || !promoCode.trim()}
+                  className={`px-5 rounded-lg items-center justify-center ${
+                    applyingPromo || !promoCode.trim() ? 'bg-stone-300' : 'bg-[#1C1917]'
+                  }`}
+                >
+                  {applyingPromo ? (
+                    <ActivityIndicator size="small" color="#F4ECE1" />
+                  ) : (
+                    <Text className={`font-bold ${!promoCode.trim() ? 'text-stone-500' : 'text-[#F4ECE1]'}`}>Apply</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        )}
         {/* Registered users already picked this at signup (editable from
             Edit Profile) -- re-asking at checkout every time is friction for
             a decision they already made. Guests have no profile to default
@@ -481,6 +600,12 @@ export default function CartScreen() {
             <Text className="text-base text-[#78716C]">Subtotal</Text>
             <Text className="text-base text-[#1C1917]">${cartTotal.toFixed(2)}</Text>
           </View>
+          {discountAmount > 0 && (
+            <View className="flex-row justify-between mb-1">
+              <Text className="text-base text-green-700">Discount ({appliedPromo?.code})</Text>
+              <Text className="text-base text-green-700">-${discountAmount.toFixed(2)}</Text>
+            </View>
+          )}
           <View className="flex-row justify-between mb-2">
             <Text className="text-base text-[#78716C]">Tax</Text>
             <Text className="text-base text-[#1C1917]">${taxAmount.toFixed(2)}</Text>

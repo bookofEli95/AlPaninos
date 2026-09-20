@@ -393,6 +393,7 @@ export default function MenuScreen() {
                   <AddressAutocomplete
                     defaultAddress={deliveryAddress}
                     onAddressSelect={setDeliveryAddress}
+                    clearOnFocus
                   />
                 </View>
               )}

@@ -254,6 +254,12 @@ export default function OrderDetailScreen() {
               <Text className="text-[#78716C]">Subtotal</Text>
               <Text className="text-[#1C1917]">${Number(order.subtotal_amount).toFixed(2)}</Text>
             </View>
+            {order.discount_amount > 0 && (
+              <View className="flex-row justify-between mb-1">
+                <Text className="text-green-700">Discount{order.promo_code ? ` (${order.promo_code})` : ''}</Text>
+                <Text className="text-green-700">-${Number(order.discount_amount).toFixed(2)}</Text>
+              </View>
+            )}
             <View className="flex-row justify-between">
               <Text className="text-[#78716C]">Tax</Text>
               <Text className="text-[#1C1917]">${Number(order.tax_amount).toFixed(2)}</Text>

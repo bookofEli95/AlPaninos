@@ -6,9 +6,21 @@ type Props = {
   onAddressSelect: (address: string) => void;
   onFocus?: () => void;
   autoFocus?: boolean;
+  // For an inline field that's pre-filled with an existing address (e.g.
+  // switching to delivery reloads your saved address) -- tapping in clears
+  // it immediately instead of making them delete it all first. If they tap
+  // away without picking a new suggestion, it's restored on blur so it
+  // doesn't just look like the address vanished.
+  clearOnFocus?: boolean;
 };
 
-export default function AddressAutocomplete({ defaultAddress = '', onAddressSelect, onFocus, autoFocus }: Props) {
+export default function AddressAutocomplete({
+  defaultAddress = '',
+  onAddressSelect,
+  onFocus,
+  autoFocus,
+  clearOnFocus,
+}: Props) {
   const [query, setQuery] = useState(defaultAddress);
   const [results, setResults] = useState<any[]>([]);
 
@@ -49,6 +61,15 @@ export default function AddressAutocomplete({ defaultAddress = '', onAddressSele
     onAddressSelect(description);
   };
 
+  const handleFocus = () => {
+    if (clearOnFocus) setQuery('');
+    onFocus?.();
+  };
+
+  const handleBlur = () => {
+    if (clearOnFocus && query.trim() === '') setQuery(defaultAddress);
+  };
+
   return (
     <View style={styles.container}>
       <TextInput
@@ -57,7 +78,8 @@ export default function AddressAutocomplete({ defaultAddress = '', onAddressSele
         placeholderTextColor="#9CA3AF"
         value={query}
         onChangeText={searchPlaces}
-        onFocus={onFocus}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
         autoFocus={autoFocus}
       />
       {results.length > 0 && (
