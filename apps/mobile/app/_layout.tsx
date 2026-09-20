@@ -132,10 +132,24 @@ export default function Layout() {
       router.replace('/(auth)/login');
     } else if (session && inAuthGroup) {
       navigationAttempted.current = true;
-      useLocationStore.getState().loadSavedLocation().then(() => {
-        const savedId = useLocationStore.getState().locationId;
-        router.replace(savedId ? `/(main)/menu/${savedId}` : '/(main)');
-      });
+      // The remembered location (see locationStore) is saved per-device, not
+      // per-account -- a guest session on a device that previously had a
+      // registered user (or an earlier guest session) pick a location would
+      // otherwise skip straight to that remembered menu instead of letting
+      // this guest choose fresh. Guests always land on location selection.
+      const isAnonymous = session.user?.is_anonymous ?? false;
+      if (isAnonymous) {
+        // (main)/_layout.tsx also calls loadSavedLocation() itself on mount
+        // -- marking it already loaded (with nothing) here stops that from
+        // re-populating the stale device-level value right after this.
+        useLocationStore.setState({ locationId: null, isLoaded: true });
+        router.replace('/(main)');
+      } else {
+        useLocationStore.getState().loadSavedLocation().then(() => {
+          const savedId = useLocationStore.getState().locationId;
+          router.replace(savedId ? `/(main)/menu/${savedId}` : '/(main)');
+        });
+      }
     }
   }, [session, isInitialized, segments]);
 
