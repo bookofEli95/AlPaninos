@@ -61,19 +61,27 @@ export default function MainLayout() {
         }}
       />
       <Tabs.Screen
-        name="index"
+        name="more"
         options={{
-          title: 'Change Location',
-          tabBarIcon: ({ color }) => <Ionicons name="location" size={24} color={color} />,
+          title: 'More',
+          tabBarIcon: ({ color }) => <Ionicons name="menu" size={24} color={color} />,
         }}
       />
 
-      {/* Hidden screens */}
+      {/* Hidden screens -- "index" (location picker) is no longer its own
+          tab, but stays reachable: '/(main)' is still the fallback route
+          used throughout the app (e.g. the auth guard in app/_layout.tsx),
+          and the More menu links to it directly. */}
+      <Tabs.Screen name="index" options={{ href: null }} />
       <Tabs.Screen name="cart" options={{ href: null }} />
       <Tabs.Screen name="item/[id]" options={{ href: null }} />
       <Tabs.Screen name="order/[id]" options={{ href: null }} />
       <Tabs.Screen name="edit-profile" options={{ href: null }} />
       <Tabs.Screen name="deals" options={{ href: null }} />
+      <Tabs.Screen name="settings" options={{ href: null }} />
+      <Tabs.Screen name="customer-support" options={{ href: null }} />
+      <Tabs.Screen name="privacy" options={{ href: null }} />
+      <Tabs.Screen name="legal" options={{ href: null }} />
     </Tabs>
   );
 }

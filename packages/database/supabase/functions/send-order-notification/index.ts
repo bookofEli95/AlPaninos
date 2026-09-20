@@ -37,6 +37,17 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('push_enabled')
+      .eq('id', order.user_id)
+      .single();
+
+    if (profileError) throw profileError;
+    if (profile && profile.push_enabled === false) {
+      return new Response('Push disabled for this user', { status: 200 });
+    }
+
     const { data: tokens, error } = await supabase
       .from('push_tokens')
       .select('token')
