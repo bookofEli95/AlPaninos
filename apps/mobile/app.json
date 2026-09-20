@@ -32,7 +32,9 @@
           "icon": "./assets/icon.png",
           "color": "#A61C14"
         }
-      ]
+      ],
+      "expo-video",
+      "expo-location"
     ]
   }
 }

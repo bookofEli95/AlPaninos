@@ -45,7 +45,24 @@ export default function CartScreen() {
   // field afterwards it no longer matches, so they have to re-verify.
   const [verifiedEmail, setVerifiedEmail] = useState<string | null>(() => session?.user?.email ?? null);
   const emailVerified = !!verifiedEmail && verifiedEmail === guestEmail.trim();
+  const [taxRate, setTaxRate] = useState(0.13);
   const cartTotal = items.reduce((sum: number, item: CartItem) => sum + item.totalPrice, 0);
+  const taxAmount = cartTotal * taxRate;
+  const grandTotal = cartTotal + taxAmount;
+
+  // Tax rate lives per-location (see locations.tax_rate) since it can vary
+  // by province -- 13% (Ontario HST) is just the fallback while this loads.
+  useEffect(() => {
+    if (!locationId) return;
+    (async () => {
+      const { data, error } = await (supabase as any)
+        .from('locations')
+        .select('tax_rate')
+        .eq('id', locationId)
+        .single();
+      if (!error && data) setTaxRate(Number(data.tax_rate));
+    })();
+  }, [locationId]);
 
   useEffect(() => {
     const showSub = Keyboard.addListener('keyboardDidShow', (e) => setKeyboardHeight(e.endCoordinates.height));
@@ -207,7 +224,9 @@ export default function CartScreen() {
           customer_email: isAnonymous ? guestEmail.trim() : user?.email,
           notify_email: notifyEmail,
           notify_sms: notifySms,
-          total_amount: cartTotal,
+          subtotal_amount: cartTotal,
+          tax_amount: taxAmount,
+          total_amount: grandTotal,
           status: 'received',
           order_type: orderType,
           delivery_address: orderType === 'delivery' ? deliveryAddress : null,
@@ -458,10 +477,18 @@ export default function CartScreen() {
               <Text className="text-md font-bold text-[#1C1917]" numberOfLines={2}>{deliveryAddress}</Text>
             </View>
           )}
-          <View className="flex-row justify-between mb-6">
+          <View className="flex-row justify-between mb-1">
+            <Text className="text-base text-[#78716C]">Subtotal</Text>
+            <Text className="text-base text-[#1C1917]">${cartTotal.toFixed(2)}</Text>
+          </View>
+          <View className="flex-row justify-between mb-2">
+            <Text className="text-base text-[#78716C]">Tax</Text>
+            <Text className="text-base text-[#1C1917]">${taxAmount.toFixed(2)}</Text>
+          </View>
+          <View className="flex-row justify-between mb-6 pt-2 border-t border-stone-200">
             <Text className="text-2xl font-bold text-[#1C1917]">Total</Text>
             <Text className="text-2xl font-bold text-[#A61C14]">
-              ${cartTotal.toFixed(2)}
+              ${grandTotal.toFixed(2)}
             </Text>
           </View>
           <TouchableOpacity

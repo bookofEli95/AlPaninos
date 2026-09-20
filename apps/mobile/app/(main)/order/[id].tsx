@@ -248,6 +248,18 @@ export default function OrderDetailScreen() {
             Destination: {order.delivery_address}
           </Text>
         )}
+        {order.subtotal_amount != null && order.tax_amount != null && (
+          <View className="mt-2 pt-2 border-t border-stone-100">
+            <View className="flex-row justify-between mb-1">
+              <Text className="text-[#78716C]">Subtotal</Text>
+              <Text className="text-[#1C1917]">${Number(order.subtotal_amount).toFixed(2)}</Text>
+            </View>
+            <View className="flex-row justify-between">
+              <Text className="text-[#78716C]">Tax</Text>
+              <Text className="text-[#1C1917]">${Number(order.tax_amount).toFixed(2)}</Text>
+            </View>
+          </View>
+        )}
         <Text className="text-xl font-bold mt-2 text-[#A61C14]">
           Total: ${Number(order.total_amount).toFixed(2)}
         </Text>

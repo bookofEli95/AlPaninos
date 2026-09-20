@@ -9,6 +9,7 @@ import {
   Keyboard
 } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, withDelay, Easing } from 'react-native-reanimated';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
@@ -24,6 +25,12 @@ export default function Login() {
 
   const heroProgress = useSharedValue(0);
   const formProgress = useSharedValue(0);
+
+  const videoPlayer = useVideoPlayer(require('../../assets/videos/login-background.mp4'), (player) => {
+    player.loop = true;
+    player.muted = true;
+    player.play();
+  });
 
   useEffect(() => {
     heroProgress.value = withTiming(1, { duration: 500, easing: Easing.out(Easing.cubic) });
@@ -76,15 +83,36 @@ export default function Login() {
   const isBusy = loading || guestLoading;
 
   return (
-    <View className="flex-1 bg-[#FAF6F0] justify-center px-6" style={{ marginBottom: keyboardHeight }}>
-      <Animated.View style={heroStyle} className="items-center mb-8">
-        <Image
-          source={require('../../assets/logo.jpg')}
-          className="w-24 h-24 rounded-full mb-3 shadow-md"
-          resizeMode="contain"
-        />
-        <Text className="text-3xl font-extrabold text-[#1C1917]">AlPaninos</Text>
-      </Animated.View>
+    <View className="flex-1 bg-[#1C1917]">
+      <VideoView
+        player={videoPlayer}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+        contentFit="cover"
+        nativeControls={false}
+        pointerEvents="none"
+      />
+      <View
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.45)' }}
+        pointerEvents="none"
+      />
+
+      <View className="flex-1 justify-center px-6" style={{ marginBottom: keyboardHeight }}>
+        <Animated.View style={heroStyle} className="items-center mb-5">
+          <Image
+            source={require('../../assets/logo.jpg')}
+            className="w-24 h-24 rounded-full mb-3 shadow-md"
+            resizeMode="contain"
+          />
+          <Text className="text-3xl font-extrabold text-[#F4ECE1]">AlPaninos</Text>
+        </Animated.View>
+
+        <Animated.View
+          style={heroStyle}
+          className="flex-row items-center self-center bg-[#A61C14] px-4 py-2 rounded-full mb-6"
+        >
+          <Ionicons name="gift-outline" size={16} color="#F4ECE1" />
+          <Text className="text-[#F4ECE1] font-bold text-sm ml-2">Earn rewards with every order</Text>
+        </Animated.View>
 
       <Animated.View style={formStyle}>
         {errorMessage && <ErrorBanner message={errorMessage} />}
@@ -147,7 +175,8 @@ export default function Login() {
             </Text>
           </TouchableOpacity>
         </Link>
-      </Animated.View>
+        </Animated.View>
+      </View>
     </View>
   );
 }

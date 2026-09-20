@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, FlatList, StyleSheet, Image, ActivityIndicator, Alert } from 'react-native';
+import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +10,7 @@ import { useCartStore } from '../../store/cartStore';
 import SkeletonBox from '../../components/Skeleton';
 import { useLocationStore } from '../../store/locationStore';
 import { reorderUsualItem } from '../../lib/reorder';
+import { distanceKm } from '../../lib/geo';
 
 export default function Home() {
   const router = useRouter();
@@ -17,6 +19,8 @@ export default function Home() {
   const { deliveryAddress, setDeliveryAddress } = useCartStore();
   const setLocationId = useLocationStore(state => state.setLocationId);
   const [addingUsual, setAddingUsual] = useState(false);
+  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [locatingUser, setLocatingUser] = useState(false);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -84,6 +88,44 @@ export default function Home() {
     router.replace('/(auth)/login');
   };
 
+  const handleUseMyLocation = async () => {
+    setLocatingUser(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Location Permission Needed', 'Enable location access to find the nearest store.');
+        return;
+      }
+      const position = await Location.getCurrentPositionAsync({});
+      setUserCoords({ lat: position.coords.latitude, lng: position.coords.longitude });
+    } catch (e: any) {
+      Alert.alert("Couldn't get your location", e.message);
+    } finally {
+      setLocatingUser(false);
+    }
+  };
+
+  // Locations without lat/lng set (the owner hasn't filled them in via
+  // Studio yet) sort to the end rather than being treated as "0km away".
+  const sortedLocations = useMemo(() => {
+    if (!locations) return [];
+    if (!userCoords) return locations;
+    return [...locations]
+      .map((loc: any) => ({
+        ...loc,
+        distanceKm:
+          loc.latitude != null && loc.longitude != null
+            ? distanceKm(userCoords.lat, userCoords.lng, loc.latitude, loc.longitude)
+            : null,
+      }))
+      .sort((a, b) => {
+        if (a.distanceKm == null && b.distanceKm == null) return 0;
+        if (a.distanceKm == null) return 1;
+        if (b.distanceKm == null) return -1;
+        return a.distanceKm - b.distanceKm;
+      });
+  }, [locations, userCoords]);
+
   return (
     <View className="flex-1 bg-[#FAF6F0] px-4 pt-16">
       {/* Header aligned to pt-16 mb-6 */}
@@ -98,6 +140,21 @@ export default function Home() {
           <Text className="text-[#A61C14] font-bold text-base">Sign Out</Text>
         </TouchableOpacity>
       </View>
+
+      <TouchableOpacity
+        onPress={handleUseMyLocation}
+        disabled={locatingUser}
+        className="flex-row items-center self-start bg-white border border-stone-300 rounded-full px-4 py-2 mb-4"
+      >
+        {locatingUser ? (
+          <ActivityIndicator size="small" color="#A61C14" />
+        ) : (
+          <Ionicons name="locate" size={16} color="#A61C14" />
+        )}
+        <Text className="text-[#A61C14] font-bold text-sm ml-2">
+          {userCoords ? 'Update My Location' : 'Use My Location'}
+        </Text>
+      </TouchableOpacity>
 
       {usualItem && (
         <TouchableOpacity
@@ -140,7 +197,7 @@ export default function Home() {
         </View>
       ) : (
         <FlatList
-          data={locations}
+          data={sortedLocations}
           keyboardShouldPersistTaps="handled"
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
@@ -151,7 +208,12 @@ export default function Home() {
               }}
               className="bg-white p-6 rounded-2xl mb-4 border border-stone-200 shadow-sm"
             >
-              <Text className="text-xl font-bold text-[#1C1917]">{item.name}</Text>
+              <View className="flex-row justify-between items-start">
+                <Text className="text-xl font-bold text-[#1C1917] flex-1 mr-2">{item.name}</Text>
+                {item.distanceKm != null && (
+                  <Text className="text-[#A61C14] font-bold text-sm">{item.distanceKm.toFixed(1)} km</Text>
+                )}
+              </View>
               <Text className="text-[#78716C] mt-1">{item.address}</Text>
             </TouchableOpacity>
           )}

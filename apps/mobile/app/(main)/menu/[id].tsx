@@ -61,6 +61,20 @@ export default function MenuScreen() {
   const getSimpleQuantity = (menuItemId: string) =>
     cartItems.find(i => i.menuItemId === menuItemId && i.modifiers.length === 0)?.quantity || 0;
 
+  const { data: activePromotions } = useQuery({
+    queryKey: ['promotions', locationId],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('promotions')
+        .select('*')
+        .eq('is_active', true)
+        .or(`location_id.eq.${locationId},location_id.is.null`);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!locationId,
+  });
+
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -127,22 +141,54 @@ export default function MenuScreen() {
       <View className="flex-row items-center justify-between px-4 mb-4">
         <Text className="text-3xl font-extrabold text-[#1C1917]">Menu</Text>
 
-        <TouchableOpacity
-          onPress={() => setOrderTypeModalVisible(true)}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          className="flex-row items-center bg-white border border-stone-300 rounded-full px-4 py-3"
-        >
-          <Ionicons
-            name={orderType === 'pickup' ? 'storefront-outline' : 'bicycle-outline'}
-            size={18}
-            color="#A61C14"
-          />
-          <Text className="text-[#1C1917] font-semibold text-sm ml-2" numberOfLines={1} style={{ maxWidth: 100 }}>
-            {orderType === 'pickup' ? 'Pickup' : (deliveryAddress || 'Delivery')}
-          </Text>
-        </TouchableOpacity>
+        <View className="flex-row items-center">
+          <TouchableOpacity
+            onPress={() => setOrderTypeModalVisible(true)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            className="flex-row items-center bg-white border border-stone-300 rounded-full px-4 py-3 mr-2"
+          >
+            <Ionicons
+              name={orderType === 'pickup' ? 'storefront-outline' : 'bicycle-outline'}
+              size={18}
+              color="#A61C14"
+            />
+            <Text className="text-[#1C1917] font-semibold text-sm ml-2" numberOfLines={1} style={{ maxWidth: 100 }}>
+              {orderType === 'pickup' ? 'Pickup' : (deliveryAddress || 'Delivery')}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => router.push('/(main)/cart')}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            className="bg-white border border-stone-300 rounded-full p-3"
+          >
+            <Ionicons name="cart-outline" size={20} color="#A61C14" />
+            {cartQuantity > 0 && (
+              <View
+                className="absolute bg-[#A61C14] rounded-full items-center justify-center"
+                style={{ top: -4, right: -4, minWidth: 18, height: 18, paddingHorizontal: 3 }}
+              >
+                <Text className="text-[#F4ECE1] font-bold" style={{ fontSize: 11 }}>{cartQuantity}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
+      {activePromotions && activePromotions.length > 0 && (
+        <TouchableOpacity
+          onPress={() => router.push('/(main)/deals')}
+          className="flex-row items-center justify-between bg-[#A61C14] mx-4 mb-4 px-4 py-3 rounded-xl"
+        >
+          <View className="flex-row items-center flex-1 mr-2">
+            <Ionicons name="pricetag" size={18} color="#F4ECE1" />
+            <Text className="text-[#F4ECE1] font-bold ml-2" numberOfLines={1}>
+              {activePromotions.length === 1 ? activePromotions[0].title : `${activePromotions.length} deals available`}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color="#F4ECE1" />
+        </TouchableOpacity>
+      )}
 
       {/* Search */}
       <View className="px-4 mb-4">
