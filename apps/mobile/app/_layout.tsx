@@ -1,15 +1,15 @@
 import "../global.css";
 import { useEffect, useState, useRef } from "react";
-import { View, StyleSheet, Dimensions } from "react-native";
+import { View, StyleSheet, Dimensions, LogBox } from "react-native";
 import { Stack, useRouter, useSegments, SplashScreen } from "expo-router";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import Animated, { 
-  useSharedValue, 
-  useAnimatedStyle, 
-  withTiming, 
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
   withSequence,
   Easing,
-  runOnJS 
+  runOnJS
 } from "react-native-reanimated";
 import { supabase } from "../lib/supabase";
 import { useAuthStore } from "../store/authStore";
@@ -18,6 +18,16 @@ import { registerForPushNotificationsAsync, savePushToken } from "../lib/pushNot
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 const queryClient = new QueryClient();
+
+// Known-benign dev-only noise, not app bugs -- both are internal timing
+// quirks (Metro's dev socket reconnecting, expo-router's own initial-URL
+// resolution racing the root component's mount) that never appear outside
+// Expo Go's live-development mode. Matched by substring so real warnings
+// with different text still show up normally.
+LogBox.ignoreLogs([
+  'Cannot connect to Expo CLI',
+  "Can't perform a React state update on a component that hasn't mounted yet",
+]);
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function Layout() {
