@@ -11,6 +11,7 @@ import SkeletonBox from '../../components/Skeleton';
 import { useLocationStore } from '../../store/locationStore';
 import { reorderUsualItem } from '../../lib/reorder';
 import { distanceKm } from '../../lib/geo';
+import { isOpenNow, getTodayHoursLabel } from '../../lib/hours';
 
 export default function Home() {
   const router = useRouter();
@@ -215,6 +216,16 @@ export default function Home() {
                 )}
               </View>
               <Text className="text-[#78716C] mt-1">{item.address}</Text>
+              <View className="flex-row items-center mt-2">
+                <View
+                  className={`px-2 py-0.5 rounded-full mr-2 ${isOpenNow(item.hours) ? 'bg-emerald-100' : 'bg-stone-200'}`}
+                >
+                  <Text className={`text-xs font-bold ${isOpenNow(item.hours) ? 'text-emerald-800' : 'text-stone-600'}`}>
+                    {isOpenNow(item.hours) ? 'Open Now' : 'Closed'}
+                  </Text>
+                </View>
+                <Text className="text-[#78716C] text-sm">{getTodayHoursLabel(item.hours)}</Text>
+              </View>
             </TouchableOpacity>
           )}
         />

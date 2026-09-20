@@ -36,6 +36,18 @@ async function runImport() {
     categoryMap.set(`${cat.location_id}:${cat.name.trim().toLowerCase()}`, cat.id);
   });
 
+  // Existing items per location, so re-running this script (e.g. after
+  // adding a new location that needs the same menu) skips locations that
+  // already have that item instead of inserting duplicates.
+  const { data: existingItems, error: itemsError } = await supabase.from('menu_items').select('location_id, name');
+  if (itemsError) {
+    console.error('Failed to retrieve existing menu items:', itemsError.message);
+    process.exit(1);
+  }
+  const existingItemKeys = new Set(
+    existingItems.map(item => `${item.location_id}:${item.name.trim().toLowerCase()}`)
+  );
+
   // 3. Read CSV rows
   const rows = [];
   await new Promise((resolve, reject) => {
@@ -72,6 +84,11 @@ async function runImport() {
       const categoryId = categoryMap.get(`${location.id}:${categoryName.toLowerCase()}`);
       if (!categoryId) {
         console.warn(`Category "${categoryName}" not found for location "${location.name}" (${location.id}). Skipping item.`);
+        continue;
+      }
+
+      if (existingItemKeys.has(`${location.id}:${itemName.toLowerCase()}`)) {
+        console.log(`"${itemName}" already exists at "${location.name}". Skipping.`);
         continue;
       }
 
