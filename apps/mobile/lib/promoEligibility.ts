@@ -22,6 +22,22 @@ export async function resolvePromoCategoryId(
   return data?.id ?? null;
 }
 
+// promotions.single_use defaults to true (see the promo_single_use
+// migration) -- every code is one-time-per-account unless a staffer
+// explicitly flips it off in Studio. A past redemption is read straight off
+// orders.promo_code (already set at checkout, see cart.tsx) rather than a
+// separate redemption table, since that's already the exact record of what
+// this account has used.
+export async function hasUserRedeemedCode(userId: string, code: string): Promise<boolean> {
+  const { count, error } = await supabase
+    .from('orders')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .ilike('promo_code', code);
+  if (error) return false;
+  return (count ?? 0) > 0;
+}
+
 export function computeEligibleDiscount(
   items: { menuItemId: string; totalPrice: number }[],
   promo: {

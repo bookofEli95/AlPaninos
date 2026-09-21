@@ -42,6 +42,24 @@ export default function DealsScreen() {
     enabled: !!locationId && !!session?.user?.id,
   });
 
+  // promotions.single_use defaults to true (see the promo_single_use
+  // migration) -- a past redemption is read straight off orders.promo_code
+  // rather than a separate table, since that's already the exact record of
+  // what this account has used.
+  const { data: usedCodes } = useQuery({
+    queryKey: ['usedPromoCodes', session?.user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('promo_code')
+        .eq('user_id', session!.user.id)
+        .not('promo_code', 'is', null);
+      if (error) throw error;
+      return new Set((data || []).map((o: any) => o.promo_code.toLowerCase()));
+    },
+    enabled: !!session?.user?.id,
+  });
+
   const showToast = (message: string) => {
     setToast(message);
     Animated.sequence([
@@ -51,8 +69,11 @@ export default function DealsScreen() {
     ]).start(() => setToast(null));
   };
 
+  const isAlreadyUsed = (item: any) =>
+    item.single_use !== false && !!usedCodes?.has(item.code?.toLowerCase());
+
   const handleTogglePromo = (item: any) => {
-    if (!item.code) return;
+    if (!item.code || isAlreadyUsed(item)) return;
     if (appliedPromo?.code === item.code) {
       setAppliedPromo(null);
       showToast('Promo removed');
@@ -100,10 +121,11 @@ export default function DealsScreen() {
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => {
             const isApplied = !!item.code && appliedPromo?.code === item.code;
+            const alreadyUsed = !!item.code && isAlreadyUsed(item);
             const card = (
               <View
                 className={`bg-white rounded-2xl border shadow-sm p-5 mb-4 ${
-                  isApplied ? 'border-[#A61C14]' : 'border-stone-200'
+                  alreadyUsed ? 'opacity-50 border-stone-200' : isApplied ? 'border-[#A61C14]' : 'border-stone-200'
                 }`}
               >
                 <View className="flex-row items-center justify-between mb-1">
@@ -124,18 +146,26 @@ export default function DealsScreen() {
                 {item.code && (
                   <View
                     className={`self-start rounded-lg px-3 py-1.5 border ${
-                      isApplied ? 'bg-[#A61C14] border-[#A61C14]' : 'bg-[#FAF6F0] border-stone-300'
+                      alreadyUsed
+                        ? 'bg-stone-100 border-stone-300'
+                        : isApplied
+                        ? 'bg-[#A61C14] border-[#A61C14]'
+                        : 'bg-[#FAF6F0] border-stone-300'
                     }`}
                   >
-                    <Text className={`font-bold tracking-wider ${isApplied ? 'text-[#F4ECE1]' : 'text-[#A61C14]'}`}>
-                      {isApplied ? 'APPLIED -- TAP TO REMOVE' : `CODE: ${item.code}`}
+                    <Text
+                      className={`font-bold tracking-wider ${
+                        alreadyUsed ? 'text-[#78716C]' : isApplied ? 'text-[#F4ECE1]' : 'text-[#A61C14]'
+                      }`}
+                    >
+                      {alreadyUsed ? 'ALREADY REDEEMED' : isApplied ? 'APPLIED -- TAP TO REMOVE' : `CODE: ${item.code}`}
                     </Text>
                   </View>
                 )}
               </View>
             );
 
-            return item.code ? (
+            return item.code && !alreadyUsed ? (
               <TouchableOpacity onPress={() => handleTogglePromo(item)} activeOpacity={0.8}>
                 {card}
               </TouchableOpacity>

@@ -7,7 +7,7 @@ import { useCartStore, CartItem } from '../../store/cartStore';
 import { useAuthStore } from '../../store/authStore';
 import { usePromoStore } from '../../store/promoStore';
 import { useBackHandler } from '../../hooks/useBackHandler';
-import { computeEligibleDiscount, resolvePromoCategoryId } from '../../lib/promoEligibility';
+import { computeEligibleDiscount, hasUserRedeemedCode, resolvePromoCategoryId } from '../../lib/promoEligibility';
 import NotifyPreferenceToggle from '../../components/NotifyPreferenceToggle';
 import CountryPickerSheet from '../../components/CountryPickerSheet';
 import { isValidEmail } from '../../lib/passwordStrength';
@@ -140,6 +140,14 @@ export default function CartScreen() {
       if (!promo) {
         Alert.alert('Invalid Code', "That promo code doesn't exist or is no longer active.");
         return;
+      }
+
+      if (promo.single_use !== false && session?.user?.id) {
+        const alreadyRedeemed = await hasUserRedeemedCode(session.user.id, promo.code);
+        if (alreadyRedeemed) {
+          Alert.alert('Already Used', "You've already redeemed this code before.");
+          return;
+        }
       }
 
       let infoMap = menuItemInfoMap;

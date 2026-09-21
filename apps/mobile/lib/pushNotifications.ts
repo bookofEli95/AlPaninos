@@ -20,8 +20,10 @@ function isExpoGo(): boolean {
 // denied, this is a simulator, or no EAS project is linked yet (`eas init`
 // writes the project ID app.json needs).
 export async function registerForPushNotificationsAsync(): Promise<string | null> {
+  // Expected every time while testing in Expo Go (this project's normal
+  // dev workflow), not an actionable problem -- silently no-op rather than
+  // warn on every single app load.
   if (isExpoGo()) {
-    console.warn('Push notifications need a development build -- Expo Go no longer supports them.');
     return null;
   }
 
