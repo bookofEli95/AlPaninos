@@ -1,13 +1,17 @@
 import { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { useLocationStore } from '../../store/locationStore';
+import { usePromoStore } from '../../store/promoStore';
+import { useCartStore } from '../../store/cartStore';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import PointsRewards from '../../components/PointsRewards';
+import PrizeItemPicker from '../../components/PrizeItemPicker';
+import { EligiblePrizeItem, fetchEligiblePrizeItems, isPickAnItemPrize, itemHasModifiers } from '../../lib/prizeRedemption';
 
 type ProfileData = {
   first_name: string;
@@ -58,18 +62,20 @@ export default function ProfileScreen() {
   // won -- this checks whether that code is still actually redeemable
   // (mark_promo_used flips it inactive at checkout), so the banner below
   // disappears once it's been used instead of showing a dead code forever.
-  const { data: wheelPromoActive } = useQuery({
-    queryKey: ['wheelPromoActive', session?.user?.id, profile?.wheel_prize_code],
+  // Fetching the full row (not just whether it exists) lets the banner
+  // decide whether this is a "pick a specific item" prize.
+  const { data: wheelPromo } = useQuery({
+    queryKey: ['wheelPromo', session?.user?.id, profile?.wheel_prize_code],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('promotions')
-        .select('id')
+        .select('*')
         .eq('code', profile!.wheel_prize_code)
         .eq('user_id', session!.user.id)
         .eq('is_active', true)
         .maybeSingle();
       if (error) throw error;
-      return !!data;
+      return data;
     },
     enabled: !isAnonymous && !!session?.user?.id && !!profile?.wheel_prize_code,
   });
@@ -79,6 +85,80 @@ export default function ProfileScreen() {
     await Clipboard.setStringAsync(code);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
+  };
+
+  const { setAppliedPromo } = usePromoStore();
+  const incrementSimpleItem = useCartStore(state => state.incrementSimpleItem);
+  const [resolvingPrize, setResolvingPrize] = useState(false);
+  const [picker, setPicker] = useState<{ promo: any; items: EligiblePrizeItem[] } | null>(null);
+
+  const giveFreeItem = (target: EligiblePrizeItem, promo: any) => {
+    setAppliedPromo({
+      code: promo.code,
+      title: promo.title,
+      discountPercent: Number(promo.discount_percent) || 0,
+      categoryId: promo.category_id,
+      categoryName: promo.category_name,
+      itemNamePatterns: promo.item_name_patterns,
+      maxDiscountAmount: promo.max_discount_amount != null ? Number(promo.max_discount_amount) : null,
+    });
+    itemHasModifiers(target.id).then((hasModifiers) => {
+      if (hasModifiers) {
+        router.push(`/(main)/item/${target.id}`);
+      } else if (locationId) {
+        incrementSimpleItem({ menuItemId: target.id, name: target.name, basePrice: target.base_price }, locationId);
+        Alert.alert('Added!', `${target.name} was added to your cart -- it's free.`);
+      }
+    });
+  };
+
+  // Shared by the wheel-prize banner and PaninoPoints redemption below --
+  // both land in promotions the same way (see the panino_points migration),
+  // so both resolve the same way: single eligible item -> straight to the
+  // cart, several -> a picker, none -> saved but unavailable here.
+  const resolveAndRedeem = async (promo: any) => {
+    if (!locationId) {
+      Alert.alert('Choose a Location', 'Pick a location from the menu first, then come back to redeem this.');
+      return;
+    }
+    setResolvingPrize(true);
+    try {
+      const eligibleItems = await fetchEligiblePrizeItems(promo, locationId);
+      if (eligibleItems.length === 0) {
+        Alert.alert('Not Available', "This prize isn't available at this location right now.");
+      } else if (eligibleItems.length === 1) {
+        giveFreeItem(eligibleItems[0], promo);
+      } else {
+        setPicker({ promo, items: eligibleItems });
+      }
+    } finally {
+      setResolvingPrize(false);
+    }
+  };
+
+  const handlePressPrize = () => {
+    if (!wheelPromo) return;
+    if (!isPickAnItemPrize(wheelPromo)) {
+      handleCopyCode(wheelPromo.code);
+      return;
+    }
+    resolveAndRedeem(wheelPromo);
+  };
+
+  // Points rewards are always "pick a specific item" promos (100% off a
+  // category -- see isPickAnItemPrize), so there's no raw-code path to
+  // branch to here the way the wheel banner has.
+  const handlePointsRedeemed = async (code: string) => {
+    queryClient.invalidateQueries({ queryKey: ['profile', session?.user?.id] });
+    if (!session?.user?.id) return;
+    const { data: promo, error } = await (supabase as any)
+      .from('promotions')
+      .select('*')
+      .eq('code', code)
+      .eq('user_id', session.user.id)
+      .single();
+    if (error || !promo) return;
+    resolveAndRedeem(promo);
   };
 
   const { data: orderCount } = useQuery({
@@ -113,97 +193,127 @@ export default function ProfileScreen() {
   }
 
   return (
-    <ScrollView className="flex-1 bg-[#FAF6F0]" showsVerticalScrollIndicator={false}>
-      {/* Hero */}
-      <View className="bg-[#A61C14] pt-16 pb-8 px-6 items-center rounded-b-[32px]">
-        <View className="w-24 h-24 rounded-full bg-[#F4ECE1] items-center justify-center mb-4 border-4 border-[#85140E]">
-          <Text className="text-3xl font-extrabold text-[#A61C14]">{initials}</Text>
+    <View className="flex-1 bg-[#FAF6F0]">
+      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+        {/* Hero */}
+        <View className="bg-[#A61C14] pt-16 pb-8 px-6 items-center rounded-b-[32px]">
+          <View className="w-24 h-24 rounded-full bg-[#F4ECE1] items-center justify-center mb-4 border-4 border-[#85140E]">
+            <Text className="text-3xl font-extrabold text-[#A61C14]">{initials}</Text>
+          </View>
+          <Text className="text-2xl font-extrabold text-[#F4ECE1]">
+            {profile ? `${profile.first_name} ${profile.last_name}` : 'Welcome back'}
+          </Text>
+          <Text className="text-[#F4ECE1] opacity-80 mt-1">{session?.user?.email}</Text>
+          <TouchableOpacity
+            onPress={() => router.push('/(main)/edit-profile')}
+            className="flex-row items-center bg-[#85140E] px-4 py-2 rounded-full mt-4"
+          >
+            <Ionicons name="pencil" size={14} color="#F4ECE1" />
+            <Text className="text-[#F4ECE1] font-bold text-sm ml-2">Edit Profile</Text>
+          </TouchableOpacity>
         </View>
-        <Text className="text-2xl font-extrabold text-[#F4ECE1]">
-          {profile ? `${profile.first_name} ${profile.last_name}` : 'Welcome back'}
-        </Text>
-        <Text className="text-[#F4ECE1] opacity-80 mt-1">{session?.user?.email}</Text>
-        <TouchableOpacity
-          onPress={() => router.push('/(main)/edit-profile')}
-          className="flex-row items-center bg-[#85140E] px-4 py-2 rounded-full mt-4"
-        >
-          <Ionicons name="pencil" size={14} color="#F4ECE1" />
-          <Text className="text-[#F4ECE1] font-bold text-sm ml-2">Edit Profile</Text>
-        </TouchableOpacity>
-      </View>
 
-      <View className="px-4 -mt-6">
-        {/* Welcome wheel prize, if they won a redeemable code (see
-            (main)/spin-wheel.tsx) -- points-only wins show up in the stat
-            tile below instead, since there's no code to redeem. */}
-        {profile?.wheel_prize_code && wheelPromoActive && (
-          <View className="bg-white rounded-2xl border border-[#A61C14] shadow-sm p-5 mb-4">
-            <Text className="text-xs font-bold text-[#A61C14] uppercase tracking-wider mb-1">
-              Your Welcome Prize
-            </Text>
-            <Text className="text-lg font-extrabold text-[#1C1917] mb-2">{profile.wheel_prize_title}</Text>
-            <TouchableOpacity
-              onPress={() => handleCopyCode(profile.wheel_prize_code!)}
-              className="flex-row items-center bg-[#FAF6F0] border border-dashed border-[#A61C14] rounded-lg px-4 py-2 self-start"
-            >
-              <Text className="text-[#A61C14] font-extrabold tracking-widest mr-2">{profile.wheel_prize_code}</Text>
-              <Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={16} color="#A61C14" />
-            </TouchableOpacity>
-            <Text className="text-[#78716C] text-sm mt-2">
-              {copied ? 'Copied!' : 'Tap the code to copy it, then enter it in the Cart to redeem it.'}
-            </Text>
-          </View>
-        )}
+        <View className="px-4 -mt-6">
+          {/* Welcome wheel prize, if they won a redeemable code (see
+              (main)/spin-wheel.tsx) -- points-only wins show up in the stat
+              tile below instead, since there's no code to redeem. */}
+          {profile?.wheel_prize_code && wheelPromo && (
+            <View className="bg-white rounded-2xl border border-[#A61C14] shadow-sm p-5 mb-4">
+              <Text className="text-xs font-bold text-[#A61C14] uppercase tracking-wider mb-1">
+                Your Welcome Prize
+              </Text>
+              <Text className="text-lg font-extrabold text-[#1C1917] mb-2">{profile.wheel_prize_title}</Text>
+              {isPickAnItemPrize(wheelPromo) ? (
+                <TouchableOpacity
+                  onPress={handlePressPrize}
+                  disabled={resolvingPrize}
+                  className="flex-row items-center justify-center bg-[#A61C14] rounded-lg px-4 py-3 active:bg-[#85140E]"
+                >
+                  {resolvingPrize ? (
+                    <ActivityIndicator size="small" color="#F4ECE1" />
+                  ) : (
+                    <Text className="text-[#F4ECE1] font-extrabold">Redeem Now</Text>
+                  )}
+                </TouchableOpacity>
+              ) : (
+                <>
+                  <TouchableOpacity
+                    onPress={() => handleCopyCode(profile.wheel_prize_code!)}
+                    className="flex-row items-center bg-[#FAF6F0] border border-dashed border-[#A61C14] rounded-lg px-4 py-2 self-start"
+                  >
+                    <Text className="text-[#A61C14] font-extrabold tracking-widest mr-2">{profile.wheel_prize_code}</Text>
+                    <Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={16} color="#A61C14" />
+                  </TouchableOpacity>
+                  <Text className="text-[#78716C] text-sm mt-2">
+                    {copied ? 'Copied!' : 'Tap the code to copy it, then enter it in the Cart to redeem it.'}
+                  </Text>
+                </>
+              )}
+            </View>
+          )}
 
-        {session?.user?.id && (
-          <PointsRewards
-            points={profile?.panino_points ?? 0}
-            onRedeemed={() => queryClient.invalidateQueries({ queryKey: ['profile', session.user.id] })}
-          />
-        )}
+          {session?.user?.id && (
+            <PointsRewards
+              points={profile?.panino_points ?? 0}
+              onRedeemedCode={handlePointsRedeemed}
+            />
+          )}
 
-        {/* Orders stat */}
-        <TouchableOpacity
-          onPress={() => router.push('/(main)/orders')}
-          className="bg-white rounded-2xl border border-stone-200 shadow-sm p-5 flex-row items-center mb-4"
-        >
-          <View className="w-12 h-12 rounded-full bg-[#FAF6F0] items-center justify-center mr-4">
-            <Ionicons name="receipt" size={22} color="#A61C14" />
-          </View>
-          <View className="flex-1">
-            <Text className="text-2xl font-extrabold text-[#1C1917]">{orderCount ?? '—'}</Text>
-            <Text className="text-[#78716C] text-sm">Orders placed</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color="#A8A29E" />
-        </TouchableOpacity>
+          {/* Orders stat */}
+          <TouchableOpacity
+            onPress={() => router.push('/(main)/orders')}
+            className="bg-white rounded-2xl border border-stone-200 shadow-sm p-5 flex-row items-center mb-4"
+          >
+            <View className="w-12 h-12 rounded-full bg-[#FAF6F0] items-center justify-center mr-4">
+              <Ionicons name="receipt" size={22} color="#A61C14" />
+            </View>
+            <View className="flex-1">
+              <Text className="text-2xl font-extrabold text-[#1C1917]">{orderCount ?? '—'}</Text>
+              <Text className="text-[#78716C] text-sm">Orders placed</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#A8A29E" />
+          </TouchableOpacity>
 
-        {/* Contact info */}
-        {profile && (
-          <View className="bg-white rounded-2xl border border-stone-200 shadow-sm mb-6 overflow-hidden">
-            <View className="flex-row items-center p-4 border-b border-stone-100">
-              <Ionicons name="call-outline" size={20} color="#A61C14" style={{ width: 28 }} />
-              <View>
-                <Text className="text-xs text-[#78716C] uppercase font-bold tracking-wider">Phone</Text>
-                <Text className="text-base font-semibold text-[#1C1917]">{profile.phone}</Text>
+          {/* Contact info */}
+          {profile && (
+            <View className="bg-white rounded-2xl border border-stone-200 shadow-sm mb-6 overflow-hidden">
+              <View className="flex-row items-center p-4 border-b border-stone-100">
+                <Ionicons name="call-outline" size={20} color="#A61C14" style={{ width: 28 }} />
+                <View>
+                  <Text className="text-xs text-[#78716C] uppercase font-bold tracking-wider">Phone</Text>
+                  <Text className="text-base font-semibold text-[#1C1917]">{profile.phone}</Text>
+                </View>
+              </View>
+              <View className="flex-row items-center p-4">
+                <Ionicons name="location-outline" size={20} color="#A61C14" style={{ width: 28 }} />
+                <View>
+                  <Text className="text-xs text-[#78716C] uppercase font-bold tracking-wider">Address</Text>
+                  <Text className="text-base font-semibold text-[#1C1917]">{profile.address}</Text>
+                </View>
               </View>
             </View>
-            <View className="flex-row items-center p-4">
-              <Ionicons name="location-outline" size={20} color="#A61C14" style={{ width: 28 }} />
-              <View>
-                <Text className="text-xs text-[#78716C] uppercase font-bold tracking-wider">Address</Text>
-                <Text className="text-base font-semibold text-[#1C1917]">{profile.address}</Text>
-              </View>
-            </View>
-          </View>
-        )}
+          )}
 
-        <TouchableOpacity
-          onPress={handleSignOut}
-          className="bg-red-50 p-4 rounded-2xl w-full items-center border border-red-200 mb-8 active:bg-red-100"
-        >
-          <Text className="text-[#A61C14] font-bold text-lg">Sign Out</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+          <TouchableOpacity
+            onPress={handleSignOut}
+            className="bg-red-50 p-4 rounded-2xl w-full items-center border border-red-200 mb-8 active:bg-red-100"
+          >
+            <Text className="text-[#A61C14] font-bold text-lg">Sign Out</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+
+      {picker && (
+        <PrizeItemPicker
+          title={picker.promo.title}
+          items={picker.items}
+          onSelect={(selected) => {
+            giveFreeItem(selected, picker.promo);
+            setPicker(null);
+          }}
+          onClose={() => setPicker(null)}
+        />
+      )}
+    </View>
   );
 }

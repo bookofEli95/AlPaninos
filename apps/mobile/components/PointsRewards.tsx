@@ -16,26 +16,27 @@ const REWARD_TIERS: { tier: string; cost: number; title: string; icon: keyof typ
   { tier: 'sandwich', cost: 1200, title: 'Free Signature Sandwich', icon: 'restaurant-outline' },
 ];
 
+// Purely a tier-display + "spend the points" component -- picking which
+// specific item the resulting code redeems for (a possible multi-choice
+// picker overlay) is handled by the parent screen, since that overlay needs
+// to render at the screen's root to cover the full screen rather than be
+// boxed into this card (see profile.tsx's handlePointsRedeemed).
 export default function PointsRewards({
   points,
-  onRedeemed,
+  onRedeemedCode,
 }: {
   points: number;
-  onRedeemed: () => void;
+  onRedeemedCode: (code: string) => void;
 }) {
   const [redeeming, setRedeeming] = useState<string | null>(null);
 
-  const handleRedeem = async (tier: string, title: string, cost: number) => {
+  const handleRedeem = async (tier: string, cost: number) => {
     setRedeeming(tier);
     try {
       const { data, error } = await (supabase as any).rpc('redeem_points_reward', { p_tier: tier });
       if (error) throw error;
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      Alert.alert(
-        'Redeemed!',
-        `${title} -- your code is ${data.code}. Enter it in the Cart to redeem it.`
-      );
-      onRedeemed();
+      onRedeemedCode(data.code);
     } catch (e: any) {
       Alert.alert("Couldn't redeem", e.message);
     } finally {
@@ -69,7 +70,7 @@ export default function PointsRewards({
             </View>
             {canRedeem && (
               <TouchableOpacity
-                onPress={() => handleRedeem(tier, title, cost)}
+                onPress={() => handleRedeem(tier, cost)}
                 disabled={redeeming !== null}
                 className={`py-2.5 rounded-lg items-center ${
                   redeeming === tier ? 'bg-stone-300' : 'bg-[#A61C14] active:bg-[#85140E]'

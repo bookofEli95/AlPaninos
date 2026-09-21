@@ -1,13 +1,16 @@
 import { useCallback, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, FlatList, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, Animated, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { useLocationStore } from '../../store/locationStore';
-import { usePromoStore } from '../../store/promoStore';
+import { usePromoStore, AppliedPromo } from '../../store/promoStore';
+import { useCartStore } from '../../store/cartStore';
 import { useBackHandler } from '../../hooks/useBackHandler';
+import { EligiblePrizeItem, fetchEligiblePrizeItems, isPickAnItemPrize, itemHasModifiers } from '../../lib/prizeRedemption';
+import PrizeItemPicker from '../../components/PrizeItemPicker';
 import SkeletonBox from '../../components/Skeleton';
 
 export default function DealsScreen() {
@@ -15,8 +18,11 @@ export default function DealsScreen() {
   const { session } = useAuthStore();
   const locationId = useLocationStore(state => state.locationId);
   const { appliedPromo, setAppliedPromo } = usePromoStore();
+  const incrementSimpleItem = useCartStore(state => state.incrementSimpleItem);
   const [toast, setToast] = useState<string | null>(null);
   const toastOpacity = useRef(new Animated.Value(0)).current;
+  const [resolvingCode, setResolvingCode] = useState<string | null>(null);
+  const [picker, setPicker] = useState<{ promo: any; items: EligiblePrizeItem[] } | null>(null);
 
   const goBack = useCallback(() => {
     router.replace(locationId ? `/(main)/menu/${locationId}` : '/(main)');
@@ -72,22 +78,58 @@ export default function DealsScreen() {
   const isAlreadyUsed = (item: any) =>
     item.single_use !== false && !!usedCodes?.has(item.code?.toLowerCase());
 
-  const handleTogglePromo = (item: any) => {
-    if (!item.code || isAlreadyUsed(item)) return;
+  const buildAppliedPromo = (promo: any): AppliedPromo => ({
+    code: promo.code,
+    title: promo.title,
+    discountPercent: Number(promo.discount_percent) || 0,
+    categoryId: promo.category_id,
+    categoryName: promo.category_name,
+    itemNamePatterns: promo.item_name_patterns,
+    maxDiscountAmount: promo.max_discount_amount != null ? Number(promo.max_discount_amount) : null,
+  });
+
+  // Puts the actual free item straight into the cart instead of leaving the
+  // customer to find and add it themselves and then hunt for a promo code
+  // box -- applying the discount (existing coupon mechanism) and adding the
+  // item happen together, from one tap.
+  const giveFreeItem = (target: EligiblePrizeItem, promo: any) => {
+    setAppliedPromo(buildAppliedPromo(promo));
+    itemHasModifiers(target.id).then((hasModifiers) => {
+      if (hasModifiers) {
+        router.push(`/(main)/item/${target.id}`);
+      } else if (locationId) {
+        incrementSimpleItem({ menuItemId: target.id, name: target.name, basePrice: target.base_price }, locationId);
+        showToast(`${target.name} added -- it's free!`);
+      }
+    });
+  };
+
+  const handleTogglePromo = async (item: any) => {
+    if (!item.code || isAlreadyUsed(item) || resolvingCode) return;
     if (appliedPromo?.code === item.code) {
       setAppliedPromo(null);
       showToast('Promo removed');
       return;
     }
-    setAppliedPromo({
-      code: item.code,
-      title: item.title,
-      discountPercent: Number(item.discount_percent) || 0,
-      categoryId: item.category_id,
-      categoryName: item.category_name,
-      itemNamePatterns: item.item_name_patterns,
-      maxDiscountAmount: item.max_discount_amount != null ? Number(item.max_discount_amount) : null,
-    });
+
+    if (isPickAnItemPrize(item) && locationId) {
+      setResolvingCode(item.code);
+      try {
+        const eligibleItems = await fetchEligiblePrizeItems(item, locationId);
+        if (eligibleItems.length === 0) {
+          Alert.alert('Not Available', "This prize isn't available at this location right now.");
+        } else if (eligibleItems.length === 1) {
+          giveFreeItem(eligibleItems[0], item);
+        } else {
+          setPicker({ promo: item, items: eligibleItems });
+        }
+      } finally {
+        setResolvingCode(null);
+      }
+      return;
+    }
+
+    setAppliedPromo(buildAppliedPromo(item));
     showToast('Promo applied');
   };
 
@@ -145,7 +187,7 @@ export default function DealsScreen() {
                 )}
                 {item.code && (
                   <View
-                    className={`self-start rounded-lg px-3 py-1.5 border ${
+                    className={`self-start flex-row items-center rounded-lg px-3 py-1.5 border ${
                       alreadyUsed
                         ? 'bg-stone-100 border-stone-300'
                         : isApplied
@@ -153,12 +195,21 @@ export default function DealsScreen() {
                         : 'bg-[#FAF6F0] border-stone-300'
                     }`}
                   >
+                    {resolvingCode === item.code && (
+                      <ActivityIndicator size="small" color="#A61C14" style={{ marginRight: 6 }} />
+                    )}
                     <Text
                       className={`font-bold tracking-wider ${
                         alreadyUsed ? 'text-[#78716C]' : isApplied ? 'text-[#F4ECE1]' : 'text-[#A61C14]'
                       }`}
                     >
-                      {alreadyUsed ? 'ALREADY REDEEMED' : isApplied ? 'APPLIED -- TAP TO REMOVE' : `CODE: ${item.code}`}
+                      {alreadyUsed
+                        ? 'ALREADY REDEEMED'
+                        : isApplied
+                        ? 'APPLIED -- TAP TO REMOVE'
+                        : isPickAnItemPrize(item)
+                        ? 'TAP TO CHOOSE'
+                        : `CODE: ${item.code}`}
                     </Text>
                   </View>
                 )}
@@ -194,6 +245,18 @@ export default function DealsScreen() {
             <Text className="text-[#F4ECE1] font-bold">{toast}</Text>
           </View>
         </Animated.View>
+      )}
+
+      {picker && (
+        <PrizeItemPicker
+          title={picker.promo.title}
+          items={picker.items}
+          onSelect={(selected) => {
+            giveFreeItem(selected, picker.promo);
+            setPicker(null);
+          }}
+          onClose={() => setPicker(null)}
+        />
       )}
     </View>
   );
