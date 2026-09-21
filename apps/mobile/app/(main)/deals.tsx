@@ -28,6 +28,10 @@ export default function DealsScreen() {
         .from('promotions')
         .select('*')
         .eq('is_active', true)
+        // Personal one-time codes (e.g. a wheel-won prize -- see the
+        // spin_wheel migration) are surfaced from the Profile screen, not
+        // mixed into this storewide deals feed.
+        .is('user_id', null)
         .or(`location_id.eq.${locationId},location_id.is.null`)
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -57,6 +61,9 @@ export default function DealsScreen() {
       title: item.title,
       discountPercent: Number(item.discount_percent) || 0,
       categoryId: item.category_id,
+      categoryName: item.category_name,
+      itemNamePatterns: item.item_name_patterns,
+      maxDiscountAmount: item.max_discount_amount != null ? Number(item.max_discount_amount) : null,
     });
     showToast('Promo applied');
   };

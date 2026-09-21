@@ -73,6 +73,7 @@ export default function MainLayout() {
           used throughout the app (e.g. the auth guard in app/_layout.tsx),
           and the More menu links to it directly. */}
       <Tabs.Screen name="index" options={{ href: null }} />
+      <Tabs.Screen name="spin-wheel" options={{ href: null }} />
       <Tabs.Screen name="cart" options={{ href: null }} />
       <Tabs.Screen name="item/[id]" options={{ href: null }} />
       <Tabs.Screen name="order/[id]" options={{ href: null }} />

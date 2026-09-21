@@ -145,10 +145,33 @@ export default function Layout() {
         useLocationStore.setState({ locationId: null, isLoaded: true });
         router.replace('/(main)');
       } else {
-        useLocationStore.getState().loadSavedLocation().then(() => {
+        // A registered user's very first login after confirming their
+        // email should land on the welcome spin wheel (see
+        // (main)/spin-wheel.tsx) instead of the usual menu/location flow --
+        // has_spun_wheel is flipped permanently by claim_wheel_prize() the
+        // moment they spin, so this only ever fires once per account.
+        // Fails open (skips the wheel) if the profile lookup errors, so a
+        // flaky read can never block someone from getting into the app.
+        (async () => {
+          let showWheel = false;
+          try {
+            const { data } = await (supabase as any)
+              .from('profiles')
+              .select('has_spun_wheel')
+              .eq('id', session.user.id)
+              .single();
+            showWheel = !!data && !data.has_spun_wheel;
+          } catch {}
+
+          if (showWheel) {
+            router.replace('/(main)/spin-wheel');
+            return;
+          }
+
+          await useLocationStore.getState().loadSavedLocation();
           const savedId = useLocationStore.getState().locationId;
           router.replace(savedId ? `/(main)/menu/${savedId}` : '/(main)');
-        });
+        })();
       }
     }
   }, [session, isInitialized, segments]);

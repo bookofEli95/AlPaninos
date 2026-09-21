@@ -5,6 +5,11 @@ export type AppliedPromo = {
   title: string;
   discountPercent: number;
   categoryId: string | null;
+  // Only set for promos scoped by category NAME rather than a fixed id
+  // (e.g. wheel-won prizes) -- see lib/promoEligibility.ts.
+  categoryName?: string | null;
+  itemNamePatterns?: string[] | null;
+  maxDiscountAmount?: number | null;
 };
 
 interface PromoState {

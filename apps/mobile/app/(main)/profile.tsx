@@ -12,6 +12,9 @@ type ProfileData = {
   last_name: string;
   phone: string;
   address: string;
+  panino_points: number | null;
+  wheel_prize_title: string | null;
+  wheel_prize_code: string | null;
 };
 
 export default function ProfileScreen() {
@@ -100,6 +103,34 @@ export default function ProfileScreen() {
       </View>
 
       <View className="px-4 -mt-6">
+        {/* Welcome wheel prize, if they won a redeemable code (see
+            (main)/spin-wheel.tsx) -- points-only wins show up in the stat
+            tile below instead, since there's no code to redeem. */}
+        {profile?.wheel_prize_code && (
+          <View className="bg-white rounded-2xl border border-[#A61C14] shadow-sm p-5 mb-4">
+            <Text className="text-xs font-bold text-[#A61C14] uppercase tracking-wider mb-1">
+              Your Welcome Prize
+            </Text>
+            <Text className="text-lg font-extrabold text-[#1C1917] mb-2">{profile.wheel_prize_title}</Text>
+            <View className="bg-[#FAF6F0] border border-dashed border-[#A61C14] rounded-lg px-4 py-2 self-start">
+              <Text className="text-[#A61C14] font-extrabold tracking-widest">{profile.wheel_prize_code}</Text>
+            </View>
+            <Text className="text-[#78716C] text-sm mt-2">Enter this code in the Cart to redeem it.</Text>
+          </View>
+        )}
+
+        {!!profile?.panino_points && (
+          <View className="bg-white rounded-2xl border border-stone-200 shadow-sm p-5 flex-row items-center mb-4">
+            <View className="w-12 h-12 rounded-full bg-[#FAF6F0] items-center justify-center mr-4">
+              <Ionicons name="star" size={22} color="#A61C14" />
+            </View>
+            <View className="flex-1">
+              <Text className="text-2xl font-extrabold text-[#1C1917]">{profile.panino_points}</Text>
+              <Text className="text-[#78716C] text-sm">PaninoPoints</Text>
+            </View>
+          </View>
+        )}
+
         {/* Orders stat */}
         <TouchableOpacity
           onPress={() => router.push('/(main)/orders')}

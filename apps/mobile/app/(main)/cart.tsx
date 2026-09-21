@@ -7,6 +7,7 @@ import { useCartStore, CartItem } from '../../store/cartStore';
 import { useAuthStore } from '../../store/authStore';
 import { usePromoStore } from '../../store/promoStore';
 import { useBackHandler } from '../../hooks/useBackHandler';
+import { computeEligibleDiscount, resolvePromoCategoryId } from '../../lib/promoEligibility';
 import NotifyPreferenceToggle from '../../components/NotifyPreferenceToggle';
 import CountryPickerSheet from '../../components/CountryPickerSheet';
 import { isValidEmail } from '../../lib/passwordStrength';
@@ -53,11 +54,13 @@ export default function CartScreen() {
   // Shared with the Deals screen -- applying a code there shows up applied
   // here too, and vice versa.
   const { appliedPromo, setAppliedPromo } = usePromoStore();
-  // Category per menu item for this location -- fetched whenever a
+  // Category + name per menu item for this location -- fetched whenever a
   // category-scoped promo is applied, regardless of whether it was applied
   // here or from the Deals screen, so the discount is never stuck at $0
-  // just because this screen didn't do the fetching itself.
-  const [menuItemCategoryMap, setMenuItemCategoryMap] = useState<Record<string, string>>({});
+  // just because this screen didn't do the fetching itself. Name is needed
+  // too since some promos (e.g. "Free Fries" off the wheel) narrow down to
+  // specific item names within a category, not the whole category.
+  const [menuItemInfoMap, setMenuItemInfoMap] = useState<Record<string, { categoryId: string; name: string }>>({});
 
   const cartTotal = items.reduce((sum: number, item: CartItem) => sum + item.totalPrice, 0);
 
@@ -67,26 +70,43 @@ export default function CartScreen() {
   useBackHandler(goBack);
 
   useEffect(() => {
-    if (!appliedPromo?.categoryId || !locationId) return;
+    if (!appliedPromo || !locationId) return;
+    if (!appliedPromo.categoryId && !appliedPromo.categoryName) return;
     (async () => {
       const { data, error } = await supabase
         .from('menu_items')
-        .select('id, category_id')
+        .select('id, category_id, name')
         .eq('location_id', locationId);
       if (!error && data) {
-        setMenuItemCategoryMap(Object.fromEntries(data.map((m: any) => [m.id, m.category_id])));
+        setMenuItemInfoMap(Object.fromEntries(data.map((m: any) => [m.id, { categoryId: m.category_id, name: m.name }])));
+      }
+      // A promo scoped by category NAME (e.g. wheel prizes -- see
+      // lib/promoEligibility.ts) doesn't know a concrete category_id until
+      // it's resolved against this location, which could differ from
+      // wherever the promo was originally applied from.
+      if (!appliedPromo.categoryId && appliedPromo.categoryName) {
+        const resolvedId = await resolvePromoCategoryId(
+          { category_id: null, category_name: appliedPromo.categoryName },
+          locationId
+        );
+        if (resolvedId) setAppliedPromo({ ...appliedPromo, categoryId: resolvedId });
       }
     })();
-  }, [appliedPromo?.categoryId, locationId]);
+  }, [appliedPromo?.categoryId, appliedPromo?.categoryName, locationId]);
 
   const discountAmount = useMemo(() => {
     if (!appliedPromo) return 0;
-    const eligibleItems = items.filter((item) =>
-      appliedPromo.categoryId ? menuItemCategoryMap[item.menuItemId] === appliedPromo.categoryId : true
+    return computeEligibleDiscount(
+      items,
+      {
+        discountPercent: appliedPromo.discountPercent,
+        categoryId: appliedPromo.categoryId,
+        itemNamePatterns: appliedPromo.itemNamePatterns,
+        maxDiscountAmount: appliedPromo.maxDiscountAmount,
+      },
+      menuItemInfoMap
     );
-    const eligibleSubtotal = eligibleItems.reduce((sum, item) => sum + item.totalPrice, 0);
-    return eligibleSubtotal * (appliedPromo.discountPercent / 100);
-  }, [items, appliedPromo, menuItemCategoryMap]);
+  }, [items, appliedPromo, menuItemInfoMap]);
 
   const discountedSubtotal = Math.max(0, cartTotal - discountAmount);
   const taxAmount = discountedSubtotal * taxRate;
@@ -122,22 +142,27 @@ export default function CartScreen() {
         return;
       }
 
-      let categoryMap = menuItemCategoryMap;
-      if (promo.category_id && Object.keys(categoryMap).length === 0) {
+      let infoMap = menuItemInfoMap;
+      if ((promo.category_id || promo.category_name) && Object.keys(infoMap).length === 0 && locationId) {
         const { data: menuItems, error: miError } = await supabase
           .from('menu_items')
-          .select('id, category_id')
+          .select('id, category_id, name')
           .eq('location_id', locationId);
         if (miError) throw miError;
-        categoryMap = Object.fromEntries((menuItems || []).map((m: any) => [m.id, m.category_id]));
-        setMenuItemCategoryMap(categoryMap);
+        infoMap = Object.fromEntries((menuItems || []).map((m: any) => [m.id, { categoryId: m.category_id, name: m.name }]));
+        setMenuItemInfoMap(infoMap);
       }
 
-      const eligibleItems = items.filter((item) =>
-        promo.category_id ? categoryMap[item.menuItemId] === promo.category_id : true
+      const resolvedCategoryId = locationId ? await resolvePromoCategoryId(promo, locationId) : promo.category_id;
+      const discountPercent = Number(promo.discount_percent) || 0;
+      const maxDiscountAmount = promo.max_discount_amount != null ? Number(promo.max_discount_amount) : null;
+
+      const eligibleDiscount = computeEligibleDiscount(
+        items,
+        { discountPercent, categoryId: resolvedCategoryId, itemNamePatterns: promo.item_name_patterns, maxDiscountAmount },
+        infoMap
       );
-      const eligibleSubtotal = eligibleItems.reduce((sum, item) => sum + item.totalPrice, 0);
-      if (eligibleSubtotal <= 0) {
+      if (eligibleDiscount <= 0) {
         Alert.alert('No Eligible Items', "None of the items currently in your cart qualify for this promo code.");
         return;
       }
@@ -145,8 +170,11 @@ export default function CartScreen() {
       setAppliedPromo({
         code: promo.code,
         title: promo.title,
-        discountPercent: Number(promo.discount_percent) || 0,
-        categoryId: promo.category_id,
+        discountPercent,
+        categoryId: resolvedCategoryId,
+        categoryName: promo.category_name,
+        itemNamePatterns: promo.item_name_patterns,
+        maxDiscountAmount,
       });
       setPromoCode('');
     } catch (e: any) {
