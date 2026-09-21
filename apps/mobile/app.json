@@ -35,6 +35,13 @@
       ],
       "expo-video",
       "expo-location"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "0687aaae-1eee-47e3-a705-1f9fd9c1e1ca"
+      }
+    },
+    "owner": "elithegoat"
   }
 }
