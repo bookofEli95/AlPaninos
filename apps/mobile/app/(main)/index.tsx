@@ -263,7 +263,7 @@ export default function Home() {
                     onPress={() => handleChooseOrderType('delivery')}
                     className="flex-1 bg-white border border-stone-300 rounded-2xl p-5 items-center ml-2"
                   >
-                    <Ionicons name="bicycle-outline" size={28} color="#A61C14" />
+                    <Ionicons name="car-outline" size={28} color="#A61C14" />
                     <Text className="text-[#1C1917] font-bold text-base mt-2">Delivery</Text>
                   </TouchableOpacity>
                 </View>

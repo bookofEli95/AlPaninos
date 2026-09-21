@@ -122,7 +122,7 @@ export default function MenuScreen() {
             className="flex-row items-center bg-white border border-stone-300 rounded-full px-4 py-3 mr-2"
           >
             <Ionicons
-              name={orderType === 'pickup' ? 'storefront-outline' : 'bicycle-outline'}
+              name={orderType === 'pickup' ? 'storefront-outline' : 'car-outline'}
               size={18}
               color="#A61C14"
             />
