@@ -13,8 +13,6 @@ export function estimateReadyMinutes(orderType: 'pickup' | 'delivery', itemCount
 export type PickupSlot = { time: Date; label: string };
 
 const SLOT_INTERVAL_MINUTES = 15;
-const MAX_SLOTS = 6;
-const WINDOW_MINUTES = 120;
 const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
 
 function formatSlotTime(date: Date): string {
@@ -28,34 +26,30 @@ function formatSlotTime(date: Date): string {
 // An uncertain "~15-20 min" invites repeated checking and in-person "is it
 // ready yet" queue pressure; a committed clock time doesn't. Slots start at
 // the earliest the kitchen could realistically have it ready (rounded up to
-// a clean 15-minute mark) and stop at whichever comes first: today's
-// closing time or a 2-hour window -- capped at a handful of options rather
-// than every slot until close, since a long list is its own friction and
-// nobody's ordering lunch four hours ahead anyway.
+// a clean 15-minute mark) and run every 15 minutes all the way to today's
+// closing time -- e.g. ordering at noon still offers an 8pm slot if the
+// store's open that late. No artificial cap: this feeds a scrollable
+// dropdown (cart.tsx), not a row of chips, so a long list isn't a problem.
 export function getPickupSlots(
   hours: WeekHours | null | undefined,
   orderType: 'pickup' | 'delivery',
   itemCount: number
 ): PickupSlot[] {
+  const today = hours?.[DAY_NAMES[new Date().getDay()]];
+  if (!today) return [];
+
   const minMinutes = estimateReadyMinutes(orderType, itemCount);
   const now = new Date();
   const earliest = new Date(now.getTime() + minMinutes * 60000);
   earliest.setMinutes(Math.ceil(earliest.getMinutes() / SLOT_INTERVAL_MINUTES) * SLOT_INTERVAL_MINUTES, 0, 0);
 
-  let closeAt: Date | null = null;
-  const today = hours?.[DAY_NAMES[now.getDay()]];
-  if (today) {
-    const [closeH, closeM] = today.close.split(':').map(Number);
-    closeAt = new Date(now);
-    closeAt.setHours(closeH, closeM, 0, 0);
-  }
-
-  const windowEnd = new Date(now.getTime() + WINDOW_MINUTES * 60000);
-  const cutoff = closeAt && closeAt < windowEnd ? closeAt : windowEnd;
+  const [closeH, closeM] = today.close.split(':').map(Number);
+  const closeAt = new Date(now);
+  closeAt.setHours(closeH, closeM, 0, 0);
 
   const slots: PickupSlot[] = [];
   let slotTime = new Date(earliest);
-  while (slotTime <= cutoff && slots.length < MAX_SLOTS) {
+  while (slotTime <= closeAt) {
     slots.push({ time: new Date(slotTime), label: formatSlotTime(slotTime) });
     slotTime = new Date(slotTime.getTime() + SLOT_INTERVAL_MINUTES * 60000);
   }

@@ -10,6 +10,7 @@ import { useBackHandler } from '../../hooks/useBackHandler';
 import { computeEligibleDiscount, hasUserRedeemedCode, resolvePromoCategoryId } from '../../lib/promoEligibility';
 import NotifyPreferenceToggle from '../../components/NotifyPreferenceToggle';
 import CountryPickerSheet from '../../components/CountryPickerSheet';
+import TimeSlotPickerSheet from '../../components/TimeSlotPickerSheet';
 import { isValidEmail } from '../../lib/passwordStrength';
 import { estimateReadyMinutes, getPickupSlots } from '../../lib/orderTiming';
 import { WeekHours } from '../../lib/hours';
@@ -54,6 +55,7 @@ export default function CartScreen() {
   // null = ASAP (the default) -- a specific Date means the customer
   // committed to a slot instead of an open-ended estimate.
   const [selectedSlot, setSelectedSlot] = useState<Date | null>(null);
+  const [timePickerVisible, setTimePickerVisible] = useState(false);
   const [promoCode, setPromoCode] = useState('');
   const [applyingPromo, setApplyingPromo] = useState(false);
   // Shared with the Deals screen -- applying a code there shows up applied
@@ -673,40 +675,26 @@ export default function CartScreen() {
 
         {/* A committed clock time beats an open-ended "~15-20 min" estimate
             -- uncertain waits invite repeated app-checking and in-person
-            "is it ready yet" queue pressure that an exact time avoids. */}
+            "is it ready yet" queue pressure that an exact time avoids. A
+            dropdown rather than a row of chips, since getPickupSlots now
+            offers every 15-minute slot up to closing (e.g. ordering at noon
+            can still pick 8pm), not just the next couple hours. */}
         {items.length > 0 && (
           <View className="my-4 p-4 bg-white rounded-2xl border border-stone-200 shadow-sm">
             <Text className="text-lg font-bold mb-3 text-[#1C1917]">
               {orderType === 'delivery' ? 'When should it arrive?' : 'When would you like it?'}
             </Text>
-            <View className="flex-row flex-wrap -mr-2 -mb-2">
-              <TouchableOpacity
-                onPress={() => setSelectedSlot(null)}
-                className={`px-4 py-2.5 rounded-lg border mr-2 mb-2 ${
-                  selectedSlot === null ? 'bg-[#A61C14] border-[#A61C14]' : 'bg-white border-stone-300'
-                }`}
-              >
-                <Text className={`font-bold ${selectedSlot === null ? 'text-[#F4ECE1]' : 'text-[#1C1917]'}`}>
-                  ASAP (~{estimateReadyMinutes(orderType, itemCount)} min)
-                </Text>
-              </TouchableOpacity>
-              {pickupSlots.map((slot) => {
-                const isSelected = selectedSlot?.getTime() === slot.time.getTime();
-                return (
-                  <TouchableOpacity
-                    key={slot.time.toISOString()}
-                    onPress={() => setSelectedSlot(slot.time)}
-                    className={`px-4 py-2.5 rounded-lg border mr-2 mb-2 ${
-                      isSelected ? 'bg-[#A61C14] border-[#A61C14]' : 'bg-white border-stone-300'
-                    }`}
-                  >
-                    <Text className={`font-bold ${isSelected ? 'text-[#F4ECE1]' : 'text-[#1C1917]'}`}>
-                      {slot.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+            <TouchableOpacity
+              onPress={() => setTimePickerVisible(true)}
+              className="flex-row items-center justify-between bg-[#FAF6F0] border border-stone-300 rounded-xl px-4 py-3.5"
+            >
+              <Text className="font-bold text-[#1C1917]">
+                {selectedSlot
+                  ? selectedSlot.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+                  : `ASAP (~${estimateReadyMinutes(orderType, itemCount)} min)`}
+              </Text>
+              <Ionicons name="chevron-down" size={18} color="#78716C" />
+            </TouchableOpacity>
           </View>
         )}
       </ScrollView>
@@ -777,6 +765,18 @@ export default function CartScreen() {
           setCountryPickerVisible(false);
         }}
         keyboardHeight={keyboardHeight}
+      />
+
+      <TimeSlotPickerSheet
+        visible={timePickerVisible}
+        onClose={() => setTimePickerVisible(false)}
+        onSelect={(slot) => {
+          setSelectedSlot(slot);
+          setTimePickerVisible(false);
+        }}
+        slots={pickupSlots}
+        asapLabel={`${estimateReadyMinutes(orderType, itemCount)} min`}
+        selected={selectedSlot}
       />
     </View>
   );
