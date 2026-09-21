@@ -20,7 +20,7 @@ import { Country, DEFAULT_COUNTRY, formatPhoneNumber, isValidPhoneForCountry, pa
 export default function CartScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { items, locationId, removeItem, clearCart, orderType, deliveryAddress } = useCartStore();
+  const { items, locationId, removeItem, clearCart, orderType, deliveryAddress, removeItemsByPromoCode } = useCartStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { session } = useAuthStore();
   // Verifying email during guest checkout (below) flips the session's
@@ -77,6 +77,12 @@ export default function CartScreen() {
   // than going through appliedPromo -- gathered here so checkout marks every
   // one of them used, not just a manually-applied coupon code.
   const rewardPromoCodes = Array.from(new Set(items.map((item) => item.promoCode).filter((c): c is string => !!c)));
+  // The Promo Code box below should read as "applied" (locked, not an
+  // editable input) whenever a reward's free item is sitting in the cart,
+  // exactly like it already does for a manually-applied appliedPromo coupon
+  // -- otherwise it's left showing a blank, editable box even though a
+  // promo genuinely is in effect.
+  const activePromoCode = appliedPromo?.code ?? rewardPromoCodes[0] ?? null;
 
   const goBack = useCallback(() => {
     router.replace(locationId ? `/(main)/menu/${locationId}` : '/(main)');
@@ -652,15 +658,21 @@ export default function CartScreen() {
         {items.length > 0 && (
           <View className="my-4 p-4 bg-white rounded-2xl border border-stone-200 shadow-sm">
             <Text className="text-lg font-bold mb-3 text-[#1C1917]">Promo Code</Text>
-            {appliedPromo ? (
+            {activePromoCode ? (
               <View className="flex-row items-center justify-between bg-[#FAF6F0] border border-stone-300 rounded-lg px-4 py-3">
                 <View className="flex-row items-center flex-1 mr-2">
                   <Ionicons name="pricetag" size={16} color="#A61C14" />
                   <Text className="text-[#1C1917] font-bold ml-2" numberOfLines={1}>
-                    {appliedPromo.code} applied
+                    {activePromoCode} applied
                   </Text>
                 </View>
-                <TouchableOpacity onPress={() => setAppliedPromo(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <TouchableOpacity
+                  onPress={() => {
+                    if (appliedPromo) setAppliedPromo(null);
+                    else removeItemsByPromoCode(activePromoCode);
+                  }}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
                   <Ionicons name="close-circle" size={22} color="#78716C" />
                 </TouchableOpacity>
               </View>
