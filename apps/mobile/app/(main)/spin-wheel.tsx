@@ -17,8 +17,15 @@ import { WHEEL_SEGMENTS, WHEEL_SEGMENT_ANGLE } from '../../lib/wheelPrizes';
 
 const WHEEL_SIZE = Math.min(300, Dimensions.get('window').width - 80);
 const R = WHEEL_SIZE / 2;
-const LABEL_RADIUS = R * 0.62;
-const LABEL_WIDTH = R * 0.62;
+// With 7 segments each wedge is only ~51deg wide, so a label box has to stay
+// noticeably narrower than its radius or its corners poke past the wedge's
+// edge into the next segment once rotated into place -- LABEL_WIDTH is kept
+// well under what the wedge is actually wide at LABEL_RADIUS (see the
+// tan(halfAngle) math this is based on) rather than matching it.
+const LABEL_RADIUS = R * 0.68;
+const LABEL_WIDTH = R * 0.5;
+const LABEL_FONT_SIZE = 9;
+const LABEL_LINE_HEIGHT = 11;
 const HUB_SIZE = WHEEL_SIZE * 0.24;
 const EXTRA_SPINS = 6;
 
@@ -131,13 +138,15 @@ export default function SpinWheelScreen() {
           {WHEEL_SEGMENTS.map((seg, i) => {
             const midAngle = i * WHEEL_SEGMENT_ANGLE + WHEEL_SEGMENT_ANGLE / 2;
             const { x, y } = polarToCartesian(R, R, LABEL_RADIUS, midAngle);
+            const lineCount = seg.label.split('\n').length;
+            const labelHeight = lineCount * LABEL_LINE_HEIGHT;
             return (
               <View
                 key={seg.index}
                 style={{
                   position: 'absolute',
                   left: x - LABEL_WIDTH / 2,
-                  top: y - 20,
+                  top: y - labelHeight / 2,
                   width: LABEL_WIDTH,
                   transform: [{ rotate: `${midAngle}deg` }],
                 }}
@@ -218,9 +227,9 @@ const styles = StyleSheet.create({
   segmentLabel: {
     color: '#F4ECE1',
     fontWeight: 'bold',
-    fontSize: 10,
+    fontSize: LABEL_FONT_SIZE,
     textAlign: 'center',
-    lineHeight: 12,
+    lineHeight: LABEL_LINE_HEIGHT,
   },
   centerHub: {
     position: 'absolute',
