@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, Keyboard } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../../../lib/supabase';
@@ -8,7 +8,7 @@ import { useCartStore } from '../../../store/cartStore';
 import { useBackHandler } from '../../../hooks/useBackHandler';
 import { Ionicons } from '@expo/vector-icons';
 import SkeletonBox from '../../../components/Skeleton';
-import UpsellTray from '../../../components/UpsellTray';
+import ItemAddOns from '../../../components/ItemAddOns';
 
 export default function ItemDetailScreen() {
   const { id: itemId } = useLocalSearchParams<{ id: string }>();
@@ -19,7 +19,6 @@ export default function ItemDetailScreen() {
   const [quantity, setQuantity] = useState(1);
   const [specialInstructions, setSpecialInstructions] = useState('');
   const [justAdded, setJustAdded] = useState(false);
-  const [showUpsell, setShowUpsell] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -31,17 +30,6 @@ export default function ItemDetailScreen() {
       hideSub.remove();
     };
   }, []);
-
-  // This screen is a hidden tab (see (main)/_layout.tsx), so navigating here
-  // for a different item reuses the same mounted instance rather than
-  // remounting -- reset all per-item state whenever the item id changes.
-  useEffect(() => {
-    setSelections({});
-    setQuantity(1);
-    setSpecialInstructions('');
-    setJustAdded(false);
-    setShowUpsell(false);
-  }, [itemId]);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['item', itemId],
@@ -83,22 +71,34 @@ export default function ItemDetailScreen() {
     }
   });
 
-  // Pre-check any options marked is_default (e.g. a combo's included
-  // side/drink). A required single-select group with no staff-chosen
-  // default still gets one -- defaulting to its first option and letting
-  // the customer change it, rather than making them decide from a blank
-  // state, is the same default-bias effect (Johnson & Goldstein) that makes
-  // opt-out systems consistently outperform opt-in ones: fewer decisions
-  // required for the common case, full customization still one tap away.
-  // Walked depth-first (mirroring visibleGroups below) so a default that
-  // reveals a nested group cascades a default into that group too.
-  useEffect(() => {
-    if (!data?.modifier_groups) return;
-    setSelections(prev => {
-      if (Object.keys(prev).length > 0) return prev;
-      const allGroups = data.modifier_groups;
-      const defaults: Record<string, string[]> = {};
+  // This screen is a hidden tab (see (main)/_layout.tsx), so navigating away
+  // and back to it -- a different item, or the very same item to add
+  // another with different modifiers -- reuses the same mounted instance
+  // rather than remounting. Resetting only once on mount (or only when
+  // itemId changed) left a revisited item stuck showing "Added to Cart"
+  // from the last visit, so this resets on every focus instead.
+  //
+  // Pre-checking is_default options (e.g. a combo's included side/drink)
+  // happens in the same pass: a required single-select group with no
+  // staff-chosen default still gets one -- defaulting to its first option
+  // and letting the customer change it, rather than making them decide from
+  // a blank state, is the same default-bias effect (Johnson & Goldstein)
+  // that makes opt-out systems consistently outperform opt-in ones. Walked
+  // depth-first (mirroring visibleGroups below) so a default that reveals a
+  // nested group cascades a default into that group too.
+  useFocusEffect(
+    useCallback(() => {
+      setQuantity(1);
+      setSpecialInstructions('');
+      setJustAdded(false);
 
+      const allGroups = data?.modifier_groups;
+      if (!allGroups) {
+        setSelections({});
+        return;
+      }
+
+      const defaults: Record<string, string[]> = {};
       const applyDefaults = (group: any) => {
         const options = group.modifier_options || [];
         let chosenIds: string[] = options.filter((opt: any) => opt.is_default).map((opt: any) => opt.id);
@@ -115,9 +115,9 @@ export default function ItemDetailScreen() {
       };
 
       allGroups.filter((g: any) => !g.parent_option_id).forEach(applyDefaults);
-      return defaults;
-    });
-  }, [data]);
+      setSelections(defaults);
+    }, [data])
+  );
 
   // A group nested under a parent_option_id only applies once that option is
   // selected (e.g. "Greek Fries" toppings only show once "Greek Fries" is chosen).
@@ -260,7 +260,7 @@ export default function ItemDetailScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setJustAdded(true);
     setTimeout(() => {
-      setShowUpsell(true);
+      goBackToCategory();
     }, 600);
   };
 
@@ -370,6 +370,8 @@ export default function ItemDetailScreen() {
             />
           </View>
         )}
+
+        <ItemAddOns locationId={data.location_id!} excludeCategoryName={data.menu_categories?.name} />
       </ScrollView>
 
       {/* Bottom Action Bar */}
@@ -418,17 +420,6 @@ export default function ItemDetailScreen() {
           )}
         </TouchableOpacity>
       </View>
-
-      {showUpsell && (
-        <UpsellTray
-          locationId={data.location_id!}
-          excludeCategoryName={data.menu_categories?.name}
-          onDismiss={() => {
-            setShowUpsell(false);
-            goBackToCategory();
-          }}
-        />
-      )}
     </View>
   );
 }
