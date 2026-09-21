@@ -10,6 +10,7 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { useBackHandler } from '../../hooks/useBackHandler';
@@ -51,7 +52,14 @@ export default function SpinWheelScreen() {
   const [spinning, setSpinning] = useState(false);
   const [result, setResult] = useState<PrizeResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const rotation = useSharedValue(0);
+
+  const handleCopyCode = async (code: string) => {
+    await Clipboard.setStringAsync(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
 
   // This screen is the mandatory first thing a new registered user sees
   // (see app/_layout.tsx's navigation guard) -- there's nothing to go back
@@ -190,9 +198,13 @@ export default function SpinWheelScreen() {
             <Text className="text-2xl font-extrabold text-[#1C1917] text-center mb-4">{result.title}</Text>
 
             {result.code ? (
-              <View className="bg-white border-2 border-dashed border-[#A61C14] rounded-xl px-6 py-3 mb-4">
-                <Text className="text-[#A61C14] font-extrabold text-xl tracking-widest">{result.code}</Text>
-              </View>
+              <TouchableOpacity
+                onPress={() => handleCopyCode(result.code!)}
+                className="flex-row items-center bg-white border-2 border-dashed border-[#A61C14] rounded-xl px-6 py-3 mb-4"
+              >
+                <Text className="text-[#A61C14] font-extrabold text-xl tracking-widest mr-3">{result.code}</Text>
+                <Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={20} color="#A61C14" />
+              </TouchableOpacity>
             ) : (
               <Text className="text-[#78716C] text-center mb-4">
                 We've added it to your account -- no code needed.
@@ -201,7 +213,9 @@ export default function SpinWheelScreen() {
 
             {result.code && (
               <Text className="text-[#78716C] text-center text-sm mb-6">
-                Enter this code in the Promo Code box at checkout to redeem it. It never expires.
+                {copied
+                  ? 'Copied! Paste it in the Promo Code box at checkout to redeem it.'
+                  : 'Tap the code to copy it. Enter it in the Promo Code box at checkout to redeem it. It never expires.'}
               </Text>
             )}
 

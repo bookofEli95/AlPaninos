@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { useLocationStore } from '../../store/locationStore';
@@ -50,6 +51,33 @@ export default function ProfileScreen() {
     },
     enabled: !isAnonymous && !!session?.user?.id
   });
+
+  // profiles.wheel_prize_code stays set forever as a record of what was
+  // won -- this checks whether that code is still actually redeemable
+  // (mark_promo_used flips it inactive at checkout), so the banner below
+  // disappears once it's been used instead of showing a dead code forever.
+  const { data: wheelPromoActive } = useQuery({
+    queryKey: ['wheelPromoActive', session?.user?.id, profile?.wheel_prize_code],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('promotions')
+        .select('id')
+        .eq('code', profile!.wheel_prize_code)
+        .eq('user_id', session!.user.id)
+        .eq('is_active', true)
+        .maybeSingle();
+      if (error) throw error;
+      return !!data;
+    },
+    enabled: !isAnonymous && !!session?.user?.id && !!profile?.wheel_prize_code,
+  });
+
+  const [copied, setCopied] = useState(false);
+  const handleCopyCode = async (code: string) => {
+    await Clipboard.setStringAsync(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
 
   const { data: orderCount } = useQuery({
     queryKey: ['orderCount', session?.user?.id],
@@ -106,16 +134,22 @@ export default function ProfileScreen() {
         {/* Welcome wheel prize, if they won a redeemable code (see
             (main)/spin-wheel.tsx) -- points-only wins show up in the stat
             tile below instead, since there's no code to redeem. */}
-        {profile?.wheel_prize_code && (
+        {profile?.wheel_prize_code && wheelPromoActive && (
           <View className="bg-white rounded-2xl border border-[#A61C14] shadow-sm p-5 mb-4">
             <Text className="text-xs font-bold text-[#A61C14] uppercase tracking-wider mb-1">
               Your Welcome Prize
             </Text>
             <Text className="text-lg font-extrabold text-[#1C1917] mb-2">{profile.wheel_prize_title}</Text>
-            <View className="bg-[#FAF6F0] border border-dashed border-[#A61C14] rounded-lg px-4 py-2 self-start">
-              <Text className="text-[#A61C14] font-extrabold tracking-widest">{profile.wheel_prize_code}</Text>
-            </View>
-            <Text className="text-[#78716C] text-sm mt-2">Enter this code in the Cart to redeem it.</Text>
+            <TouchableOpacity
+              onPress={() => handleCopyCode(profile.wheel_prize_code!)}
+              className="flex-row items-center bg-[#FAF6F0] border border-dashed border-[#A61C14] rounded-lg px-4 py-2 self-start"
+            >
+              <Text className="text-[#A61C14] font-extrabold tracking-widest mr-2">{profile.wheel_prize_code}</Text>
+              <Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={16} color="#A61C14" />
+            </TouchableOpacity>
+            <Text className="text-[#78716C] text-sm mt-2">
+              {copied ? 'Copied!' : 'Tap the code to copy it, then enter it in the Cart to redeem it.'}
+            </Text>
           </View>
         )}
 

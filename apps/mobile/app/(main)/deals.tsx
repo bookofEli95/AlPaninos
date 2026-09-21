@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
+import { useAuthStore } from '../../store/authStore';
 import { useLocationStore } from '../../store/locationStore';
 import { usePromoStore } from '../../store/promoStore';
 import { useBackHandler } from '../../hooks/useBackHandler';
@@ -11,6 +12,7 @@ import SkeletonBox from '../../components/Skeleton';
 
 export default function DealsScreen() {
   const router = useRouter();
+  const { session } = useAuthStore();
   const locationId = useLocationStore(state => state.locationId);
   const { appliedPromo, setAppliedPromo } = usePromoStore();
   const [toast, setToast] = useState<string | null>(null);
@@ -22,22 +24,22 @@ export default function DealsScreen() {
   useBackHandler(goBack);
 
   const { data: promotions, isLoading, error } = useQuery({
-    queryKey: ['promotions', locationId, 'all'],
+    queryKey: ['promotions', locationId, session?.user?.id, 'all'],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('promotions')
         .select('*')
         .eq('is_active', true)
-        // Personal one-time codes (e.g. a wheel-won prize -- see the
-        // spin_wheel migration) are surfaced from the Profile screen, not
-        // mixed into this storewide deals feed.
-        .is('user_id', null)
         .or(`location_id.eq.${locationId},location_id.is.null`)
+        // Storewide promos (user_id null) plus this account's own personal
+        // codes (e.g. a wheel-won prize -- see the spin_wheel migration) --
+        // never another account's personal code.
+        .or(`user_id.is.null,user_id.eq.${session?.user?.id}`)
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data;
     },
-    enabled: !!locationId,
+    enabled: !!locationId && !!session?.user?.id,
   });
 
   const showToast = (message: string) => {
@@ -108,6 +110,14 @@ export default function DealsScreen() {
                   <Text className="text-lg font-bold text-[#1C1917] flex-1 mr-2">{item.title}</Text>
                   {isApplied && <Ionicons name="checkmark-circle" size={22} color="#A61C14" />}
                 </View>
+                {item.user_id && (
+                  <View className="flex-row items-center mb-2">
+                    <Ionicons name="gift-outline" size={14} color="#A61C14" />
+                    <Text className="text-[#A61C14] text-xs font-bold uppercase tracking-wider ml-1">
+                      Your Prize
+                    </Text>
+                  </View>
+                )}
                 {item.description && (
                   <Text className="text-[#78716C] mb-3">{item.description}</Text>
                 )}

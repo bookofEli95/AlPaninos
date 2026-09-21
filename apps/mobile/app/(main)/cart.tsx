@@ -388,7 +388,18 @@ export default function CartScreen() {
         }
       }
 
+      // A personal one-time code (e.g. a wheel prize) is spent after this
+      // order -- no-ops harmlessly for a shared/storewide code, since that
+      // update only ever matches a row this account itself owns. Not
+      // critical to the order itself, so a failure here is logged rather
+      // than surfaced as a checkout failure.
+      if (appliedPromo?.code) {
+        const { error: promoError } = await (supabase as any).rpc('mark_promo_used', { p_code: appliedPromo.code });
+        if (promoError) console.warn('Failed to mark promo code used:', promoError.message);
+      }
+
       clearCart();
+      setAppliedPromo(null);
       Alert.alert('Order Placed!', 'You can track its status now.', [
         { text: 'Track Order', onPress: () => router.replace(`/(main)/order/${orderData.id}`) }
       ]);
