@@ -179,7 +179,7 @@ export default function Login() {
         <Animated.View style={heroStyle} className="items-center mb-5">
           <Image
             source={require('../../assets/logo.jpg')}
-            className="w-24 h-24 rounded-full mb-3 shadow-md"
+            className="w-36 h-36 rounded-full mb-3 shadow-md"
             resizeMode="contain"
           />
           <Text className="text-3xl font-extrabold text-[#F4ECE1]">AlPaninos</Text>
