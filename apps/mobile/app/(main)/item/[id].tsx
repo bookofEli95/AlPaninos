@@ -8,6 +8,7 @@ import { useCartStore } from '../../../store/cartStore';
 import { useBackHandler } from '../../../hooks/useBackHandler';
 import { Ionicons } from '@expo/vector-icons';
 import SkeletonBox from '../../../components/Skeleton';
+import UpsellTray from '../../../components/UpsellTray';
 
 export default function ItemDetailScreen() {
   const { id: itemId } = useLocalSearchParams<{ id: string }>();
@@ -18,6 +19,7 @@ export default function ItemDetailScreen() {
   const [quantity, setQuantity] = useState(1);
   const [specialInstructions, setSpecialInstructions] = useState('');
   const [justAdded, setJustAdded] = useState(false);
+  const [showUpsell, setShowUpsell] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -38,6 +40,7 @@ export default function ItemDetailScreen() {
     setQuantity(1);
     setSpecialInstructions('');
     setJustAdded(false);
+    setShowUpsell(false);
   }, [itemId]);
 
   const { data, isLoading, error } = useQuery({
@@ -80,18 +83,38 @@ export default function ItemDetailScreen() {
     }
   });
 
-  // Pre-check any options marked is_default (e.g. a combo's included side/drink)
+  // Pre-check any options marked is_default (e.g. a combo's included
+  // side/drink). A required single-select group with no staff-chosen
+  // default still gets one -- defaulting to its first option and letting
+  // the customer change it, rather than making them decide from a blank
+  // state, is the same default-bias effect (Johnson & Goldstein) that makes
+  // opt-out systems consistently outperform opt-in ones: fewer decisions
+  // required for the common case, full customization still one tap away.
+  // Walked depth-first (mirroring visibleGroups below) so a default that
+  // reveals a nested group cascades a default into that group too.
   useEffect(() => {
     if (!data?.modifier_groups) return;
     setSelections(prev => {
       if (Object.keys(prev).length > 0) return prev;
+      const allGroups = data.modifier_groups;
       const defaults: Record<string, string[]> = {};
-      data.modifier_groups.forEach((group: any) => {
-        const defaultIds = group.modifier_options
-          ?.filter((opt: any) => opt.is_default)
-          .map((opt: any) => opt.id) || [];
-        if (defaultIds.length > 0) defaults[group.id] = defaultIds;
-      });
+
+      const applyDefaults = (group: any) => {
+        const options = group.modifier_options || [];
+        let chosenIds: string[] = options.filter((opt: any) => opt.is_default).map((opt: any) => opt.id);
+        if (chosenIds.length === 0 && group.is_required && group.max_selections === 1 && options.length > 0) {
+          chosenIds = [options[0].id];
+        }
+        if (chosenIds.length > 0) defaults[group.id] = chosenIds;
+
+        chosenIds.forEach((optId: string) => {
+          allGroups
+            .filter((g: any) => g.parent_option_id === optId)
+            .forEach(applyDefaults);
+        });
+      };
+
+      allGroups.filter((g: any) => !g.parent_option_id).forEach(applyDefaults);
       return defaults;
     });
   }, [data]);
@@ -237,7 +260,7 @@ export default function ItemDetailScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setJustAdded(true);
     setTimeout(() => {
-      goBackToCategory();
+      setShowUpsell(true);
     }, 600);
   };
 
@@ -395,6 +418,17 @@ export default function ItemDetailScreen() {
           )}
         </TouchableOpacity>
       </View>
+
+      {showUpsell && (
+        <UpsellTray
+          locationId={data.location_id!}
+          excludeCategoryName={data.menu_categories?.name}
+          onDismiss={() => {
+            setShowUpsell(false);
+            goBackToCategory();
+          }}
+        />
+      )}
     </View>
   );
 }

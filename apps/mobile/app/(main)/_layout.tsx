@@ -73,7 +73,17 @@ export default function MainLayout() {
           used throughout the app (e.g. the auth guard in app/_layout.tsx),
           and the More menu links to it directly. */}
       <Tabs.Screen name="index" options={{ href: null }} />
-      <Tabs.Screen name="spin-wheel" options={{ href: null }} />
+      <Tabs.Screen
+        name="spin-wheel"
+        options={{
+          href: null,
+          // Mandatory first-run screen -- the tab bar must not offer an
+          // escape hatch around it, so it's hidden entirely while this
+          // screen is focused (React Navigation restores the normal
+          // tabBarStyle automatically once the user navigates away).
+          tabBarStyle: { display: 'none' },
+        }}
+      />
       <Tabs.Screen name="cart" options={{ href: null }} />
       <Tabs.Screen name="item/[id]" options={{ href: null }} />
       <Tabs.Screen name="order/[id]" options={{ href: null }} />

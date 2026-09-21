@@ -11,7 +11,8 @@ import { computeEligibleDiscount, hasUserRedeemedCode, resolvePromoCategoryId } 
 import NotifyPreferenceToggle from '../../components/NotifyPreferenceToggle';
 import CountryPickerSheet from '../../components/CountryPickerSheet';
 import { isValidEmail } from '../../lib/passwordStrength';
-import { estimateReadyMinutes } from '../../lib/orderTiming';
+import { estimateReadyMinutes, getPickupSlots } from '../../lib/orderTiming';
+import { WeekHours } from '../../lib/hours';
 import { Country, DEFAULT_COUNTRY, isValidPhoneForCountry, parsePhone } from '../../lib/countries';
 
 export default function CartScreen() {
@@ -49,6 +50,10 @@ export default function CartScreen() {
   const [verifiedEmail, setVerifiedEmail] = useState<string | null>(() => session?.user?.email ?? null);
   const emailVerified = !!verifiedEmail && verifiedEmail === guestEmail.trim();
   const [taxRate, setTaxRate] = useState(0.13);
+  const [locationHours, setLocationHours] = useState<WeekHours | null>(null);
+  // null = ASAP (the default) -- a specific Date means the customer
+  // committed to a slot instead of an open-ended estimate.
+  const [selectedSlot, setSelectedSlot] = useState<Date | null>(null);
   const [promoCode, setPromoCode] = useState('');
   const [applyingPromo, setApplyingPromo] = useState(false);
   // Shared with the Deals screen -- applying a code there shows up applied
@@ -114,17 +119,35 @@ export default function CartScreen() {
 
   // Tax rate lives per-location (see locations.tax_rate) since it can vary
   // by province -- 13% (Ontario HST) is just the fallback while this loads.
+  // Hours feed the pickup-time slot picker below (never offer a slot past
+  // closing).
   useEffect(() => {
     if (!locationId) return;
     (async () => {
       const { data, error } = await (supabase as any)
         .from('locations')
-        .select('tax_rate')
+        .select('tax_rate, hours')
         .eq('id', locationId)
         .single();
-      if (!error && data) setTaxRate(Number(data.tax_rate));
+      if (!error && data) {
+        setTaxRate(Number(data.tax_rate));
+        setLocationHours(data.hours ?? null);
+      }
     })();
   }, [locationId]);
+
+  const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
+  const pickupSlots = useMemo(
+    () => getPickupSlots(locationHours, orderType, itemCount),
+    [locationHours, orderType, itemCount]
+  );
+
+  // The order type or item count changing invalidates whichever slot was
+  // picked (the estimate/slot list it was chosen from no longer applies) --
+  // back to ASAP rather than silently keeping a now-stale commitment.
+  useEffect(() => {
+    setSelectedSlot(null);
+  }, [orderType, itemCount]);
 
   const handleApplyPromo = async () => {
     if (!promoCode.trim()) return;
@@ -337,9 +360,8 @@ export default function CartScreen() {
       }
 
       // 1. Create Order
-      const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
-      const estimatedReadyAt = new Date(
-        Date.now() + estimateReadyMinutes(orderType, itemCount) * 60000
+      const estimatedReadyAt = (
+        selectedSlot ?? new Date(Date.now() + estimateReadyMinutes(orderType, itemCount) * 60000)
       ).toISOString();
 
       const { data: orderData, error: orderError } = await (supabase as any)
@@ -354,6 +376,7 @@ export default function CartScreen() {
           notify_sms: notifySms,
           subtotal_amount: cartTotal,
           discount_amount: discountAmount,
+          requested_ready_at: selectedSlot ? selectedSlot.toISOString() : null,
           promo_code: appliedPromo?.code ?? null,
           tax_amount: taxAmount,
           total_amount: grandTotal,
@@ -408,6 +431,7 @@ export default function CartScreen() {
 
       clearCart();
       setAppliedPromo(null);
+      setSelectedSlot(null);
       Alert.alert('Order Placed!', 'You can track its status now.', [
         { text: 'Track Order', onPress: () => router.replace(`/(main)/order/${orderData.id}`) }
       ]);
@@ -646,6 +670,45 @@ export default function CartScreen() {
             onChangeSms={setNotifySms}
           />
         )}
+
+        {/* A committed clock time beats an open-ended "~15-20 min" estimate
+            -- uncertain waits invite repeated app-checking and in-person
+            "is it ready yet" queue pressure that an exact time avoids. */}
+        {items.length > 0 && (
+          <View className="my-4 p-4 bg-white rounded-2xl border border-stone-200 shadow-sm">
+            <Text className="text-lg font-bold mb-3 text-[#1C1917]">
+              {orderType === 'delivery' ? 'When should it arrive?' : 'When would you like it?'}
+            </Text>
+            <View className="flex-row flex-wrap -mr-2 -mb-2">
+              <TouchableOpacity
+                onPress={() => setSelectedSlot(null)}
+                className={`px-4 py-2.5 rounded-lg border mr-2 mb-2 ${
+                  selectedSlot === null ? 'bg-[#A61C14] border-[#A61C14]' : 'bg-white border-stone-300'
+                }`}
+              >
+                <Text className={`font-bold ${selectedSlot === null ? 'text-[#F4ECE1]' : 'text-[#1C1917]'}`}>
+                  ASAP (~{estimateReadyMinutes(orderType, itemCount)} min)
+                </Text>
+              </TouchableOpacity>
+              {pickupSlots.map((slot) => {
+                const isSelected = selectedSlot?.getTime() === slot.time.getTime();
+                return (
+                  <TouchableOpacity
+                    key={slot.time.toISOString()}
+                    onPress={() => setSelectedSlot(slot.time)}
+                    className={`px-4 py-2.5 rounded-lg border mr-2 mb-2 ${
+                      isSelected ? 'bg-[#A61C14] border-[#A61C14]' : 'bg-white border-stone-300'
+                    }`}
+                  >
+                    <Text className={`font-bold ${isSelected ? 'text-[#F4ECE1]' : 'text-[#1C1917]'}`}>
+                      {slot.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        )}
       </ScrollView>
 
       {items.length > 0 && (
@@ -653,6 +716,14 @@ export default function CartScreen() {
           <View className="flex-row justify-between mb-2">
             <Text className="text-lg text-[#78716C]">Order Type</Text>
             <Text className="text-lg font-bold uppercase text-[#1C1917]">{orderType}</Text>
+          </View>
+          <View className="flex-row justify-between mb-2">
+            <Text className="text-lg text-[#78716C]">{orderType === 'delivery' ? 'Arriving' : 'Ready'}</Text>
+            <Text className="text-lg font-bold text-[#1C1917]">
+              {selectedSlot
+                ? selectedSlot.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+                : `ASAP (~${estimateReadyMinutes(orderType, itemCount)} min)`}
+            </Text>
           </View>
           {orderType === 'delivery' && (
             <View className="mb-4">

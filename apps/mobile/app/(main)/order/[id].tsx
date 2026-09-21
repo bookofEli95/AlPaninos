@@ -134,8 +134,11 @@ export default function OrderDetailScreen() {
   }, []);
 
   const etaText = useMemo(
-    () => (order ? getEtaDisplay(order.estimated_ready_at, order.status, order.order_type) : null),
-    [order?.estimated_ready_at, order?.status, order?.order_type, now]
+    () =>
+      order
+        ? getEtaDisplay(order.estimated_ready_at, order.status, order.order_type, order.requested_ready_at)
+        : null,
+    [order?.estimated_ready_at, order?.status, order?.order_type, order?.requested_ready_at, now]
   );
 
   if (isLoading) {

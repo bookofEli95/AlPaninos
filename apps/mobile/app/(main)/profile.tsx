@@ -6,7 +6,8 @@ import * as Clipboard from 'expo-clipboard';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { useLocationStore } from '../../store/locationStore';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import PointsRewards from '../../components/PointsRewards';
 
 type ProfileData = {
   first_name: string;
@@ -20,6 +21,7 @@ type ProfileData = {
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { session, setSession } = useAuthStore();
   const locationId = useLocationStore(state => state.locationId);
   const isAnonymous = session?.user?.is_anonymous ?? false;
@@ -153,16 +155,11 @@ export default function ProfileScreen() {
           </View>
         )}
 
-        {!!profile?.panino_points && (
-          <View className="bg-white rounded-2xl border border-stone-200 shadow-sm p-5 flex-row items-center mb-4">
-            <View className="w-12 h-12 rounded-full bg-[#FAF6F0] items-center justify-center mr-4">
-              <Ionicons name="star" size={22} color="#A61C14" />
-            </View>
-            <View className="flex-1">
-              <Text className="text-2xl font-extrabold text-[#1C1917]">{profile.panino_points}</Text>
-              <Text className="text-[#78716C] text-sm">PaninoPoints</Text>
-            </View>
-          </View>
+        {session?.user?.id && (
+          <PointsRewards
+            points={profile?.panino_points ?? 0}
+            onRedeemed={() => queryClient.invalidateQueries({ queryKey: ['profile', session.user.id] })}
+          />
         )}
 
         {/* Orders stat */}
