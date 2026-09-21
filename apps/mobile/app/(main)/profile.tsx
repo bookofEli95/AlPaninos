@@ -88,7 +88,7 @@ export default function ProfileScreen() {
     setTimeout(() => setCopied(false), 1500);
   };
 
-  const { setAppliedPromo } = usePromoStore();
+  const { appliedPromo, setAppliedPromo } = usePromoStore();
   const incrementSimpleItem = useCartStore(state => state.incrementSimpleItem);
   const [resolvingPrize, setResolvingPrize] = useState(false);
   const [picker, setPicker] = useState<{ promo: any; items: EligiblePrizeItem[] } | null>(null);
@@ -141,6 +141,15 @@ export default function ProfileScreen() {
     if (!wheelPromo) return;
     if (!isPickAnItemPrize(wheelPromo)) {
       handleCopyCode(wheelPromo.code);
+      return;
+    }
+    // appliedPromo is shared across Deals/Cart/Profile (usePromoStore) --
+    // if this exact prize was already redeemed from Deals (or vice versa),
+    // tapping it again here must not run the whole picker/add-to-cart flow
+    // a second time (a duplicate free item, or a stray picker popping up).
+    // Toggling it off mirrors exactly what Deals' own card already does.
+    if (appliedPromo?.code === wheelPromo.code) {
+      setAppliedPromo(null);
       return;
     }
     resolveAndRedeem(wheelPromo);
@@ -228,10 +237,19 @@ export default function ProfileScreen() {
                 <TouchableOpacity
                   onPress={handlePressPrize}
                   disabled={resolvingPrize}
-                  className="flex-row items-center justify-center bg-[#A61C14] rounded-lg px-4 py-3 active:bg-[#85140E]"
+                  className={`flex-row items-center justify-center rounded-lg px-4 py-3 ${
+                    appliedPromo?.code === wheelPromo.code
+                      ? 'bg-[#FAF6F0] border border-[#A61C14]'
+                      : 'bg-[#A61C14] active:bg-[#85140E]'
+                  }`}
                 >
                   {resolvingPrize ? (
-                    <ActivityIndicator size="small" color="#F4ECE1" />
+                    <ActivityIndicator size="small" color={appliedPromo?.code === wheelPromo.code ? '#A61C14' : '#F4ECE1'} />
+                  ) : appliedPromo?.code === wheelPromo.code ? (
+                    <>
+                      <Ionicons name="checkmark-circle" size={16} color="#A61C14" style={{ marginRight: 6 }} />
+                      <Text className="text-[#A61C14] font-extrabold">Applied -- Tap to Remove</Text>
+                    </>
                   ) : (
                     <Text className="text-[#F4ECE1] font-extrabold">Redeem Now</Text>
                   )}
