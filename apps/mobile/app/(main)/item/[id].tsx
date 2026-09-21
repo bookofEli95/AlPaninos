@@ -9,6 +9,7 @@ import { useBackHandler } from '../../../hooks/useBackHandler';
 import { Ionicons } from '@expo/vector-icons';
 import SkeletonBox from '../../../components/Skeleton';
 import ItemAddOns from '../../../components/ItemAddOns';
+import { optionsConflict } from '../../../lib/modifierConflicts';
 
 export default function ItemDetailScreen() {
   const { id: itemId } = useLocalSearchParams<{ id: string }>();
@@ -166,6 +167,19 @@ export default function ItemDetailScreen() {
     return next;
   };
 
+  // Flat lookup across every group on this item (not just the one being
+  // toggled) so conflict-checking below can catch a clash even if the
+  // conflicting option happens to live in a different group.
+  const optionNameById = useMemo(() => {
+    const map: Record<string, string> = {};
+    (data?.modifier_groups || []).forEach((g: any) => {
+      (g.modifier_options || []).forEach((o: any) => {
+        map[o.id] = o.name;
+      });
+    });
+    return map;
+  }, [data]);
+
   const handleToggleOption = (groupId: string, optionId: string, maxSelections: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelections(prev => {
@@ -177,16 +191,39 @@ export default function ItemDetailScreen() {
         return clearDescendantSelections([optionId], next);
       }
 
+      // Selecting an option (e.g. "Extra Cheese") first clears any already
+      // selected option anywhere on this item that it conflicts with (e.g.
+      // "No Cheese") -- see lib/modifierConflicts.ts. Applies to every item
+      // and every modifier group the same way, since it's keyed purely off
+      // option names, not any per-item configuration.
+      const newOptionName = optionNameById[optionId];
+      const conflictingIds = Object.values(prev)
+        .flat()
+        .filter((id) => {
+          const existingName = optionNameById[id];
+          return !!existingName && !!newOptionName && optionsConflict(existingName, newOptionName);
+        });
+
+      let next = prev;
+      if (conflictingIds.length > 0) {
+        const stripped: Record<string, string[]> = {};
+        Object.entries(prev).forEach(([gId, ids]) => {
+          stripped[gId] = ids.filter((id) => !conflictingIds.includes(id));
+        });
+        next = clearDescendantSelections(conflictingIds, stripped);
+      }
+
+      const currentGroupSelections = next[groupId] || [];
+
       if (maxSelections === 1) {
-        const next = { ...prev, [groupId]: [optionId] };
-        return clearDescendantSelections(groupSelections, next);
+        return clearDescendantSelections(groupSelections, { ...next, [groupId]: [optionId] });
       }
 
-      if (groupSelections.length >= maxSelections) {
-        return prev;
+      if (currentGroupSelections.length >= maxSelections) {
+        return next;
       }
 
-      return { ...prev, [groupId]: [...groupSelections, optionId] };
+      return { ...next, [groupId]: [...currentGroupSelections, optionId] };
     });
   };
 
