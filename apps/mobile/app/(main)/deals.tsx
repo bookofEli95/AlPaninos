@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, FlatList, Animated, Alert, ActivityIndicator } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
@@ -15,6 +15,7 @@ import SkeletonBox from '../../components/Skeleton';
 
 export default function DealsScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { session } = useAuthStore();
   const locationId = useLocationStore(state => state.locationId);
   const { appliedPromo, setAppliedPromo } = usePromoStore();
@@ -65,6 +66,19 @@ export default function DealsScreen() {
     },
     enabled: !!session?.user?.id,
   });
+
+  // Deals is a hidden tab (href: null) that stays mounted once visited
+  // rather than unmounting on tab switch, so react-query's normal
+  // mount/window-focus refetch triggers don't fire just from navigating
+  // back here -- re-checking on every focus is what actually catches a
+  // promo that got used/deactivated elsewhere (checkout already invalidates
+  // these keys too, but this covers it even if that path is ever missed).
+  useFocusEffect(
+    useCallback(() => {
+      queryClient.invalidateQueries({ queryKey: ['promotions', locationId, session?.user?.id, 'all'] });
+      queryClient.invalidateQueries({ queryKey: ['usedPromoCodes', session?.user?.id] });
+    }, [locationId, session?.user?.id])
+  );
 
   const showToast = (message: string) => {
     setToast(message);

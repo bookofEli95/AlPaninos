@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView, Alert } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { supabase } from '../../lib/supabase';
@@ -81,6 +81,21 @@ export default function ProfileScreen() {
     enabled: !isAnonymous && !!session?.user?.id && !!profile?.wheel_prize_code,
   });
 
+  // Profile is a hidden tab (href: null) that stays mounted once visited
+  // rather than unmounting on tab switch, so react-query's normal
+  // mount/window-focus refetch triggers don't fire just from navigating
+  // back here -- re-checking on every focus is what actually catches a
+  // promo/points balance that changed elsewhere (checkout already
+  // invalidates these keys too, but this covers it even if that path is
+  // ever missed).
+  useFocusEffect(
+    useCallback(() => {
+      if (!session?.user?.id) return;
+      queryClient.invalidateQueries({ queryKey: ['profile', session.user.id] });
+      queryClient.invalidateQueries({ queryKey: ['wheelPromo', session.user.id] });
+    }, [session?.user?.id])
+  );
+
   const [copied, setCopied] = useState(false);
   const handleCopyCode = async (code: string) => {
     await Clipboard.setStringAsync(code);
@@ -158,9 +173,16 @@ export default function ProfileScreen() {
   // Points rewards are always "pick a specific item" promos (100% off a
   // category -- see isPickAnItemPrize), so there's no raw-code path to
   // branch to here the way the wheel banner has.
-  const handlePointsRedeemed = async (code: string) => {
-    queryClient.invalidateQueries({ queryKey: ['profile', session?.user?.id] });
+  const handlePointsRedeemed = async (code: string, pointsSpent: number) => {
     if (!session?.user?.id) return;
+    // Decrement the cached balance synchronously so the points number and
+    // every reward tier's progress bar (not just the one just redeemed)
+    // update the instant this resolves, instead of waiting on the refetch
+    // that invalidateQueries below only schedules.
+    queryClient.setQueryData(['profile', session.user.id], (old: any) =>
+      old ? { ...old, panino_points: (old.panino_points ?? 0) - pointsSpent } : old
+    );
+    queryClient.invalidateQueries({ queryKey: ['profile', session.user.id] });
     const { data: promo, error } = await (supabase as any)
       .from('promotions')
       .select('*')
@@ -274,7 +296,7 @@ export default function ProfileScreen() {
           {session?.user?.id && (
             <PointsRewards
               points={profile?.panino_points ?? 0}
-              onRedeemedCode={handlePointsRedeemed}
+              onRedeemed={handlePointsRedeemed}
             />
           )}
 

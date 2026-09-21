@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Keyboard } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { useCartStore, CartItem } from '../../store/cartStore';
@@ -18,6 +19,7 @@ import { Country, DEFAULT_COUNTRY, formatPhoneNumber, isValidPhoneForCountry, pa
 
 export default function CartScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { items, locationId, removeItem, clearCart, orderType, deliveryAddress } = useCartStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { session } = useAuthStore();
@@ -430,6 +432,19 @@ export default function CartScreen() {
         const { error: promoError } = await (supabase as any).rpc('mark_promo_used', { p_code: appliedPromo.code });
         if (promoError) console.warn('Failed to mark promo code used:', promoError.message);
       }
+
+      // Deals and Profile are hidden tabs that stay mounted once visited
+      // (the Tabs navigator never unmounts them just from switching tabs),
+      // so their own promotions/profile queries won't refetch on their own
+      // just because the user navigates back to them -- without this, a
+      // just-redeemed welcome prize (or any single-use code) would still
+      // show as available there until something else happened to trigger a
+      // refetch. Prefix-matching the query keys catches every variant
+      // (different locationId/session) those screens use.
+      queryClient.invalidateQueries({ queryKey: ['promotions'] });
+      queryClient.invalidateQueries({ queryKey: ['usedPromoCodes'] });
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      queryClient.invalidateQueries({ queryKey: ['wheelPromo'] });
 
       clearCart();
       setAppliedPromo(null);

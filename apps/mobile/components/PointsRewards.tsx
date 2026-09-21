@@ -23,10 +23,10 @@ const REWARD_TIERS: { tier: string; cost: number; title: string; icon: keyof typ
 // boxed into this card (see profile.tsx's handlePointsRedeemed).
 export default function PointsRewards({
   points,
-  onRedeemedCode,
+  onRedeemed,
 }: {
   points: number;
-  onRedeemedCode: (code: string) => void;
+  onRedeemed: (code: string, pointsSpent: number) => void;
 }) {
   const [redeeming, setRedeeming] = useState<string | null>(null);
 
@@ -36,7 +36,10 @@ export default function PointsRewards({
       const { data, error } = await (supabase as any).rpc('redeem_points_reward', { p_tier: tier });
       if (error) throw error;
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      onRedeemedCode(data.code);
+      // pointsSpent comes straight from the RPC response so the parent can
+      // reflect the new balance (and every tier's progress bar) the instant
+      // this resolves, instead of waiting on a refetch round-trip.
+      onRedeemed(data.code, data.pointsSpent);
     } catch (e: any) {
       Alert.alert("Couldn't redeem", e.message);
     } finally {
