@@ -15,6 +15,12 @@ export type CartItem = {
   modifiers: CartModifier[];
   totalPrice: number;
   specialInstructions?: string;
+  // Set when this line is a wheel-prize/PaninoPoints reward's free item --
+  // forces totalPrice to 0 regardless of modifiers (see addFreeItem) and is
+  // how Deals/Profile know a reward is actually "applied" (present in the
+  // cart right now) instead of tracking a separate flag that could go stale
+  // if the item is removed or the modifier-picking flow is abandoned.
+  promoCode?: string;
 };
 
 interface AccountCart {
@@ -46,6 +52,12 @@ interface CartState {
   clearCart: () => void;
   incrementSimpleItem: (item: { menuItemId: string; name: string; basePrice: number }, locationId: string) => void;
   decrementSimpleItem: (menuItemId: string) => void;
+  addFreeItem: (
+    item: { menuItemId: string; name: string; basePrice: number; modifiers?: CartModifier[]; specialInstructions?: string },
+    locationId: string,
+    promoCode: string
+  ) => void;
+  removeItemsByPromoCode: (promoCode: string) => void;
 }
 
 export const useCartStore = create<CartState>((set) => ({
@@ -174,6 +186,45 @@ export const useCartStore = create<CartState>((set) => ({
         );
 
     const updatedCart: AccountCart = { ...current, items: newItems };
+    return {
+      ...updatedCart,
+      carts: { ...state.carts, [state.activeUserId]: updatedCart },
+    };
+  }),
+
+  // A redeemed wheel-prize/PaninoPoints reward always gets its own line
+  // (never merged into an existing paid line of the same menu item) and is
+  // always $0 regardless of any modifiers chosen -- the whole point of the
+  // reward is that item, however customized, costs nothing.
+  addFreeItem: (item, locationId, promoCode) => set((state) => {
+    const current = state.carts[state.activeUserId] || { ...defaultCart };
+    const newItem: CartItem = {
+      cartItemId: Math.random().toString(36).substr(2, 9),
+      menuItemId: item.menuItemId,
+      name: item.name,
+      basePrice: item.basePrice,
+      quantity: 1,
+      modifiers: item.modifiers || [],
+      totalPrice: 0,
+      specialInstructions: item.specialInstructions,
+      promoCode,
+    };
+    const newItems = (current.locationId && current.locationId !== locationId)
+      ? [newItem]
+      : [...current.items, newItem];
+    const updatedCart: AccountCart = { ...current, items: newItems, locationId };
+    return {
+      ...updatedCart,
+      carts: { ...state.carts, [state.activeUserId]: updatedCart },
+    };
+  }),
+
+  removeItemsByPromoCode: (promoCode) => set((state) => {
+    const current = state.carts[state.activeUserId] || { ...defaultCart };
+    const updatedCart: AccountCart = {
+      ...current,
+      items: current.items.filter((i) => i.promoCode !== promoCode),
+    };
     return {
       ...updatedCart,
       carts: { ...state.carts, [state.activeUserId]: updatedCart },

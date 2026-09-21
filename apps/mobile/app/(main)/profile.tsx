@@ -6,7 +6,6 @@ import * as Clipboard from 'expo-clipboard';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { useLocationStore } from '../../store/locationStore';
-import { usePromoStore } from '../../store/promoStore';
 import { useCartStore } from '../../store/cartStore';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import PointsRewards from '../../components/PointsRewards';
@@ -103,26 +102,25 @@ export default function ProfileScreen() {
     setTimeout(() => setCopied(false), 1500);
   };
 
-  const { appliedPromo, setAppliedPromo } = usePromoStore();
-  const incrementSimpleItem = useCartStore(state => state.incrementSimpleItem);
+  const items = useCartStore(state => state.items);
+  const addFreeItem = useCartStore(state => state.addFreeItem);
+  const removeItemsByPromoCode = useCartStore(state => state.removeItemsByPromoCode);
   const [resolvingPrize, setResolvingPrize] = useState(false);
   const [picker, setPicker] = useState<{ promo: any; items: EligiblePrizeItem[] } | null>(null);
 
+  // Nothing is marked "applied" here directly -- a reward only counts as
+  // applied once its tagged item actually exists in the cart (addFreeItem,
+  // or item/[id].tsx's Add to Cart for one with modifiers), so backing out
+  // of the modifier-picking flow before finishing leaves nothing applied.
   const giveFreeItem = (target: EligiblePrizeItem, promo: any) => {
-    setAppliedPromo({
-      code: promo.code,
-      title: promo.title,
-      discountPercent: Number(promo.discount_percent) || 0,
-      categoryId: promo.category_id,
-      categoryName: promo.category_name,
-      itemNamePatterns: promo.item_name_patterns,
-      maxDiscountAmount: promo.max_discount_amount != null ? Number(promo.max_discount_amount) : null,
-    });
     itemHasModifiers(target.id).then((hasModifiers) => {
       if (hasModifiers) {
-        router.push(`/(main)/item/${target.id}`);
+        router.push({
+          pathname: `/(main)/item/${target.id}`,
+          params: { promoCode: promo.code, promoTitle: promo.title },
+        });
       } else if (locationId) {
-        incrementSimpleItem({ menuItemId: target.id, name: target.name, basePrice: target.base_price }, locationId);
+        addFreeItem({ menuItemId: target.id, name: target.name, basePrice: target.base_price }, locationId, promo.code);
         Alert.alert('Added!', `${target.name} was added to your cart -- it's free.`);
       }
     });
@@ -152,19 +150,22 @@ export default function ProfileScreen() {
     }
   };
 
+  // Cart items are shared across Deals/Cart/Profile (useCartStore) -- if
+  // this exact prize's item is already sitting in the cart (redeemed from
+  // Deals, or from here), tapping it again must not run the whole
+  // picker/add-to-cart flow a second time (a duplicate free item, or a
+  // stray picker popping up). Toggling it off mirrors exactly what Deals'
+  // own card already does.
+  const prizeInCart = !!wheelPromo && items.some((i) => i.promoCode === wheelPromo.code);
+
   const handlePressPrize = () => {
     if (!wheelPromo) return;
     if (!isPickAnItemPrize(wheelPromo)) {
       handleCopyCode(wheelPromo.code);
       return;
     }
-    // appliedPromo is shared across Deals/Cart/Profile (usePromoStore) --
-    // if this exact prize was already redeemed from Deals (or vice versa),
-    // tapping it again here must not run the whole picker/add-to-cart flow
-    // a second time (a duplicate free item, or a stray picker popping up).
-    // Toggling it off mirrors exactly what Deals' own card already does.
-    if (appliedPromo?.code === wheelPromo.code) {
-      setAppliedPromo(null);
+    if (prizeInCart) {
+      removeItemsByPromoCode(wheelPromo.code);
       return;
     }
     resolveAndRedeem(wheelPromo);
@@ -260,14 +261,14 @@ export default function ProfileScreen() {
                   onPress={handlePressPrize}
                   disabled={resolvingPrize}
                   className={`flex-row items-center justify-center rounded-lg px-4 py-3 ${
-                    appliedPromo?.code === wheelPromo.code
+                    prizeInCart
                       ? 'bg-[#FAF6F0] border border-[#A61C14]'
                       : 'bg-[#A61C14] active:bg-[#85140E]'
                   }`}
                 >
                   {resolvingPrize ? (
-                    <ActivityIndicator size="small" color={appliedPromo?.code === wheelPromo.code ? '#A61C14' : '#F4ECE1'} />
-                  ) : appliedPromo?.code === wheelPromo.code ? (
+                    <ActivityIndicator size="small" color={prizeInCart ? '#A61C14' : '#F4ECE1'} />
+                  ) : prizeInCart ? (
                     <>
                       <Ionicons name="checkmark-circle" size={16} color="#A61C14" style={{ marginRight: 6 }} />
                       <Text className="text-[#A61C14] font-extrabold">Applied -- Tap to Remove</Text>

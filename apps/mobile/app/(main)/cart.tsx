@@ -72,6 +72,11 @@ export default function CartScreen() {
   const [menuItemInfoMap, setMenuItemInfoMap] = useState<Record<string, { categoryId: string; name: string }>>({});
 
   const cartTotal = items.reduce((sum: number, item: CartItem) => sum + item.totalPrice, 0);
+  // Wheel-prize/PaninoPoints rewards tag their free cart line with the code
+  // that earned it (see cartStore's addFreeItem and item/[id].tsx) rather
+  // than going through appliedPromo -- gathered here so checkout marks every
+  // one of them used, not just a manually-applied coupon code.
+  const rewardPromoCodes = Array.from(new Set(items.map((item) => item.promoCode).filter((c): c is string => !!c)));
 
   const goBack = useCallback(() => {
     router.replace(locationId ? `/(main)/menu/${locationId}` : '/(main)');
@@ -381,7 +386,7 @@ export default function CartScreen() {
           subtotal_amount: cartTotal,
           discount_amount: discountAmount,
           requested_ready_at: selectedSlot ? selectedSlot.toISOString() : null,
-          promo_code: appliedPromo?.code ?? null,
+          promo_code: appliedPromo?.code ?? rewardPromoCodes[0] ?? null,
           tax_amount: taxAmount,
           total_amount: grandTotal,
           status: 'received',
@@ -431,6 +436,10 @@ export default function CartScreen() {
       if (appliedPromo?.code) {
         const { error: promoError } = await (supabase as any).rpc('mark_promo_used', { p_code: appliedPromo.code });
         if (promoError) console.warn('Failed to mark promo code used:', promoError.message);
+      }
+      for (const code of rewardPromoCodes) {
+        const { error: promoError } = await (supabase as any).rpc('mark_promo_used', { p_code: code });
+        if (promoError) console.warn('Failed to mark reward code used:', promoError.message);
       }
 
       // Deals and Profile are hidden tabs that stay mounted once visited
@@ -500,12 +509,19 @@ export default function CartScreen() {
           <View key={item.cartItemId} className="py-4 border-b border-stone-200">
             <View className="flex-row justify-between items-start mb-2">
               <View className="flex-1 pr-4">
-                <Text className="text-lg font-bold text-[#1C1917]">
-                  {item.quantity}x {item.name}
-                </Text>
+                <View className="flex-row items-center flex-wrap">
+                  <Text className="text-lg font-bold text-[#1C1917]">
+                    {item.quantity}x {item.name}
+                  </Text>
+                  {item.promoCode && (
+                    <View className="ml-2 bg-[#A61C14] rounded-full px-2 py-0.5">
+                      <Text className="text-[#F4ECE1] text-xs font-bold">FREE</Text>
+                    </View>
+                  )}
+                </View>
                 {item.modifiers.map(mod => (
                   <Text key={mod.optionId} className="text-[#78716C] text-sm mt-1">
-                    + {mod.name} {mod.price > 0 ? `($${mod.price.toFixed(2)})` : ''}
+                    + {mod.name} {!item.promoCode && mod.price > 0 ? `($${mod.price.toFixed(2)})` : ''}
                   </Text>
                 ))}
                 {item.specialInstructions && (

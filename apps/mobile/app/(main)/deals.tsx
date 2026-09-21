@@ -19,7 +19,9 @@ export default function DealsScreen() {
   const { session } = useAuthStore();
   const locationId = useLocationStore(state => state.locationId);
   const { appliedPromo, setAppliedPromo } = usePromoStore();
-  const incrementSimpleItem = useCartStore(state => state.incrementSimpleItem);
+  const items = useCartStore(state => state.items);
+  const addFreeItem = useCartStore(state => state.addFreeItem);
+  const removeItemsByPromoCode = useCartStore(state => state.removeItemsByPromoCode);
   const [toast, setToast] = useState<string | null>(null);
   const toastOpacity = useRef(new Animated.Value(0)).current;
   const [resolvingCode, setResolvingCode] = useState<string | null>(null);
@@ -104,15 +106,20 @@ export default function DealsScreen() {
 
   // Puts the actual free item straight into the cart instead of leaving the
   // customer to find and add it themselves and then hunt for a promo code
-  // box -- applying the discount (existing coupon mechanism) and adding the
-  // item happen together, from one tap.
+  // box. Unlike a generic coupon (setAppliedPromo/buildAppliedPromo below),
+  // nothing is marked "applied" here directly -- a reward only counts as
+  // applied once its tagged item actually exists in the cart (addFreeItem,
+  // or item/[id].tsx's Add to Cart for one with modifiers), so backing out
+  // of the modifier-picking flow before finishing leaves nothing applied.
   const giveFreeItem = (target: EligiblePrizeItem, promo: any) => {
-    setAppliedPromo(buildAppliedPromo(promo));
     itemHasModifiers(target.id).then((hasModifiers) => {
       if (hasModifiers) {
-        router.push(`/(main)/item/${target.id}`);
+        router.push({
+          pathname: `/(main)/item/${target.id}`,
+          params: { promoCode: promo.code, promoTitle: promo.title },
+        });
       } else if (locationId) {
-        incrementSimpleItem({ menuItemId: target.id, name: target.name, basePrice: target.base_price }, locationId);
+        addFreeItem({ menuItemId: target.id, name: target.name, basePrice: target.base_price }, locationId, promo.code);
         showToast(`${target.name} added -- it's free!`);
       }
     });
@@ -120,13 +127,17 @@ export default function DealsScreen() {
 
   const handleTogglePromo = async (item: any) => {
     if (!item.code || isAlreadyUsed(item) || resolvingCode) return;
-    if (appliedPromo?.code === item.code) {
-      setAppliedPromo(null);
-      showToast('Promo removed');
-      return;
-    }
 
-    if (isPickAnItemPrize(item) && locationId) {
+    if (isPickAnItemPrize(item)) {
+      // "Applied" for a reward means its free item is actually sitting in
+      // the cart right now (see addFreeItem/removeItemsByPromoCode) --
+      // never a separate flag that could go stale.
+      if (items.some((i) => i.promoCode === item.code)) {
+        removeItemsByPromoCode(item.code);
+        showToast('Removed from cart');
+        return;
+      }
+      if (!locationId) return;
       setResolvingCode(item.code);
       try {
         const eligibleItems = await fetchEligiblePrizeItems(item, locationId);
@@ -143,6 +154,11 @@ export default function DealsScreen() {
       return;
     }
 
+    if (appliedPromo?.code === item.code) {
+      setAppliedPromo(null);
+      showToast('Promo removed');
+      return;
+    }
     setAppliedPromo(buildAppliedPromo(item));
     showToast('Promo applied');
   };
@@ -176,7 +192,11 @@ export default function DealsScreen() {
           data={promotions}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => {
-            const isApplied = !!item.code && appliedPromo?.code === item.code;
+            const isApplied = !!item.code && (
+              isPickAnItemPrize(item)
+                ? items.some((i) => i.promoCode === item.code)
+                : appliedPromo?.code === item.code
+            );
             const alreadyUsed = !!item.code && isAlreadyUsed(item);
             const card = (
               <View

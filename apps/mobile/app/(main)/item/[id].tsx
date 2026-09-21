@@ -12,7 +12,13 @@ import ItemAddOns from '../../../components/ItemAddOns';
 import { optionsConflict } from '../../../lib/modifierConflicts';
 
 export default function ItemDetailScreen() {
-  const { id: itemId } = useLocalSearchParams<{ id: string }>();
+  // promoCode/promoTitle are only present when this item was opened from a
+  // wheel-prize/PaninoPoints redemption (see deals.tsx/profile.tsx's
+  // giveFreeItem) -- their presence is what makes this whole item, including
+  // any modifiers picked below, free. Nothing is "applied" anywhere else
+  // until Add to Cart actually runs (see handleAddToCart), so backing out of
+  // this screen without finishing leaves no stray applied state behind.
+  const { id: itemId, promoCode, promoTitle } = useLocalSearchParams<{ id: string; promoCode?: string; promoTitle?: string }>();
   const router = useRouter();
   const addItem = useCartStore(state => state.addItem);
 
@@ -248,6 +254,12 @@ export default function ItemDetailScreen() {
     return total * quantity;
   }, [data, visibleGroups, selections, quantity]);
 
+  // A redeemed reward is always free, whatever modifiers get picked -- the
+  // price shown/charged is 0 rather than calculatedPrice, and quantity is
+  // locked to 1 (the quantity stepper below is hidden in that case) since a
+  // reward only ever grants one of the item.
+  const finalPrice = promoCode ? 0 : calculatedPrice;
+
   // Drilling in is now Category Grid -> Category Items -> here (see
   // menu/[id].tsx's redesign), so both the back button and the
   // post-add-to-cart redirect should return to that category's item list,
@@ -288,10 +300,11 @@ export default function ItemDetailScreen() {
       menuItemId: data.id,
       name: data.name,
       basePrice: data.base_price,
-      quantity,
+      quantity: promoCode ? 1 : quantity,
       modifiers,
-      totalPrice: calculatedPrice,
+      totalPrice: finalPrice,
       specialInstructions: specialInstructions.trim() || undefined,
+      promoCode: promoCode || undefined,
     }, data.location_id!);
 
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -363,6 +376,15 @@ export default function ItemDetailScreen() {
         {data.description && <Text className="text-[#78716C] mt-2 text-base">{data.description}</Text>}
         <Text className="text-2xl font-bold mt-2 text-[#A61C14]">${data.base_price.toFixed(2)}</Text>
 
+        {promoCode && (
+          <View className="flex-row items-center bg-[#FAF6F0] border border-[#A61C14] rounded-lg px-3 py-2 mt-3 self-start">
+            <Ionicons name="gift" size={16} color="#A61C14" />
+            <Text className="text-[#A61C14] font-bold ml-2">
+              FREE with {promoTitle || 'your reward'} -- modifiers included
+            </Text>
+          </View>
+        )}
+
         {visibleGroups.map((group: any) => (
           <View key={group.id} className="mt-6 border-t border-stone-200 pt-4">
             <View className="flex-row justify-between items-center mb-4">
@@ -383,7 +405,7 @@ export default function ItemDetailScreen() {
                   <Text className={`text-base ${isSelected ? 'font-bold text-[#A61C14]' : 'text-[#1C1917]'}`}>
                     {option.name} {isSelected && '✓'}
                   </Text>
-                  {option.price_adjustment > 0 && (
+                  {!promoCode && option.price_adjustment > 0 && (
                     <Text className="text-[#78716C] font-medium">+${option.price_adjustment.toFixed(2)}</Text>
                   )}
                 </TouchableOpacity>
@@ -413,30 +435,34 @@ export default function ItemDetailScreen() {
 
       {/* Bottom Action Bar */}
       <View className="p-4 border-t border-stone-200 bg-white">
-        <View className="flex-row items-center justify-between mb-4">
-          <Text className="text-lg font-bold text-[#1C1917]">Quantity:</Text>
-          <View className="flex-row items-center bg-stone-100 rounded-xl p-1 border border-stone-200">
-            <TouchableOpacity
-              className="bg-white px-4 py-2 rounded-lg shadow-sm"
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setQuantity(Math.max(1, quantity - 1));
-              }}
-            >
-              <Text className="text-xl font-bold text-[#1C1917]">-</Text>
-            </TouchableOpacity>
-            <Text className="px-6 text-xl font-bold text-[#1C1917]">{quantity}</Text>
-            <TouchableOpacity
-              className="bg-white px-4 py-2 rounded-lg shadow-sm"
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setQuantity(quantity + 1);
-              }}
-            >
-              <Text className="text-xl font-bold text-[#1C1917]">+</Text>
-            </TouchableOpacity>
+        {/* A reward always grants exactly one of the item -- no stepper to
+            avoid stacking multiple free items off a single redemption. */}
+        {!promoCode && (
+          <View className="flex-row items-center justify-between mb-4">
+            <Text className="text-lg font-bold text-[#1C1917]">Quantity:</Text>
+            <View className="flex-row items-center bg-stone-100 rounded-xl p-1 border border-stone-200">
+              <TouchableOpacity
+                className="bg-white px-4 py-2 rounded-lg shadow-sm"
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setQuantity(Math.max(1, quantity - 1));
+                }}
+              >
+                <Text className="text-xl font-bold text-[#1C1917]">-</Text>
+              </TouchableOpacity>
+              <Text className="px-6 text-xl font-bold text-[#1C1917]">{quantity}</Text>
+              <TouchableOpacity
+                className="bg-white px-4 py-2 rounded-lg shadow-sm"
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setQuantity(quantity + 1);
+                }}
+              >
+                <Text className="text-xl font-bold text-[#1C1917]">+</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
+        )}
 
         <TouchableOpacity
           onPress={handleAddToCart}
@@ -452,7 +478,7 @@ export default function ItemDetailScreen() {
             </>
           ) : (
             <Text className={`font-bold text-lg ${isValid ? 'text-[#F4ECE1]' : 'text-stone-500'}`}>
-              Add to Cart - ${calculatedPrice.toFixed(2)}
+              {promoCode ? 'Add to Cart - FREE' : `Add to Cart - $${finalPrice.toFixed(2)}`}
             </Text>
           )}
         </TouchableOpacity>

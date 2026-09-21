@@ -47,18 +47,24 @@ export async function reorderFromOrder(orderId: string): Promise<ReorderResult> 
       return;
     }
 
+    const modifiers = (oi.order_item_modifiers || []).map((m: any) => ({
+      optionId: m.modifier_option_id,
+      name: m.modifier_options?.name ?? '',
+      price: m.price_adjustment,
+    }));
+
+    // Recomputed rather than trusting oi.total_price -- a reorder charges
+    // the item's normal price even if the original order redeemed it for
+    // free via a wheel prize/PaninoPoints reward (that reward was already
+    // spent and reordering doesn't imply redeeming another one).
     const cartItem: CartItem = {
       cartItemId: Math.random().toString(36).substr(2, 9),
       menuItemId: oi.menu_item_id,
       name: oi.menu_items?.name ?? 'Item',
       basePrice: oi.unit_price,
       quantity: oi.quantity,
-      modifiers: (oi.order_item_modifiers || []).map((m: any) => ({
-        optionId: m.modifier_option_id,
-        name: m.modifier_options?.name ?? '',
-        price: m.price_adjustment,
-      })),
-      totalPrice: oi.total_price,
+      modifiers,
+      totalPrice: (oi.unit_price + modifiers.reduce((sum: number, m: any) => sum + m.price, 0)) * oi.quantity,
       specialInstructions: oi.special_instructions || undefined,
     };
 
