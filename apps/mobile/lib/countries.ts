@@ -107,6 +107,22 @@ export function isValidPhoneForCountry(digits: string, country: Country): boolea
   return len >= country.minLength && len <= country.maxLength;
 }
 
+// Grouped display as the customer types, e.g. "123-456-7899" for a Canada/US
+// number -- North American numbers (dial code "1": Canada, US, and the
+// other NANP countries in this list) use the familiar 3-3-4 pattern;
+// everything else groups in plain 3-digit chunks, which won't match every
+// country's official convention but still reads far better than one
+// unbroken string of digits. The underlying stored value stays plain
+// digits (see onChangeText at each call site) -- this only affects what's
+// shown in the input.
+export function formatPhoneNumber(digits: string, country: Country): string {
+  const d = digits.replace(/[^0-9]/g, '');
+  if (country.dialCode === '1') {
+    return [d.slice(0, 3), d.slice(3, 6), d.slice(6, 10)].filter(Boolean).join('-');
+  }
+  return d.match(/.{1,3}/g)?.join('-') ?? d;
+}
+
 // Best-effort split of a stored phone number back into a country + national
 // number for editing. Numbers saved before country codes existed have no
 // leading "+", so those fall back to the default country with the raw

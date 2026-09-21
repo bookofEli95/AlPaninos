@@ -12,6 +12,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import PointsRewards from '../../components/PointsRewards';
 import PrizeItemPicker from '../../components/PrizeItemPicker';
 import { EligiblePrizeItem, fetchEligiblePrizeItems, isPickAnItemPrize, itemHasModifiers } from '../../lib/prizeRedemption';
+import { formatPhoneNumber, parsePhone } from '../../lib/countries';
 
 type ProfileData = {
   first_name: string;
@@ -281,7 +282,12 @@ export default function ProfileScreen() {
                 <Ionicons name="call-outline" size={20} color="#A61C14" style={{ width: 28 }} />
                 <View>
                   <Text className="text-xs text-[#78716C] uppercase font-bold tracking-wider">Phone</Text>
-                  <Text className="text-base font-semibold text-[#1C1917]">{profile.phone}</Text>
+                  <Text className="text-base font-semibold text-[#1C1917]">
+                    {(() => {
+                      const { country, digits } = parsePhone(profile.phone || '');
+                      return `+${country.dialCode} ${formatPhoneNumber(digits, country)}`;
+                    })()}
+                  </Text>
                 </View>
               </View>
               <View className="flex-row items-center p-4">

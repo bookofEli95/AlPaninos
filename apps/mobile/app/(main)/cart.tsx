@@ -14,7 +14,7 @@ import TimeSlotPickerSheet from '../../components/TimeSlotPickerSheet';
 import { isValidEmail } from '../../lib/passwordStrength';
 import { estimateReadyMinutes, getPickupSlots } from '../../lib/orderTiming';
 import { WeekHours } from '../../lib/hours';
-import { Country, DEFAULT_COUNTRY, isValidPhoneForCountry, parsePhone } from '../../lib/countries';
+import { Country, DEFAULT_COUNTRY, formatPhoneNumber, isValidPhoneForCountry, parsePhone } from '../../lib/countries';
 
 export default function CartScreen() {
   const router = useRouter();
@@ -549,7 +549,7 @@ export default function CartScreen() {
                 placeholder="Phone Number"
                 placeholderTextColor="#A8A29E"
                 keyboardType="phone-pad"
-                value={guestPhone}
+                value={formatPhoneNumber(guestPhone, guestCountry)}
                 onChangeText={(text) => setGuestPhone(text.replace(/[^0-9]/g, ''))}
               />
             </View>

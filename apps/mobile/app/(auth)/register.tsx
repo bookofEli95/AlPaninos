@@ -19,7 +19,7 @@ import CountryPickerSheet from '../../components/CountryPickerSheet';
 import NotifyPreferenceToggle from '../../components/NotifyPreferenceToggle';
 import ErrorBanner from '../../components/ErrorBanner';
 import { getPasswordStrength, isValidEmail } from '../../lib/passwordStrength';
-import { Country, DEFAULT_COUNTRY, isValidPhoneForCountry } from '../../lib/countries';
+import { Country, DEFAULT_COUNTRY, formatPhoneNumber, isValidPhoneForCountry } from '../../lib/countries';
 
 export default function Register() {
   const [email, setEmail] = useState('');
@@ -154,7 +154,7 @@ export default function Register() {
             placeholder="Phone Number"
             placeholderTextColor="#A8A29E"
             keyboardType="phone-pad"
-            value={phone}
+            value={formatPhoneNumber(phone, country)}
             onChangeText={(text) => setPhone(text.replace(/[^0-9]/g, ''))}
           />
         </View>

@@ -20,7 +20,7 @@ import AddressAutocomplete from '../../components/AddressAutocomplete';
 import CountryPickerSheet from '../../components/CountryPickerSheet';
 import NotifyPreferenceToggle from '../../components/NotifyPreferenceToggle';
 import ErrorBanner from '../../components/ErrorBanner';
-import { Country, DEFAULT_COUNTRY, isValidPhoneForCountry, parsePhone } from '../../lib/countries';
+import { Country, DEFAULT_COUNTRY, formatPhoneNumber, isValidPhoneForCountry, parsePhone } from '../../lib/countries';
 import { isValidEmail } from '../../lib/passwordStrength';
 import { useBackHandler } from '../../hooks/useBackHandler';
 
@@ -212,7 +212,7 @@ export default function EditProfile() {
             placeholder="Phone Number"
             placeholderTextColor="#A8A29E"
             keyboardType="phone-pad"
-            value={phone}
+            value={formatPhoneNumber(phone, country)}
             onChangeText={(text) => setPhone(text.replace(/[^0-9]/g, ''))}
           />
         </View>
