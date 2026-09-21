@@ -187,6 +187,26 @@ export default function ItemDetailScreen() {
     return total * quantity;
   }, [data, visibleGroups, selections, quantity]);
 
+  // Drilling in is now Category Grid -> Category Items -> here (see
+  // menu/[id].tsx's redesign), so both the back button and the
+  // post-add-to-cart redirect should return to that category's item list,
+  // not skip past it to the top-level category grid.
+  const goBackToCategory = () => {
+    if (!data) return;
+    if (data.category_id) {
+      router.replace({
+        pathname: '/(main)/menu-category',
+        params: {
+          categoryId: data.category_id,
+          categoryName: data.menu_categories?.name ?? '',
+          locationId: data.location_id,
+        },
+      });
+    } else {
+      router.replace(`/(main)/menu/${data.location_id}`);
+    }
+  };
+
   const handleAddToCart = () => {
     if (!data || justAdded) return;
 
@@ -215,7 +235,7 @@ export default function ItemDetailScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setJustAdded(true);
     setTimeout(() => {
-      router.replace(`/(main)/menu/${data.location_id}`);
+      goBackToCategory();
     }, 600);
   };
 
@@ -262,7 +282,7 @@ export default function ItemDetailScreen() {
         keyboardDismissMode="on-drag"
       >
         <TouchableOpacity
-          onPress={() => router.replace(`/(main)/menu/${data.location_id}`)}
+          onPress={goBackToCategory}
           className="flex-row items-center py-4 pr-8 -ml-2 mb-2"
         >
           <Ionicons name="chevron-back" size={28} color="#A61C14" />

@@ -78,6 +78,7 @@ export default function MainLayout() {
       <Tabs.Screen name="order/[id]" options={{ href: null }} />
       <Tabs.Screen name="edit-profile" options={{ href: null }} />
       <Tabs.Screen name="deals" options={{ href: null }} />
+      <Tabs.Screen name="menu-category" options={{ href: null }} />
       <Tabs.Screen name="settings" options={{ href: null }} />
       <Tabs.Screen name="customer-support" options={{ href: null }} />
       <Tabs.Screen name="privacy" options={{ href: null }} />

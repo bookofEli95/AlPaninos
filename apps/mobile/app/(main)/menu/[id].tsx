@@ -1,14 +1,14 @@
 import { useState, useEffect, useMemo } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, StyleSheet, Keyboard } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, Image, StyleSheet, Keyboard } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../../lib/supabase';
 import { useCartStore } from '../../../store/cartStore';
 import { useAuthStore } from '../../../store/authStore';
 import SkeletonBox from '../../../components/Skeleton';
 import AddressAutocomplete from '../../../components/AddressAutocomplete';
+import MenuItemGridTile from '../../../components/MenuItemGridTile';
 
 export default function MenuScreen() {
   const { id: locationId } = useLocalSearchParams<{ id: string }>();
@@ -45,21 +45,8 @@ export default function MenuScreen() {
   }, []);
 
   const cartItems = useCartStore(state => state.items);
-  const incrementSimpleItemRaw = useCartStore(state => state.incrementSimpleItem);
-  const decrementSimpleItemRaw = useCartStore(state => state.decrementSimpleItem);
-  const incrementSimpleItem: typeof incrementSimpleItemRaw = (...args) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    incrementSimpleItemRaw(...args);
-  };
-  const decrementSimpleItem: typeof decrementSimpleItemRaw = (...args) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    decrementSimpleItemRaw(...args);
-  };
   const cartTotal = cartItems.reduce((sum, item) => sum + item.totalPrice, 0);
   const cartQuantity = cartItems.reduce((sum, item) => sum + item.quantity, 0);
-
-  const getSimpleQuantity = (menuItemId: string) =>
-    cartItems.find(i => i.menuItemId === menuItemId && i.modifiers.length === 0)?.quantity || 0;
 
   const { data: activePromotions } = useQuery({
     queryKey: ['promotions', locationId],
@@ -75,7 +62,6 @@ export default function MenuScreen() {
     enabled: !!locationId,
   });
 
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   const { data: menuData, isLoading } = useQuery({
@@ -93,47 +79,35 @@ export default function MenuScreen() {
     }
   });
 
-  useEffect(() => {
-    if (menuData?.categories?.length && !activeCategory) {
-      setActiveCategory(menuData.categories[0].id);
-    }
-  }, [menuData]);
-
   const categoryNameById = useMemo(() => {
     const map = new Map<string, string>();
     menuData?.categories?.forEach(c => map.set(c.id, c.name));
     return map;
   }, [menuData]);
 
+  const isSimpleCategoryName = (name?: string) => name === 'Extras' || name === 'Drinks';
+
   if (isLoading) {
     return (
       <View className="flex-1 bg-[#FAF6F0] pt-12 px-4">
         <SkeletonBox width={100} height={28} style={{ marginBottom: 24 }} />
-        <View className="flex-row mb-6">
-          <SkeletonBox width={90} height={40} borderRadius={20} style={{ marginRight: 12 }} />
-          <SkeletonBox width={90} height={40} borderRadius={20} style={{ marginRight: 12 }} />
-          <SkeletonBox width={90} height={40} borderRadius={20} />
-        </View>
-        {[1, 2, 3, 4].map(i => (
-          <View key={i} className="flex-row items-center py-4 border-b border-stone-200">
-            <View className="flex-1 pr-4">
-              <SkeletonBox width="70%" height={18} style={{ marginBottom: 8 }} />
-              <SkeletonBox width="90%" height={14} style={{ marginBottom: 8 }} />
-              <SkeletonBox width={60} height={16} />
+        <View className="flex-row flex-wrap -mx-2">
+          {[1, 2, 3, 4].map(i => (
+            <View key={i} className="w-1/2 p-2">
+              <SkeletonBox height={180} borderRadius={16} />
             </View>
-            <SkeletonBox width={96} height={96} borderRadius={12} />
-          </View>
-        ))}
+          ))}
+        </View>
       </View>
     );
   }
 
   const isSearching = searchQuery.trim().length > 0;
-  const filteredItems = isSearching
+  const searchResults = isSearching
     ? (menuData?.items?.filter(item =>
         item.name.toLowerCase().includes(searchQuery.trim().toLowerCase())
       ) || [])
-    : (menuData?.items?.filter(item => item.category_id === activeCategory) || []);
+    : [];
 
   return (
     <View className="flex-1 bg-[#FAF6F0] pt-12">
@@ -201,139 +175,61 @@ export default function MenuScreen() {
         />
       </View>
 
-      {/* Horizontal Category Tabs */}
-      {!isSearching && (
-      <View className="h-16 mb-4">
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 16 }}
-        >
-          {menuData?.categories?.map((cat) => (
-            <TouchableOpacity
-              key={cat.id}
-              onPress={() => setActiveCategory(cat.id)}
-              className={`mr-3 px-6 py-3.5 rounded-full justify-center ${
-                activeCategory === cat.id ? 'bg-[#A61C14]' : 'bg-[#E7E5E4]'
-              }`}
-            >
-              <Text className={`font-bold text-base ${
-                activeCategory === cat.id ? 'text-[#F4ECE1]' : 'text-[#78716C]'
-              }`}>
-                {cat.name}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-      )}
-
-      {/* Items List */}
-      <ScrollView
-        className="flex-1 px-4"
-        contentContainerStyle={{ paddingBottom: cartItems.length > 0 ? 110 : 20 }}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
-      >
-        {filteredItems.map(item => {
-          const categoryName = categoryNameById.get(item.category_id);
-          const isSimpleCategory = categoryName === 'Extras' || categoryName === 'Drinks';
-          const rowContent = (
-            <>
-              <View className="flex-1 pr-4">
-                <Text className="text-lg font-bold text-[#1C1917]">{item.name}</Text>
-                {item.description && (
-                  <Text className="text-[#78716C] mt-1" numberOfLines={2}>{item.description}</Text>
-                )}
-                <Text className="text-[#A61C14] font-bold mt-2 text-base">${item.base_price.toFixed(2)}</Text>
-              </View>
-
-              {isSimpleCategory ? (
-                (() => {
-                  const qty = getSimpleQuantity(item.id);
-                  if (qty === 0) {
-                    const addToCart = () => incrementSimpleItem(
-                      { menuItemId: item.id, name: item.name, basePrice: item.base_price },
-                      item.location_id
-                    );
-                    if (item.image_url) {
-                      return (
-                        <TouchableOpacity onPress={addToCart}>
-                          <Image
-                            source={{ uri: item.image_url }}
-                            className="w-24 h-24 rounded-xl bg-stone-200"
-                            resizeMode="cover"
-                          />
-                        </TouchableOpacity>
-                      );
-                    }
-                    return (
-                      <TouchableOpacity
-                        className="bg-[#A61C14] px-4 py-2.5 rounded-xl active:bg-[#85140E]"
-                        onPress={addToCart}
-                      >
-                        <Text className="text-[#F4ECE1] font-bold text-sm">Add to Cart</Text>
-                      </TouchableOpacity>
-                    );
-                  }
-                  return (
-                    <View className="flex-row items-center bg-stone-100 rounded-xl p-1 border border-stone-200">
-                      <TouchableOpacity
-                        className="bg-white w-9 h-9 rounded-lg shadow-sm items-center justify-center"
-                        onPress={() => decrementSimpleItem(item.id)}
-                      >
-                        <Text className="text-lg font-bold text-[#1C1917]">-</Text>
-                      </TouchableOpacity>
-                      <Text className="px-4 text-lg font-bold text-[#1C1917]">{qty}</Text>
-                      <TouchableOpacity
-                        className="bg-white w-9 h-9 rounded-lg shadow-sm items-center justify-center"
-                        onPress={() => incrementSimpleItem(
-                          { menuItemId: item.id, name: item.name, basePrice: item.base_price },
-                          item.location_id
-                        )}
-                      >
-                        <Text className="text-lg font-bold text-[#1C1917]">+</Text>
-                      </TouchableOpacity>
-                    </View>
-                  );
-                })()
-              ) : (
-                item.image_url && (
-                  <Image
-                    source={{ uri: item.image_url }}
-                    className="w-24 h-24 rounded-xl bg-stone-200"
-                    resizeMode="cover"
-                  />
-                )
-              )}
-            </>
-          );
-
-          if (isSimpleCategory) {
-            return (
-              <View key={item.id} className="flex-row justify-between items-center py-4 border-b border-stone-200">
-                {rowContent}
-              </View>
-            );
+      {isSearching ? (
+        <FlatList
+          data={searchResults}
+          numColumns={2}
+          keyExtractor={(item) => item.id}
+          className="flex-1 px-2"
+          contentContainerStyle={{ paddingBottom: cartItems.length > 0 ? 110 : 20 }}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          renderItem={({ item }) => (
+            <MenuItemGridTile item={item} isSimpleCategory={isSimpleCategoryName(categoryNameById.get(item.category_id))} />
+          )}
+          ListEmptyComponent={
+            <Text className="text-center text-[#78716C] mt-10 text-base w-full">
+              No items match "{searchQuery.trim()}".
+            </Text>
           }
-
-          return (
-            <TouchableOpacity
-              key={item.id}
-              className="flex-row justify-between items-center py-4 border-b border-stone-200"
-              onPress={() => router.push(`/(main)/item/${item.id}`)}
-            >
-              {rowContent}
-            </TouchableOpacity>
-          );
-        })}
-
-        {filteredItems.length === 0 && (
-          <Text className="text-center text-[#78716C] mt-10 text-base">
-            {isSearching ? `No items match "${searchQuery.trim()}".` : 'No items in this category.'}
-          </Text>
-        )}
-      </ScrollView>
+        />
+      ) : (
+        <FlatList
+          data={menuData?.categories || []}
+          numColumns={2}
+          keyExtractor={(item) => item.id}
+          className="flex-1 px-2"
+          contentContainerStyle={{ paddingBottom: cartItems.length > 0 ? 110 : 20 }}
+          renderItem={({ item: cat }) => (
+            <View className="w-1/2 p-2">
+              <TouchableOpacity
+                onPress={() =>
+                  router.push({
+                    pathname: '/(main)/menu-category',
+                    params: { categoryId: cat.id, categoryName: cat.name, locationId },
+                  })
+                }
+                className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden"
+                activeOpacity={0.7}
+              >
+                {cat.image_url ? (
+                  <Image source={{ uri: cat.image_url }} className="w-full h-28 bg-stone-200" resizeMode="cover" />
+                ) : (
+                  <View className="w-full h-28 bg-[#FAF6F0] items-center justify-center">
+                    <Ionicons name="restaurant-outline" size={28} color="#A8A29E" />
+                  </View>
+                )}
+                <View className="p-3">
+                  <Text className="text-[#1C1917] font-bold text-base text-center">{cat.name}</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+          )}
+          ListEmptyComponent={
+            <Text className="text-center text-[#78716C] mt-10 text-base w-full">No categories yet.</Text>
+          }
+        />
+      )}
 
       {/* Floating Cart Button */}
       {cartItems.length > 0 && (
