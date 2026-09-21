@@ -258,6 +258,13 @@ otp_expiry = 3600
 subject = "Your AlPaninos verification code"
 content_path = "./supabase/templates/email_change_otp.html"
 
+# Forgot-password flow (login.tsx) -- same typed-in code convention as
+# above, verified via verifyOtp with type "recovery" rather than a tapped
+# reset link.
+[auth.email.template.recovery]
+subject = "Your AlPaninos password reset code"
+content_path = "./supabase/templates/recovery_otp.html"
+
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]
 # enabled = true
