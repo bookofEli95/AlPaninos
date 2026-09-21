@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
+import { useBackHandler } from '../../hooks/useBackHandler';
 
 // TODO: replace with the restaurant's real support number.
 const SUPPORT_PHONE = '(519) 555-0123';
@@ -13,6 +14,11 @@ export default function CustomerSupportScreen() {
   const { session } = useAuthStore();
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  const goBackToMore = useCallback(() => {
+    router.replace('/(main)/more');
+  }, []);
+  useBackHandler(goBackToMore);
 
   const handleSubmit = async () => {
     if (!message.trim()) {
@@ -38,7 +44,7 @@ export default function CustomerSupportScreen() {
   return (
     <View className="flex-1 bg-[#FAF6F0] pt-16 px-4">
       <View className="flex-row items-center mb-6">
-        <TouchableOpacity onPress={() => router.replace('/(main)/more')} className="flex-row items-center py-4 pr-8 -ml-2">
+        <TouchableOpacity onPress={goBackToMore} className="flex-row items-center py-4 pr-8 -ml-2">
           <Ionicons name="chevron-back" size={28} color="#A61C14" />
           <Text className="text-[#A61C14] font-bold text-xl">Back</Text>
         </TouchableOpacity>

@@ -1,9 +1,11 @@
+import { useCallback } from 'react';
 import { View, Text, TouchableOpacity, FlatList } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { useCartStore } from '../../store/cartStore';
+import { useBackHandler } from '../../hooks/useBackHandler';
 import SkeletonBox from '../../components/Skeleton';
 import MenuItemGridTile from '../../components/MenuItemGridTile';
 
@@ -17,6 +19,11 @@ export default function MenuCategoryScreen() {
   const cartItems = useCartStore(state => state.items);
   const cartTotal = cartItems.reduce((sum, item) => sum + item.totalPrice, 0);
   const cartQuantity = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+
+  const goBackToGrid = useCallback(() => {
+    router.replace(`/(main)/menu/${locationId}`);
+  }, [locationId]);
+  useBackHandler(goBackToGrid);
 
   const isSimpleCategory = categoryName === 'Extras' || categoryName === 'Drinks';
 
@@ -39,7 +46,7 @@ export default function MenuCategoryScreen() {
       <View className="flex-row items-center justify-between px-4 mb-4">
         <View className="flex-row items-center flex-1 mr-2">
           <TouchableOpacity
-            onPress={() => router.replace(`/(main)/menu/${locationId}`)}
+            onPress={goBackToGrid}
             className="flex-row items-center py-2 pr-4 -ml-2"
           >
             <Ionicons name="chevron-back" size={28} color="#A61C14" />

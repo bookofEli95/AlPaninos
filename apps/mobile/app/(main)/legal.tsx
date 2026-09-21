@@ -1,6 +1,8 @@
+import { useCallback } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useBackHandler } from '../../hooks/useBackHandler';
 
 // Generic placeholder copy -- have an actual lawyer review this before
 // AlPaninos takes real orders/payments from the public.
@@ -34,10 +36,15 @@ const SECTIONS = [
 export default function LegalScreen() {
   const router = useRouter();
 
+  const goBackToMore = useCallback(() => {
+    router.replace('/(main)/more');
+  }, []);
+  useBackHandler(goBackToMore);
+
   return (
     <View className="flex-1 bg-[#FAF6F0] pt-16 px-4">
       <View className="flex-row items-center mb-6">
-        <TouchableOpacity onPress={() => router.replace('/(main)/more')} className="flex-row items-center py-4 pr-8 -ml-2">
+        <TouchableOpacity onPress={goBackToMore} className="flex-row items-center py-4 pr-8 -ml-2">
           <Ionicons name="chevron-back" size={28} color="#A61C14" />
           <Text className="text-[#A61C14] font-bold text-xl">Back</Text>
         </TouchableOpacity>

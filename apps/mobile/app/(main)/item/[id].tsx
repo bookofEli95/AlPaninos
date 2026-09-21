@@ -1,10 +1,11 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, Keyboard } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../../../lib/supabase';
 import { useCartStore } from '../../../store/cartStore';
+import { useBackHandler } from '../../../hooks/useBackHandler';
 import { Ionicons } from '@expo/vector-icons';
 import SkeletonBox from '../../../components/Skeleton';
 
@@ -191,7 +192,7 @@ export default function ItemDetailScreen() {
   // menu/[id].tsx's redesign), so both the back button and the
   // post-add-to-cart redirect should return to that category's item list,
   // not skip past it to the top-level category grid.
-  const goBackToCategory = () => {
+  const goBackToCategory = useCallback(() => {
     if (!data) return;
     if (data.category_id) {
       router.replace({
@@ -205,7 +206,8 @@ export default function ItemDetailScreen() {
     } else {
       router.replace(`/(main)/menu/${data.location_id}`);
     }
-  };
+  }, [data]);
+  useBackHandler(goBackToCategory);
 
   const handleAddToCart = () => {
     if (!data || justAdded) return;

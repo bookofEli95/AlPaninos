@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, TextInput, FlatList, TouchableOpacity, Alert, ActivityIndicator, StyleSheet } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../../lib/supabase';
+import { useBackHandler } from '../../../hooks/useBackHandler';
 import { Ionicons } from '@expo/vector-icons';
 import SkeletonBox from '../../../components/Skeleton';
 import { getEtaDisplay } from '../../../lib/orderTiming';
@@ -30,6 +31,11 @@ export default function OrderDetailScreen() {
   const [ratingComment, setRatingComment] = useState('');
   const [submittingRating, setSubmittingRating] = useState(false);
   const [now, setNow] = useState(Date.now());
+
+  const goBackToOrders = useCallback(() => {
+    router.replace('/(main)/orders');
+  }, []);
+  useBackHandler(goBackToOrders);
 
   const { data: order, isLoading, error: orderError } = useQuery({
     queryKey: ['order', id],
@@ -151,7 +157,7 @@ export default function OrderDetailScreen() {
       <View className="flex-1 bg-[#FAF6F0] justify-center items-center p-4">
         <Text className="text-[#A61C14] font-bold text-lg mb-2">Couldn't load this order</Text>
         <Text className="text-[#78716C] text-center mb-4">{(orderError as Error).message}</Text>
-        <TouchableOpacity onPress={() => router.replace('/(main)/orders')}>
+        <TouchableOpacity onPress={goBackToOrders}>
           <Text className="text-[#A61C14] font-bold">Go Back</Text>
         </TouchableOpacity>
       </View>
@@ -162,7 +168,7 @@ export default function OrderDetailScreen() {
     return (
       <View className="flex-1 bg-[#FAF6F0] justify-center items-center p-4">
         <Text className="text-[#78716C] text-lg mb-4">Order not found.</Text>
-        <TouchableOpacity onPress={() => router.replace('/(main)/orders')}>
+        <TouchableOpacity onPress={goBackToOrders}>
           <Text className="text-[#A61C14] font-bold">Go Back</Text>
         </TouchableOpacity>
       </View>
@@ -178,7 +184,7 @@ export default function OrderDetailScreen() {
     <View className="flex-1 bg-[#FAF6F0] pt-16 px-4">
       <View className="flex-row items-center mb-6">
         <TouchableOpacity
-          onPress={() => router.replace('/(main)/orders')}
+          onPress={goBackToOrders}
           className="flex-row items-center py-4 pr-8 -ml-2 mr-2"
         >
           <Ionicons name="chevron-back" size={28} color="#A61C14" />

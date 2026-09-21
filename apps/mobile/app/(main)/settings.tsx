@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, Switch, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
+import { useBackHandler } from '../../hooks/useBackHandler';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -12,6 +13,11 @@ export default function SettingsScreen() {
   const [pushEnabled, setPushEnabled] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  const goBackToMore = useCallback(() => {
+    router.replace('/(main)/more');
+  }, []);
+  useBackHandler(goBackToMore);
 
   useEffect(() => {
     if (!userId) return;
@@ -43,7 +49,7 @@ export default function SettingsScreen() {
   return (
     <View className="flex-1 bg-[#FAF6F0] pt-16 px-4">
       <View className="flex-row items-center mb-6">
-        <TouchableOpacity onPress={() => router.replace('/(main)/more')} className="flex-row items-center py-4 pr-8 -ml-2">
+        <TouchableOpacity onPress={goBackToMore} className="flex-row items-center py-4 pr-8 -ml-2">
           <Ionicons name="chevron-back" size={28} color="#A61C14" />
           <Text className="text-[#A61C14] font-bold text-xl">Back</Text>
         </TouchableOpacity>

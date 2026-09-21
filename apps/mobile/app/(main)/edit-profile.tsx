@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,7 @@ import NotifyPreferenceToggle from '../../components/NotifyPreferenceToggle';
 import ErrorBanner from '../../components/ErrorBanner';
 import { Country, DEFAULT_COUNTRY, isValidPhoneForCountry, parsePhone } from '../../lib/countries';
 import { isValidEmail } from '../../lib/passwordStrength';
+import { useBackHandler } from '../../hooks/useBackHandler';
 
 export default function EditProfile() {
   const router = useRouter();
@@ -40,6 +41,11 @@ export default function EditProfile() {
       router.replace(locationId ? `/(main)/menu/${locationId}` : '/(main)');
     }
   }, [isAnonymous]);
+
+  const goBackToProfile = useCallback(() => {
+    router.replace('/(main)/profile');
+  }, []);
+  useBackHandler(goBackToProfile);
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -141,7 +147,7 @@ export default function EditProfile() {
         emailChanged
           ? 'Your profile was updated. Check your inbox to confirm your new email address before it takes effect.'
           : 'Your profile was updated.',
-        [{ text: 'OK', onPress: () => router.back() }]
+        [{ text: 'OK', onPress: goBackToProfile }]
       );
     } catch (e: any) {
       setErrorMessage(e.message);
@@ -166,7 +172,7 @@ export default function EditProfile() {
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
       >
-        <TouchableOpacity onPress={() => router.back()} className="flex-row items-center py-2 pr-8 -ml-2 mb-4">
+        <TouchableOpacity onPress={goBackToProfile} className="flex-row items-center py-2 pr-8 -ml-2 mb-4">
           <Ionicons name="chevron-back" size={28} color="#A61C14" />
           <Text className="text-[#A61C14] font-bold text-xl">Back</Text>
         </TouchableOpacity>

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, FlatList, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { useLocationStore } from '../../store/locationStore';
 import { usePromoStore } from '../../store/promoStore';
+import { useBackHandler } from '../../hooks/useBackHandler';
 import SkeletonBox from '../../components/Skeleton';
 
 export default function DealsScreen() {
@@ -14,6 +15,11 @@ export default function DealsScreen() {
   const { appliedPromo, setAppliedPromo } = usePromoStore();
   const [toast, setToast] = useState<string | null>(null);
   const toastOpacity = useRef(new Animated.Value(0)).current;
+
+  const goBack = useCallback(() => {
+    router.replace(locationId ? `/(main)/menu/${locationId}` : '/(main)');
+  }, [locationId]);
+  useBackHandler(goBack);
 
   const { data: promotions, isLoading, error } = useQuery({
     queryKey: ['promotions', locationId, 'all'],
@@ -59,7 +65,7 @@ export default function DealsScreen() {
     <View className="flex-1 bg-[#FAF6F0] pt-16 px-4">
       <View className="flex-row items-center mb-6">
         <TouchableOpacity
-          onPress={() => router.replace(locationId ? `/(main)/menu/${locationId}` : '/(main)')}
+          onPress={goBack}
           className="flex-row items-center py-4 pr-8 -ml-2"
         >
           <Ionicons name="chevron-back" size={28} color="#A61C14" />

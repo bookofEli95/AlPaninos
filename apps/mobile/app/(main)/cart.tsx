@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Keyboard } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase';
 import { useCartStore, CartItem } from '../../store/cartStore';
 import { useAuthStore } from '../../store/authStore';
 import { usePromoStore } from '../../store/promoStore';
+import { useBackHandler } from '../../hooks/useBackHandler';
 import NotifyPreferenceToggle from '../../components/NotifyPreferenceToggle';
 import CountryPickerSheet from '../../components/CountryPickerSheet';
 import { isValidEmail } from '../../lib/passwordStrength';
@@ -59,6 +60,11 @@ export default function CartScreen() {
   const [menuItemCategoryMap, setMenuItemCategoryMap] = useState<Record<string, string>>({});
 
   const cartTotal = items.reduce((sum: number, item: CartItem) => sum + item.totalPrice, 0);
+
+  const goBack = useCallback(() => {
+    router.replace(locationId ? `/(main)/menu/${locationId}` : '/(main)');
+  }, [locationId]);
+  useBackHandler(goBack);
 
   useEffect(() => {
     if (!appliedPromo?.categoryId || !locationId) return;
@@ -371,7 +377,7 @@ export default function CartScreen() {
       <View className="flex-row items-center justify-between px-4 mb-4">
         <View className="flex-row items-center">
           <TouchableOpacity
-            onPress={() => router.replace(locationId ? `/(main)/menu/${locationId}` : '/(main)')}
+            onPress={goBack}
             className="flex-row items-center py-4 pr-8 -ml-2"
           >
             <Ionicons name="chevron-back" size={28} color="#A61C14" />
