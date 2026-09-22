@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView, Alert } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -93,6 +93,17 @@ export default function ProfileScreen() {
       queryClient.invalidateQueries({ queryKey: ['profile', session.user.id] });
       queryClient.invalidateQueries({ queryKey: ['wheelPromo', session.user.id] });
     }, [session?.user?.id])
+  );
+
+  // Profile stays mounted once visited (see the useFocusEffect above), so
+  // without this a scroll position from a previous visit would still be
+  // sitting there the next time this tab is switched back into -- always
+  // start at the top on focus instead.
+  const scrollViewRef = useRef<ScrollView>(null);
+  useFocusEffect(
+    useCallback(() => {
+      scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+    }, [])
   );
 
   const [copied, setCopied] = useState(false);
@@ -227,7 +238,7 @@ export default function ProfileScreen() {
 
   return (
     <View className="flex-1 bg-[#FAF6F0]">
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+      <ScrollView ref={scrollViewRef} className="flex-1" showsVerticalScrollIndicator={false}>
         {/* Hero */}
         <View className="bg-[#A61C14] pt-16 pb-8 px-6 items-center rounded-b-[32px]">
           <View className="w-24 h-24 rounded-full bg-[#F4ECE1] items-center justify-center mb-4 border-4 border-[#85140E]">
