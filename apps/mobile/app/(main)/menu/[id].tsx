@@ -87,14 +87,32 @@ export default function MenuScreen() {
 
   const isSimpleCategoryName = (name?: string) => name === 'Extras' || name === 'Drinks';
 
+  // Rows of 2 for the category grid below -- a plain flexed layout (not a
+  // FlatList) so each row/tile can be told to fill an equal share of
+  // whatever vertical space is actually available, instead of sizing itself
+  // to fixed/intrinsic content height. With exactly 6 categories that means
+  // 3 full-height rows spanning from the search bar down to the tab bar.
+  const categoryRows = useMemo(() => {
+    const cats = menuData?.categories || [];
+    const rows: (typeof cats)[] = [];
+    for (let i = 0; i < cats.length; i += 2) {
+      rows.push(cats.slice(i, i + 2));
+    }
+    return rows;
+  }, [menuData]);
+
   if (isLoading) {
     return (
       <View className="flex-1 bg-[#FAF6F0] pt-12 px-4">
         <SkeletonBox width={100} height={28} style={{ marginBottom: 24 }} />
-        <View className="flex-row flex-wrap -mx-2">
-          {[1, 2, 3, 4].map(i => (
-            <View key={i} className="w-1/2 p-2">
-              <SkeletonBox height={180} borderRadius={16} />
+        <View className="flex-1 -mx-2">
+          {[0, 1, 2].map(row => (
+            <View key={row} className="flex-1 flex-row">
+              {[0, 1].map(col => (
+                <View key={col} className="flex-1 p-2">
+                  <View className="flex-1 rounded-[20px] bg-stone-200" />
+                </View>
+              ))}
             </View>
           ))}
         </View>
@@ -193,42 +211,51 @@ export default function MenuScreen() {
             </Text>
           }
         />
+      ) : categoryRows.length === 0 ? (
+        <Text className="text-center text-[#78716C] mt-10 text-base w-full">No categories yet.</Text>
       ) : (
-        <FlatList
-          data={menuData?.categories || []}
-          numColumns={2}
-          keyExtractor={(item) => item.id}
+        // A plain flexed grid rather than a FlatList -- with only a
+        // handful of categories, each row/tile can be told to fill an
+        // equal share of whatever vertical space is actually available
+        // (search bar down to the tab bar) instead of sizing to fixed/
+        // intrinsic content height the way a FlatList's rows normally do.
+        <View
           className="flex-1 px-2"
-          contentContainerStyle={{ paddingBottom: cartItems.length > 0 ? 110 : 20 }}
-          renderItem={({ item: cat }) => (
-            <View className="w-1/2 p-2">
-              <TouchableOpacity
-                onPress={() =>
-                  router.push({
-                    pathname: '/(main)/menu-category',
-                    params: { categoryId: cat.id, categoryName: cat.name, locationId },
-                  })
-                }
-                className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden"
-                activeOpacity={0.7}
-              >
-                {cat.image_url ? (
-                  <Image source={{ uri: cat.image_url }} className="w-full h-28 bg-stone-200" resizeMode="cover" />
-                ) : (
-                  <View className="w-full h-28 bg-[#FAF6F0] items-center justify-center">
-                    <Ionicons name="restaurant-outline" size={28} color="#A8A29E" />
-                  </View>
-                )}
-                <View className="p-3">
-                  <Text className="text-[#1C1917] font-bold text-base text-center">{cat.name}</Text>
+          style={{ paddingBottom: cartItems.length > 0 ? 100 : 12 }}
+        >
+          {categoryRows.map((row, rowIndex) => (
+            <View key={rowIndex} className="flex-1 flex-row">
+              {row.map((cat) => (
+                <View key={cat.id} className="flex-1 p-2">
+                  <TouchableOpacity
+                    onPress={() =>
+                      router.push({
+                        pathname: '/(main)/menu-category',
+                        params: { categoryId: cat.id, categoryName: cat.name, locationId },
+                      })
+                    }
+                    className="flex-1 bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden"
+                    activeOpacity={0.7}
+                  >
+                    {cat.image_url ? (
+                      <Image source={{ uri: cat.image_url }} className="w-full flex-1 bg-stone-200" resizeMode="cover" />
+                    ) : (
+                      <View className="w-full flex-1 bg-[#FAF6F0] items-center justify-center">
+                        <Ionicons name="restaurant-outline" size={44} color="#A8A29E" />
+                      </View>
+                    )}
+                    <View className="p-3">
+                      <Text className="text-[#1C1917] font-extrabold text-lg text-center tracking-wide">
+                        {cat.name.toUpperCase()}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
                 </View>
-              </TouchableOpacity>
+              ))}
+              {row.length === 1 && <View className="flex-1 p-2" />}
             </View>
-          )}
-          ListEmptyComponent={
-            <Text className="text-center text-[#78716C] mt-10 text-base w-full">No categories yet.</Text>
-          }
-        />
+          ))}
+        </View>
       )}
 
       {/* Floating Cart Button */}
