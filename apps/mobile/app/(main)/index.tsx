@@ -142,7 +142,7 @@ export default function Home() {
     <View className="flex-1 bg-[#FAF6F0] px-4 pt-16">
       {/* Header aligned to pt-16 mb-6 */}
       <View style={styles.headerContainer}>
-        <Text className="text-3xl font-inter-extrabold text-[#1C1917]">Select a Location</Text>
+        <Text className="text-3xl font-display-bold text-[#1C1917]">Select a Location</Text>
         <TouchableOpacity
           onPress={handleSignOut}
           hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}

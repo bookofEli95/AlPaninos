@@ -233,7 +233,7 @@ export default function ProfileScreen() {
           <View className="w-24 h-24 rounded-full bg-[#F4ECE1] items-center justify-center mb-4 border-4 border-[#85140E]">
             <Text className="text-3xl font-inter-extrabold text-[#A61C14]">{initials}</Text>
           </View>
-          <Text className="text-2xl font-inter-extrabold text-[#F4ECE1]">
+          <Text className="text-2xl font-display-bold text-[#F4ECE1]">
             {profile ? `${profile.first_name} ${profile.last_name}` : 'Welcome back'}
           </Text>
           <Text className="text-[#F4ECE1] opacity-80 mt-1">{session?.user?.email}</Text>
@@ -345,7 +345,7 @@ export default function ProfileScreen() {
             onPress={handleSignOut}
             className="bg-red-50 p-4 rounded-2xl w-full items-center border border-red-200 mb-8 active:bg-red-100"
           >
-            <Text className="text-[#A61C14] font-inter-bold text-lg">Sign Out</Text>
+            <Text className="text-[#A61C14] font-display text-lg">Sign Out</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

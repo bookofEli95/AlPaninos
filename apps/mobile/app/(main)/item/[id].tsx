@@ -372,7 +372,7 @@ export default function ItemDetailScreen() {
           />
         )}
 
-        <Text className="text-3xl font-inter-extrabold text-[#1C1917]">{data.name}</Text>
+        <Text className="text-3xl font-display-bold text-[#1C1917]">{data.name}</Text>
         {data.description && <Text className="text-[#78716C] mt-2 text-base">{data.description}</Text>}
         <Text className="text-2xl font-inter-bold mt-2 text-[#A61C14]">${data.base_price.toFixed(2)}</Text>
 
@@ -474,10 +474,10 @@ export default function ItemDetailScreen() {
           {justAdded ? (
             <>
               <Ionicons name="checkmark-circle" size={22} color="#F4ECE1" style={{ marginRight: 8 }} />
-              <Text className="font-inter-bold text-lg text-[#F4ECE1]">Added to Cart</Text>
+              <Text className="font-display text-lg text-[#F4ECE1]">Added to Cart</Text>
             </>
           ) : (
-            <Text className={`font-inter-bold text-lg ${isValid ? 'text-[#F4ECE1]' : 'text-stone-500'}`}>
+            <Text className={`font-display text-lg ${isValid ? 'text-[#F4ECE1]' : 'text-stone-500'}`}>
               {promoCode ? 'Add to Cart - FREE' : `Add to Cart - $${finalPrice.toFixed(2)}`}
             </Text>
           )}

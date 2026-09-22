@@ -192,7 +192,7 @@ export default function OrderDetailScreen() {
         >
           <Ionicons name="chevron-back" size={28} color="#A61C14" />
         </TouchableOpacity>
-        <Text className="text-2xl font-inter-bold text-[#1C1917]">Order Tracking</Text>
+        <Text className="text-2xl font-display-bold text-[#1C1917]">Order Tracking</Text>
       </View>
 
       {etaText && (

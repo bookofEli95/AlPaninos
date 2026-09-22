@@ -268,8 +268,8 @@ export default function MenuScreen() {
             <View className="bg-[#85140E] rounded-full w-8 h-8 items-center justify-center">
               <Text className="text-[#F4ECE1] font-inter-bold">{cartQuantity}</Text>
             </View>
-            <Text className="text-[#F4ECE1] font-inter-bold text-lg">View Cart</Text>
-            <Text className="text-[#F4ECE1] font-inter-bold text-lg">${cartTotal.toFixed(2)}</Text>
+            <Text className="text-[#F4ECE1] font-display text-lg">View Cart</Text>
+            <Text className="text-[#F4ECE1] font-display text-lg">${cartTotal.toFixed(2)}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -325,7 +325,7 @@ export default function MenuScreen() {
                 onPress={() => setOrderTypeModalVisible(false)}
                 className="bg-[#A61C14] rounded-xl py-4 items-center active:bg-[#85140E]"
               >
-                <Text className="text-[#F4ECE1] font-inter-bold text-lg">Done</Text>
+                <Text className="text-[#F4ECE1] font-display text-lg">Done</Text>
               </TouchableOpacity>
             </View>
           </View>

@@ -236,7 +236,7 @@ export default function Login() {
           {loading ? (
             <ActivityIndicator color="#F4ECE1" />
           ) : (
-            <Text className="text-[#F4ECE1] text-center font-inter-bold text-lg">Sign In</Text>
+            <Text className="text-[#F4ECE1] text-center font-display text-lg">Sign In</Text>
           )}
         </TouchableOpacity>
 
@@ -248,7 +248,7 @@ export default function Login() {
           {guestLoading ? (
             <ActivityIndicator color="#F4ECE1" />
           ) : (
-            <Text className="text-[#F4ECE1] text-center font-inter-bold text-lg">Continue as Guest</Text>
+            <Text className="text-[#F4ECE1] text-center font-display text-lg">Continue as Guest</Text>
           )}
         </TouchableOpacity>
 
@@ -304,7 +304,7 @@ export default function Login() {
                   {sendingReset ? (
                     <ActivityIndicator color="#F4ECE1" />
                   ) : (
-                    <Text className="text-[#F4ECE1] font-inter-bold text-lg">Send Code</Text>
+                    <Text className="text-[#F4ECE1] font-display text-lg">Send Code</Text>
                   )}
                 </TouchableOpacity>
               </>
@@ -338,7 +338,7 @@ export default function Login() {
                   {submittingReset ? (
                     <ActivityIndicator color="#F4ECE1" />
                   ) : (
-                    <Text className="text-[#F4ECE1] font-inter-bold text-lg">Reset Password</Text>
+                    <Text className="text-[#F4ECE1] font-display text-lg">Reset Password</Text>
                   )}
                 </TouchableOpacity>
                 <TouchableOpacity onPress={handleSendResetCode} disabled={sendingReset} className="py-2">

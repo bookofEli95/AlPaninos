@@ -51,7 +51,7 @@ export default function MenuCategoryScreen() {
           >
             <Ionicons name="chevron-back" size={28} color="#A61C14" />
           </TouchableOpacity>
-          <Text className="text-2xl font-inter-extrabold text-[#1C1917] flex-1" numberOfLines={1}>
+          <Text className="text-2xl font-display-bold text-[#1C1917] flex-1" numberOfLines={1}>
             {categoryName}
           </Text>
         </View>
@@ -109,8 +109,8 @@ export default function MenuCategoryScreen() {
             <View className="bg-[#85140E] rounded-full w-8 h-8 items-center justify-center">
               <Text className="text-[#F4ECE1] font-inter-bold">{cartQuantity}</Text>
             </View>
-            <Text className="text-[#F4ECE1] font-inter-bold text-lg">View Cart</Text>
-            <Text className="text-[#F4ECE1] font-inter-bold text-lg">${cartTotal.toFixed(2)}</Text>
+            <Text className="text-[#F4ECE1] font-display text-lg">View Cart</Text>
+            <Text className="text-[#F4ECE1] font-display text-lg">${cartTotal.toFixed(2)}</Text>
           </TouchableOpacity>
         </View>
       )}

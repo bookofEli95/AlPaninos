@@ -15,7 +15,7 @@ export default function MoreScreen() {
 
   return (
     <View className="flex-1 bg-[#FAF6F0] pt-16 px-4">
-      <Text className="text-3xl font-inter-extrabold text-[#1C1917] mb-6">More</Text>
+      <Text className="text-3xl font-display-bold text-[#1C1917] mb-6">More</Text>
       <ScrollView showsVerticalScrollIndicator={false}>
         <View className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
           {MENU_ITEMS.map((item, index) => (

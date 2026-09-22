@@ -495,7 +495,7 @@ export default function CartScreen() {
             <Ionicons name="chevron-back" size={28} color="#A61C14" />
             <Text className="text-[#A61C14] font-inter-bold text-xl">Back</Text>
           </TouchableOpacity>
-          <Text className="text-2xl font-inter-bold ml-2 text-[#1C1917]">Cart</Text>
+          <Text className="text-2xl font-display-bold ml-2 text-[#1C1917]">Cart</Text>
         </View>
 
         {items.length > 0 && (

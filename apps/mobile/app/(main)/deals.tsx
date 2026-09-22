@@ -173,7 +173,7 @@ export default function DealsScreen() {
           <Ionicons name="chevron-back" size={28} color="#A61C14" />
           <Text className="text-[#A61C14] font-inter-bold text-xl">Back</Text>
         </TouchableOpacity>
-        <Text className="text-2xl font-inter-bold text-[#1C1917] ml-2">Deals</Text>
+        <Text className="text-2xl font-display-bold text-[#1C1917] ml-2">Deals</Text>
       </View>
 
       {isLoading ? (

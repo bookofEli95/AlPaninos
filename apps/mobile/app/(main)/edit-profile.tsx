@@ -177,7 +177,7 @@ export default function EditProfile() {
           <Text className="text-[#A61C14] font-inter-bold text-xl">Back</Text>
         </TouchableOpacity>
 
-        <Text className="text-3xl font-inter-extrabold text-[#1C1917] mb-6">Edit Profile</Text>
+        <Text className="text-3xl font-display-bold text-[#1C1917] mb-6">Edit Profile</Text>
 
         {errorMessage && <ErrorBanner message={errorMessage} />}
 
@@ -255,7 +255,7 @@ export default function EditProfile() {
           {loading ? (
             <ActivityIndicator color="#F4ECE1" />
           ) : (
-            <Text className="text-[#F4ECE1] text-center font-inter-bold text-lg">Save Changes</Text>
+            <Text className="text-[#F4ECE1] text-center font-display text-lg">Save Changes</Text>
           )}
         </TouchableOpacity>
       </ScrollView>

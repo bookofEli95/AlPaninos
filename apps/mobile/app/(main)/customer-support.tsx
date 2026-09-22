@@ -48,7 +48,7 @@ export default function CustomerSupportScreen() {
           <Ionicons name="chevron-back" size={28} color="#A61C14" />
           <Text className="text-[#A61C14] font-inter-bold text-xl">Back</Text>
         </TouchableOpacity>
-        <Text className="text-2xl font-inter-bold text-[#1C1917] ml-2">Customer Support</Text>
+        <Text className="text-2xl font-display-bold text-[#1C1917] ml-2">Customer Support</Text>
       </View>
 
       <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" showsVerticalScrollIndicator={false}>
@@ -84,7 +84,7 @@ export default function CustomerSupportScreen() {
           {submitting ? (
             <ActivityIndicator color="#F4ECE1" />
           ) : (
-            <Text className="text-[#F4ECE1] font-inter-bold text-lg">Submit</Text>
+            <Text className="text-[#F4ECE1] font-display text-lg">Submit</Text>
           )}
         </TouchableOpacity>
       </ScrollView>

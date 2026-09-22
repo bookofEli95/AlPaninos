@@ -221,7 +221,7 @@ export default function Register() {
           {loading ? (
             <ActivityIndicator color="#F4ECE1" />
           ) : (
-            <Text className="text-[#F4ECE1] text-center font-inter-bold text-lg">Sign Up</Text>
+            <Text className="text-[#F4ECE1] text-center font-display text-lg">Sign Up</Text>
           )}
         </TouchableOpacity>
 

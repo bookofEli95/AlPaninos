@@ -123,7 +123,7 @@ export default function OrdersScreen() {
 
   return (
     <View className="flex-1 bg-[#FAF6F0] pt-16 px-4">
-      <Text className="text-3xl font-inter-extrabold text-[#1C1917] mb-6">Your Orders</Text>
+      <Text className="text-3xl font-display-bold text-[#1C1917] mb-6">Your Orders</Text>
       
       <FlatList
         data={orders}
