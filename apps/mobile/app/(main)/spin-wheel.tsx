@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, Dimensions, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import Svg, { Path, Circle } from 'react-native-svg';
 import Animated, {
   useSharedValue,
@@ -101,6 +102,12 @@ export default function SpinWheelScreen() {
   const cardScale = useSharedValue(0.7);
   const cardOpacity = useSharedValue(0);
   const tickTimeouts = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  const videoPlayer = useVideoPlayer(require('../../assets/videos/wheel-background.mp4'), (player) => {
+    player.loop = true;
+    player.muted = true;
+    player.play();
+  });
 
   const isBigWin = result?.index === 3;
 
@@ -248,6 +255,18 @@ export default function SpinWheelScreen() {
 
   return (
     <View className="flex-1 bg-[#1C1917] items-center justify-center px-6">
+      <VideoView
+        player={videoPlayer}
+        style={StyleSheet.absoluteFill}
+        contentFit="cover"
+        nativeControls={false}
+        pointerEvents="none"
+      />
+      <View
+        style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.55)' }]}
+        pointerEvents="none"
+      />
+
       <Text className="text-[#F4ECE1] text-3xl font-extrabold text-center mb-2">Welcome to AlPaninos!</Text>
       <Text className="text-[#F4ECE1] opacity-80 text-center mb-10 text-base">
         Spin the wheel for a one-time welcome prize.
