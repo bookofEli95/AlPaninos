@@ -51,7 +51,7 @@ export default function MenuCategoryScreen() {
           >
             <Ionicons name="chevron-back" size={28} color="#A61C14" />
           </TouchableOpacity>
-          <Text className="text-2xl font-extrabold font-inter-extrabold text-[#1C1917] flex-1" numberOfLines={1}>
+          <Text className="text-2xl font-inter-extrabold text-[#1C1917] flex-1" numberOfLines={1}>
             {categoryName}
           </Text>
         </View>
@@ -67,7 +67,7 @@ export default function MenuCategoryScreen() {
               className="absolute bg-[#A61C14] rounded-full items-center justify-center"
               style={{ top: -4, right: -4, minWidth: 18, height: 18, paddingHorizontal: 3 }}
             >
-              <Text className="text-[#F4ECE1] font-bold font-inter-bold" style={{ fontSize: 11 }}>{cartQuantity}</Text>
+              <Text className="text-[#F4ECE1] font-inter-bold" style={{ fontSize: 11 }}>{cartQuantity}</Text>
             </View>
           )}
         </TouchableOpacity>
@@ -83,7 +83,7 @@ export default function MenuCategoryScreen() {
         </View>
       ) : error ? (
         <View className="mt-10 items-center px-6">
-          <Text className="text-[#A61C14] font-bold font-inter-bold text-lg mb-2">Couldn't load items</Text>
+          <Text className="text-[#A61C14] font-inter-bold text-lg mb-2">Couldn't load items</Text>
           <Text className="text-[#78716C] text-center">{(error as Error).message}</Text>
         </View>
       ) : (
@@ -107,10 +107,10 @@ export default function MenuCategoryScreen() {
             onPress={() => router.push('/(main)/cart')}
           >
             <View className="bg-[#85140E] rounded-full w-8 h-8 items-center justify-center">
-              <Text className="text-[#F4ECE1] font-bold font-inter-bold">{cartQuantity}</Text>
+              <Text className="text-[#F4ECE1] font-inter-bold">{cartQuantity}</Text>
             </View>
-            <Text className="text-[#F4ECE1] font-bold font-inter-bold text-lg">View Cart</Text>
-            <Text className="text-[#F4ECE1] font-bold font-inter-bold text-lg">${cartTotal.toFixed(2)}</Text>
+            <Text className="text-[#F4ECE1] font-inter-bold text-lg">View Cart</Text>
+            <Text className="text-[#F4ECE1] font-inter-bold text-lg">${cartTotal.toFixed(2)}</Text>
           </TouchableOpacity>
         </View>
       )}

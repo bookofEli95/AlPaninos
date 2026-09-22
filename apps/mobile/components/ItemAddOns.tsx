@@ -80,7 +80,7 @@ export default function ItemAddOns({
 
   return (
     <View className="mt-6 border-t border-stone-200 pt-4">
-      <Text className="text-lg font-bold font-inter-bold text-[#1C1917] mb-2">Add to your order</Text>
+      <Text className="text-lg font-inter-bold text-[#1C1917] mb-2">Add to your order</Text>
       {suggestions.map((suggestion) => {
         const qty =
           items.find((i) => i.menuItemId === suggestion.menuItemId && i.modifiers.length === 0)?.quantity || 0;
@@ -94,8 +94,8 @@ export default function ItemAddOns({
               </View>
             )}
             <View className="flex-1 ml-3">
-              <Text className="text-[#1C1917] font-semibold font-inter-semibold">{suggestion.name}</Text>
-              <Text className="text-[#A61C14] font-bold font-inter-bold text-sm mt-0.5">${suggestion.basePrice.toFixed(2)}</Text>
+              <Text className="text-[#1C1917] font-inter-semibold">{suggestion.name}</Text>
+              <Text className="text-[#A61C14] font-inter-bold text-sm mt-0.5">${suggestion.basePrice.toFixed(2)}</Text>
             </View>
             {qty === 0 ? (
               <TouchableOpacity
@@ -107,7 +107,7 @@ export default function ItemAddOns({
                 }
                 className="bg-[#A61C14] rounded-lg px-4 py-2 active:bg-[#85140E]"
               >
-                <Text className="text-[#F4ECE1] font-bold font-inter-bold text-sm">Add</Text>
+                <Text className="text-[#F4ECE1] font-inter-bold text-sm">Add</Text>
               </TouchableOpacity>
             ) : (
               <View className="flex-row items-center bg-stone-100 rounded-lg px-1 py-1 border border-stone-200">
@@ -115,9 +115,9 @@ export default function ItemAddOns({
                   onPress={() => decrementSimpleItem(suggestion.menuItemId)}
                   className="bg-white w-8 h-8 rounded-md items-center justify-center shadow-sm"
                 >
-                  <Text className="font-bold font-inter-bold text-[#1C1917]">-</Text>
+                  <Text className="font-inter-bold text-[#1C1917]">-</Text>
                 </TouchableOpacity>
-                <Text className="font-bold font-inter-bold text-[#1C1917] text-sm w-6 text-center">{qty}</Text>
+                <Text className="font-inter-bold text-[#1C1917] text-sm w-6 text-center">{qty}</Text>
                 <TouchableOpacity
                   onPress={() =>
                     incrementSimpleItem(
@@ -127,7 +127,7 @@ export default function ItemAddOns({
                   }
                   className="bg-white w-8 h-8 rounded-md items-center justify-center shadow-sm"
                 >
-                  <Text className="font-bold font-inter-bold text-[#1C1917]">+</Text>
+                  <Text className="font-inter-bold text-[#1C1917]">+</Text>
                 </TouchableOpacity>
               </View>
             )}

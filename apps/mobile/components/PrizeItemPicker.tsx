@@ -26,7 +26,7 @@ export default function PrizeItemPicker({
       />
       <View className="bg-[#FAF6F0] rounded-2xl mx-4 p-5" style={{ marginTop: 90, maxHeight: '75%' }}>
         <View className="flex-row justify-between items-center mb-1">
-          <Text className="text-xl font-extrabold font-inter-extrabold text-[#1C1917] flex-1 mr-2">{title}</Text>
+          <Text className="text-xl font-inter-extrabold text-[#1C1917] flex-1 mr-2">{title}</Text>
           <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Ionicons name="close" size={24} color="#1C1917" />
           </TouchableOpacity>
@@ -48,8 +48,8 @@ export default function PrizeItemPicker({
                   <Ionicons name="fast-food-outline" size={20} color="#A8A29E" />
                 </View>
               )}
-              <Text className="flex-1 ml-3 font-semibold font-inter-semibold text-[#1C1917]" numberOfLines={1}>{item.name}</Text>
-              <Text className="text-[#A61C14] font-extrabold font-inter-extrabold text-sm">FREE</Text>
+              <Text className="flex-1 ml-3 font-inter-semibold text-[#1C1917]" numberOfLines={1}>{item.name}</Text>
+              <Text className="text-[#A61C14] font-inter-extrabold text-sm">FREE</Text>
             </TouchableOpacity>
           )}
         />

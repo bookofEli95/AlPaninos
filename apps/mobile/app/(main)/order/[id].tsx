@@ -158,10 +158,10 @@ export default function OrderDetailScreen() {
   if (orderError) {
     return (
       <View className="flex-1 bg-[#FAF6F0] justify-center items-center p-4">
-        <Text className="text-[#A61C14] font-bold font-inter-bold text-lg mb-2">Couldn't load this order</Text>
+        <Text className="text-[#A61C14] font-inter-bold text-lg mb-2">Couldn't load this order</Text>
         <Text className="text-[#78716C] text-center mb-4">{(orderError as Error).message}</Text>
         <TouchableOpacity onPress={goBackToOrders}>
-          <Text className="text-[#A61C14] font-bold font-inter-bold">Go Back</Text>
+          <Text className="text-[#A61C14] font-inter-bold">Go Back</Text>
         </TouchableOpacity>
       </View>
     );
@@ -172,7 +172,7 @@ export default function OrderDetailScreen() {
       <View className="flex-1 bg-[#FAF6F0] justify-center items-center p-4">
         <Text className="text-[#78716C] text-lg mb-4">Order not found.</Text>
         <TouchableOpacity onPress={goBackToOrders}>
-          <Text className="text-[#A61C14] font-bold font-inter-bold">Go Back</Text>
+          <Text className="text-[#A61C14] font-inter-bold">Go Back</Text>
         </TouchableOpacity>
       </View>
     );
@@ -192,26 +192,26 @@ export default function OrderDetailScreen() {
         >
           <Ionicons name="chevron-back" size={28} color="#A61C14" />
         </TouchableOpacity>
-        <Text className="text-2xl font-bold font-inter-bold text-[#1C1917]">Order Tracking</Text>
+        <Text className="text-2xl font-inter-bold text-[#1C1917]">Order Tracking</Text>
       </View>
 
       {etaText && (
         <View className="bg-white border border-stone-200 rounded-2xl p-4 mb-6 flex-row items-center shadow-sm">
           <Ionicons name="time-outline" size={22} color="#A61C14" />
-          <Text className="text-[#1C1917] font-bold font-inter-bold text-base ml-3">{etaText}</Text>
+          <Text className="text-[#1C1917] font-inter-bold text-base ml-3">{etaText}</Text>
         </View>
       )}
 
       {/* Progress Tracker */}
       <View className="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm mb-6">
-        <Text className="text-xs font-bold font-inter-bold text-[#78716C] uppercase tracking-wider mb-4">
+        <Text className="text-xs font-inter-bold text-[#78716C] uppercase tracking-wider mb-4">
           Order Status: {order.order_type?.toUpperCase()}
         </Text>
 
         {isCancelled ? (
           <View className="bg-[#FBE9E7] p-4 rounded-xl border border-[#F0B4AC] flex-row items-center">
             <Ionicons name="alert-circle" size={24} color="#A61C14" />
-            <Text className="text-[#A61C14] font-bold font-inter-bold ml-2 text-base">This order was cancelled.</Text>
+            <Text className="text-[#A61C14] font-inter-bold ml-2 text-base">This order was cancelled.</Text>
           </View>
         ) : (
           <View className="flex-row justify-between items-center relative">
@@ -231,11 +231,11 @@ export default function OrderDetailScreen() {
                     {isPassed ? (
                       <Ionicons name="checkmark" size={16} color="#F4ECE1" />
                     ) : (
-                      <Text className="text-[#78716C] font-bold font-inter-bold text-xs">{idx + 1}</Text>
+                      <Text className="text-[#78716C] font-inter-bold text-xs">{idx + 1}</Text>
                     )}
                   </View>
                   <Text
-                    className={`text-xs text-center mt-2 ${isCurrent ? 'font-bold font-inter-bold text-[#A61C14]' : isPassed ? 'text-[#1C1917] font-medium font-inter-medium' : 'text-[#78716C]'}`}
+                    className={`text-xs text-center mt-2 ${isCurrent ? 'font-inter-bold text-[#A61C14]' : isPassed ? 'text-[#1C1917] font-inter-medium' : 'text-[#78716C]'}`}
                   >
                     {step.label}
                   </Text>
@@ -275,12 +275,12 @@ export default function OrderDetailScreen() {
             </View>
           </View>
         )}
-        <Text className="text-xl font-bold font-inter-bold mt-2 text-[#A61C14]">
+        <Text className="text-xl font-inter-bold mt-2 text-[#A61C14]">
           Total: ${Number(order.total_amount).toFixed(2)}
         </Text>
       </View>
 
-      <Text className="text-xl font-bold font-inter-bold mb-4 text-[#1C1917]">Items</Text>
+      <Text className="text-xl font-inter-bold mb-4 text-[#1C1917]">Items</Text>
 
       <FlatList
         data={order.order_items}
@@ -289,10 +289,10 @@ export default function OrderDetailScreen() {
         renderItem={({ item }) => (
           <View className="border-b border-stone-200 py-4">
             <View className="flex-row justify-between mb-1">
-              <Text className="font-bold font-inter-bold text-lg text-[#1C1917]">
+              <Text className="font-inter-bold text-lg text-[#1C1917]">
                 {item.quantity}x {item.menu_items?.name || 'Item'}
               </Text>
-              <Text className="font-bold font-inter-bold text-[#A61C14]">${Number(item.total_price).toFixed(2)}</Text>
+              <Text className="font-inter-bold text-[#A61C14]">${Number(item.total_price).toFixed(2)}</Text>
             </View>
 
             {item.order_item_modifiers && item.order_item_modifiers.map((mod: any, index: number) => (
@@ -312,7 +312,7 @@ export default function OrderDetailScreen() {
             <View className="mt-4 mb-8 bg-white border border-stone-200 rounded-2xl p-5 shadow-sm">
               {rating ? (
                 <>
-                  <Text className="text-lg font-bold font-inter-bold text-[#1C1917] mb-2">Your Rating</Text>
+                  <Text className="text-lg font-inter-bold text-[#1C1917] mb-2">Your Rating</Text>
                   <View className="flex-row mb-2">
                     {[1, 2, 3, 4, 5].map((n) => (
                       <Ionicons
@@ -329,7 +329,7 @@ export default function OrderDetailScreen() {
                 </>
               ) : (
                 <>
-                  <Text className="text-lg font-bold font-inter-bold text-[#1C1917] mb-1">How was your order?</Text>
+                  <Text className="text-lg font-inter-bold text-[#1C1917] mb-1">How was your order?</Text>
                   <Text className="text-[#78716C] text-sm mb-3">Let us know how we did.</Text>
                   <View className="flex-row mb-4">
                     {[1, 2, 3, 4, 5].map((n) => (
@@ -365,7 +365,7 @@ export default function OrderDetailScreen() {
                     {submittingRating ? (
                       <ActivityIndicator color="#F4ECE1" />
                     ) : (
-                      <Text className={`font-bold font-inter-bold text-base ${ratingValue < 1 ? 'text-stone-500' : 'text-[#F4ECE1]'}`}>
+                      <Text className={`font-inter-bold text-base ${ratingValue < 1 ? 'text-stone-500' : 'text-[#F4ECE1]'}`}>
                         Submit Rating
                       </Text>
                     )}

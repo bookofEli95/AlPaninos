@@ -46,9 +46,9 @@ export default function CustomerSupportScreen() {
       <View className="flex-row items-center mb-6">
         <TouchableOpacity onPress={goBackToMore} className="flex-row items-center py-4 pr-8 -ml-2">
           <Ionicons name="chevron-back" size={28} color="#A61C14" />
-          <Text className="text-[#A61C14] font-bold font-inter-bold text-xl">Back</Text>
+          <Text className="text-[#A61C14] font-inter-bold text-xl">Back</Text>
         </TouchableOpacity>
-        <Text className="text-2xl font-bold font-inter-bold text-[#1C1917] ml-2">Customer Support</Text>
+        <Text className="text-2xl font-inter-bold text-[#1C1917] ml-2">Customer Support</Text>
       </View>
 
       <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" showsVerticalScrollIndicator={false}>
@@ -60,12 +60,12 @@ export default function CustomerSupportScreen() {
             <Ionicons name="call" size={22} color="#A61C14" />
           </View>
           <View>
-            <Text className="text-xs text-[#78716C] uppercase font-bold font-inter-bold tracking-wider">Call Us</Text>
-            <Text className="text-lg font-bold font-inter-bold text-[#1C1917]">{SUPPORT_PHONE}</Text>
+            <Text className="text-xs text-[#78716C] uppercase font-inter-bold tracking-wider">Call Us</Text>
+            <Text className="text-lg font-inter-bold text-[#1C1917]">{SUPPORT_PHONE}</Text>
           </View>
         </TouchableOpacity>
 
-        <Text className="text-lg font-bold font-inter-bold text-[#1C1917] mb-2">Leave a Comment or Review</Text>
+        <Text className="text-lg font-inter-bold text-[#1C1917] mb-2">Leave a Comment or Review</Text>
         <TextInput
           className="bg-white border border-stone-300 rounded-xl p-4 text-base text-[#1C1917] mb-4"
           style={{ minHeight: 120 }}
@@ -84,7 +84,7 @@ export default function CustomerSupportScreen() {
           {submitting ? (
             <ActivityIndicator color="#F4ECE1" />
           ) : (
-            <Text className="text-[#F4ECE1] font-bold font-inter-bold text-lg">Submit</Text>
+            <Text className="text-[#F4ECE1] font-inter-bold text-lg">Submit</Text>
           )}
         </TouchableOpacity>
       </ScrollView>

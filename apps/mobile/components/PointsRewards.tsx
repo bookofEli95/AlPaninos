@@ -50,8 +50,8 @@ export default function PointsRewards({
   return (
     <View className="bg-white rounded-2xl border border-stone-200 shadow-sm p-5 mb-4">
       <View className="flex-row items-center justify-between mb-4">
-        <Text className="text-lg font-bold font-inter-bold text-[#1C1917]">PaninoPoints</Text>
-        <Text className="text-[#A61C14] font-extrabold font-inter-extrabold text-lg">{points}</Text>
+        <Text className="text-lg font-inter-bold text-[#1C1917]">PaninoPoints</Text>
+        <Text className="text-[#A61C14] font-inter-extrabold text-lg">{points}</Text>
       </View>
       {REWARD_TIERS.map(({ tier, cost, title, icon }) => {
         const canRedeem = points >= cost;
@@ -61,9 +61,9 @@ export default function PointsRewards({
             <View className="flex-row items-center justify-between mb-1.5">
               <View className="flex-row items-center flex-1 mr-2">
                 <Ionicons name={icon} size={16} color="#A61C14" />
-                <Text className="text-[#1C1917] font-semibold font-inter-semibold ml-2" numberOfLines={1}>{title}</Text>
+                <Text className="text-[#1C1917] font-inter-semibold ml-2" numberOfLines={1}>{title}</Text>
               </View>
-              <Text className="text-[#78716C] text-xs font-bold font-inter-bold">{Math.min(points, cost)} / {cost}</Text>
+              <Text className="text-[#78716C] text-xs font-inter-bold">{Math.min(points, cost)} / {cost}</Text>
             </View>
             <View className="h-2 bg-stone-100 rounded-full overflow-hidden mb-2">
               <View
@@ -82,7 +82,7 @@ export default function PointsRewards({
                 {redeeming === tier ? (
                   <ActivityIndicator size="small" color="#F4ECE1" />
                 ) : (
-                  <Text className="text-[#F4ECE1] font-bold font-inter-bold text-sm">Redeem</Text>
+                  <Text className="text-[#F4ECE1] font-inter-bold text-sm">Redeem</Text>
                 )}
               </TouchableOpacity>
             )}

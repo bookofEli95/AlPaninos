@@ -333,7 +333,7 @@ export default function ItemDetailScreen() {
   if (error) {
     return (
       <View className="flex-1 bg-[#FAF6F0] pt-20 px-4">
-        <Text className="text-[#A61C14] font-bold font-inter-bold text-xl mb-4">Database Error:</Text>
+        <Text className="text-[#A61C14] font-inter-bold text-xl mb-4">Database Error:</Text>
         <Text className="text-[#1C1917]">{error.message}</Text>
       </View>
     );
@@ -361,7 +361,7 @@ export default function ItemDetailScreen() {
           className="flex-row items-center py-4 pr-8 -ml-2 mb-2"
         >
           <Ionicons name="chevron-back" size={28} color="#A61C14" />
-          <Text className="text-[#A61C14] font-bold font-inter-bold text-xl">Back</Text>
+          <Text className="text-[#A61C14] font-inter-bold text-xl">Back</Text>
         </TouchableOpacity>
 
         {data.image_url && (
@@ -372,14 +372,14 @@ export default function ItemDetailScreen() {
           />
         )}
 
-        <Text className="text-3xl font-extrabold font-inter-extrabold text-[#1C1917]">{data.name}</Text>
+        <Text className="text-3xl font-inter-extrabold text-[#1C1917]">{data.name}</Text>
         {data.description && <Text className="text-[#78716C] mt-2 text-base">{data.description}</Text>}
-        <Text className="text-2xl font-bold font-inter-bold mt-2 text-[#A61C14]">${data.base_price.toFixed(2)}</Text>
+        <Text className="text-2xl font-inter-bold mt-2 text-[#A61C14]">${data.base_price.toFixed(2)}</Text>
 
         {promoCode && (
           <View className="flex-row items-center bg-[#FAF6F0] border border-[#A61C14] rounded-lg px-3 py-2 mt-3 self-start">
             <Ionicons name="gift" size={16} color="#A61C14" />
-            <Text className="text-[#A61C14] font-bold font-inter-bold ml-2">
+            <Text className="text-[#A61C14] font-inter-bold ml-2">
               FREE with {promoTitle || 'your reward'} -- modifiers included
             </Text>
           </View>
@@ -388,8 +388,8 @@ export default function ItemDetailScreen() {
         {visibleGroups.map((group: any) => (
           <View key={group.id} className="mt-6 border-t border-stone-200 pt-4">
             <View className="flex-row justify-between items-center mb-4">
-              <Text className="text-lg font-bold font-inter-bold text-[#1C1917]">{group.name}</Text>
-              <Text className="text-[#78716C] text-xs font-semibold font-inter-semibold uppercase">
+              <Text className="text-lg font-inter-bold text-[#1C1917]">{group.name}</Text>
+              <Text className="text-[#78716C] text-xs font-inter-semibold uppercase">
                 {group.is_required ? 'Required' : 'Optional'} (Max {group.max_selections})
               </Text>
             </View>
@@ -402,11 +402,11 @@ export default function ItemDetailScreen() {
                   onPress={() => handleToggleOption(group.id, option.id, group.max_selections)}
                   className="flex-row justify-between items-center py-3.5 border-b border-stone-100"
                 >
-                  <Text className={`text-base ${isSelected ? 'font-bold font-inter-bold text-[#A61C14]' : 'text-[#1C1917]'}`}>
+                  <Text className={`text-base ${isSelected ? 'font-inter-bold text-[#A61C14]' : 'text-[#1C1917]'}`}>
                     {option.name} {isSelected && '✓'}
                   </Text>
                   {!promoCode && option.price_adjustment > 0 && (
-                    <Text className="text-[#78716C] font-medium font-inter-medium">+${option.price_adjustment.toFixed(2)}</Text>
+                    <Text className="text-[#78716C] font-inter-medium">+${option.price_adjustment.toFixed(2)}</Text>
                   )}
                 </TouchableOpacity>
               );
@@ -416,7 +416,7 @@ export default function ItemDetailScreen() {
 
         {data.menu_categories?.name !== 'Drinks' && (
           <View className="mt-6 border-t border-stone-200 pt-4">
-            <Text className="text-lg font-bold font-inter-bold text-[#1C1917] mb-2">Special Instructions</Text>
+            <Text className="text-lg font-inter-bold text-[#1C1917] mb-2">Special Instructions</Text>
             <TextInput
               className="bg-white border border-stone-300 rounded-xl p-4 text-base text-[#1C1917] min-h-[90px]"
               placeholder="e.g. no onions please, extra napkins..."
@@ -439,7 +439,7 @@ export default function ItemDetailScreen() {
             avoid stacking multiple free items off a single redemption. */}
         {!promoCode && (
           <View className="flex-row items-center justify-between mb-4">
-            <Text className="text-lg font-bold font-inter-bold text-[#1C1917]">Quantity:</Text>
+            <Text className="text-lg font-inter-bold text-[#1C1917]">Quantity:</Text>
             <View className="flex-row items-center bg-stone-100 rounded-xl p-1 border border-stone-200">
               <TouchableOpacity
                 className="bg-white px-4 py-2 rounded-lg shadow-sm"
@@ -448,9 +448,9 @@ export default function ItemDetailScreen() {
                   setQuantity(Math.max(1, quantity - 1));
                 }}
               >
-                <Text className="text-xl font-bold font-inter-bold text-[#1C1917]">-</Text>
+                <Text className="text-xl font-inter-bold text-[#1C1917]">-</Text>
               </TouchableOpacity>
-              <Text className="px-6 text-xl font-bold font-inter-bold text-[#1C1917]">{quantity}</Text>
+              <Text className="px-6 text-xl font-inter-bold text-[#1C1917]">{quantity}</Text>
               <TouchableOpacity
                 className="bg-white px-4 py-2 rounded-lg shadow-sm"
                 onPress={() => {
@@ -458,7 +458,7 @@ export default function ItemDetailScreen() {
                   setQuantity(quantity + 1);
                 }}
               >
-                <Text className="text-xl font-bold font-inter-bold text-[#1C1917]">+</Text>
+                <Text className="text-xl font-inter-bold text-[#1C1917]">+</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -474,10 +474,10 @@ export default function ItemDetailScreen() {
           {justAdded ? (
             <>
               <Ionicons name="checkmark-circle" size={22} color="#F4ECE1" style={{ marginRight: 8 }} />
-              <Text className="font-bold font-inter-bold text-lg text-[#F4ECE1]">Added to Cart</Text>
+              <Text className="font-inter-bold text-lg text-[#F4ECE1]">Added to Cart</Text>
             </>
           ) : (
-            <Text className={`font-bold font-inter-bold text-lg ${isValid ? 'text-[#F4ECE1]' : 'text-stone-500'}`}>
+            <Text className={`font-inter-bold text-lg ${isValid ? 'text-[#F4ECE1]' : 'text-stone-500'}`}>
               {promoCode ? 'Add to Cart - FREE' : `Add to Cart - $${finalPrice.toFixed(2)}`}
             </Text>
           )}

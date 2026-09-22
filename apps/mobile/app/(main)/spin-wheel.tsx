@@ -361,7 +361,7 @@ export default function SpinWheelScreen() {
           <Animated.View style={cardStyle} className="w-full items-center">
             <View className="bg-[#FAF6F0] rounded-3xl p-6 w-full items-center shadow-xl border-2 border-[#D4A017]">
               <Text className="text-4xl mb-2">{isBigWin ? '🏆' : '🎉'}</Text>
-              <Text className="text-[#78716C] font-bold font-inter-bold uppercase tracking-wider text-xs mb-1">You Won</Text>
+              <Text className="text-[#78716C] font-inter-bold uppercase tracking-wider text-xs mb-1">You Won</Text>
               <Text className="text-2xl font-display-bold text-[#1C1917] text-center mb-4">{result.title}</Text>
 
               {result.index >= 0 && (
@@ -387,7 +387,7 @@ export default function SpinWheelScreen() {
                   onPress={() => handleCopyCode(result.code!)}
                   className="flex-row items-center bg-white border-2 border-dashed border-[#A61C14] rounded-xl px-6 py-3 mb-4"
                 >
-                  <Text className="text-[#A61C14] font-extrabold font-inter-extrabold text-xl tracking-widest mr-3">{result.code}</Text>
+                  <Text className="text-[#A61C14] font-inter-extrabold text-xl tracking-widest mr-3">{result.code}</Text>
                   <Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={20} color="#A61C14" />
                 </TouchableOpacity>
               ) : (

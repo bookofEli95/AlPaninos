@@ -142,14 +142,14 @@ export default function Home() {
     <View className="flex-1 bg-[#FAF6F0] px-4 pt-16">
       {/* Header aligned to pt-16 mb-6 */}
       <View style={styles.headerContainer}>
-        <Text className="text-3xl font-extrabold font-inter-extrabold text-[#1C1917]">Select a Location</Text>
+        <Text className="text-3xl font-inter-extrabold text-[#1C1917]">Select a Location</Text>
         <TouchableOpacity
           onPress={handleSignOut}
           hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
           activeOpacity={0.6}
           style={styles.signOutButton}
         >
-          <Text className="text-[#A61C14] font-bold font-inter-bold text-base">Sign Out</Text>
+          <Text className="text-[#A61C14] font-inter-bold text-base">Sign Out</Text>
         </TouchableOpacity>
       </View>
 
@@ -163,7 +163,7 @@ export default function Home() {
         ) : (
           <Ionicons name="locate" size={16} color="#A61C14" />
         )}
-        <Text className="text-[#A61C14] font-bold font-inter-bold text-sm ml-2">
+        <Text className="text-[#A61C14] font-inter-bold text-sm ml-2">
           {userCoords ? 'Update My Location' : 'Use My Location'}
         </Text>
       </TouchableOpacity>
@@ -182,15 +182,15 @@ export default function Home() {
             </View>
           )}
           <View className="flex-1 mr-2">
-            <Text className="text-xs font-bold font-inter-bold uppercase text-[#A61C14] tracking-wider mb-1">Your Usual</Text>
-            <Text className="text-lg font-bold font-inter-bold text-[#1C1917]" numberOfLines={1}>{usualItem.name}</Text>
+            <Text className="text-xs font-inter-bold uppercase text-[#A61C14] tracking-wider mb-1">Your Usual</Text>
+            <Text className="text-lg font-inter-bold text-[#1C1917]" numberOfLines={1}>{usualItem.name}</Text>
             <Text className="text-[#78716C] text-sm">Ordered {usualItem.times_ordered}+ times</Text>
           </View>
           <View className="bg-[#A61C14] px-4 py-2.5 rounded-xl items-center justify-center" style={{ minWidth: 64 }}>
             {addingUsual ? (
               <ActivityIndicator color="#F4ECE1" size="small" />
             ) : (
-              <Text className="text-[#F4ECE1] font-bold font-inter-bold text-sm">Add</Text>
+              <Text className="text-[#F4ECE1] font-inter-bold text-sm">Add</Text>
             )}
           </View>
         </TouchableOpacity>
@@ -204,7 +204,7 @@ export default function Home() {
         </View>
       ) : locationsError ? (
         <View className="mt-10 items-center px-6">
-          <Text className="text-[#A61C14] font-bold font-inter-bold text-lg mb-2">Couldn't load locations</Text>
+          <Text className="text-[#A61C14] font-inter-bold text-lg mb-2">Couldn't load locations</Text>
           <Text className="text-[#78716C] text-center">{(locationsError as Error).message}</Text>
         </View>
       ) : (
@@ -222,9 +222,9 @@ export default function Home() {
                 }`}
               >
                 <View className="flex-row justify-between items-start">
-                  <Text className="text-xl font-bold font-inter-bold text-[#1C1917] flex-1 mr-2">{item.name}</Text>
+                  <Text className="text-xl font-inter-bold text-[#1C1917] flex-1 mr-2">{item.name}</Text>
                   {item.distanceKm != null && (
-                    <Text className="text-[#A61C14] font-bold font-inter-bold text-sm">{item.distanceKm.toFixed(1)} km</Text>
+                    <Text className="text-[#A61C14] font-inter-bold text-sm">{item.distanceKm.toFixed(1)} km</Text>
                   )}
                 </View>
                 <Text className="text-[#78716C] mt-1">{item.address}</Text>
@@ -232,7 +232,7 @@ export default function Home() {
                   <View
                     className={`px-2 py-0.5 rounded-full mr-2 ${isOpenNow(item.hours) ? 'bg-emerald-100' : 'bg-stone-200'}`}
                   >
-                    <Text className={`text-xs font-bold font-inter-bold ${isOpenNow(item.hours) ? 'text-emerald-800' : 'text-stone-600'}`}>
+                    <Text className={`text-xs font-inter-bold ${isOpenNow(item.hours) ? 'text-emerald-800' : 'text-stone-600'}`}>
                       {isOpenNow(item.hours) ? 'Open Now' : 'Closed'}
                     </Text>
                   </View>
@@ -241,7 +241,7 @@ export default function Home() {
                 {isSelected && (
                   <View className="flex-row items-center mt-3">
                     <Ionicons name="checkmark-circle" size={16} color="#A61C14" />
-                    <Text className="text-[#A61C14] font-bold font-inter-bold text-sm ml-1">Selected</Text>
+                    <Text className="text-[#A61C14] font-inter-bold text-sm ml-1">Selected</Text>
                   </View>
                 )}
               </TouchableOpacity>
@@ -250,21 +250,21 @@ export default function Home() {
           ListFooterComponent={
             sortedLocations.length > 0 ? (
               <View className="mt-2 mb-8">
-                <Text className="text-lg font-bold font-inter-bold text-[#1C1917] mb-3">How would you like to order?</Text>
+                <Text className="text-lg font-inter-bold text-[#1C1917] mb-3">How would you like to order?</Text>
                 <View className="flex-row">
                   <TouchableOpacity
                     onPress={() => handleChooseOrderType('pickup')}
                     className="flex-1 bg-white border border-stone-300 rounded-2xl p-5 items-center mr-2"
                   >
                     <Ionicons name="storefront-outline" size={28} color="#A61C14" />
-                    <Text className="text-[#1C1917] font-bold font-inter-bold text-base mt-2">Pickup</Text>
+                    <Text className="text-[#1C1917] font-inter-bold text-base mt-2">Pickup</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => handleChooseOrderType('delivery')}
                     className="flex-1 bg-white border border-stone-300 rounded-2xl p-5 items-center ml-2"
                   >
                     <Ionicons name="car-outline" size={28} color="#A61C14" />
-                    <Text className="text-[#1C1917] font-bold font-inter-bold text-base mt-2">Delivery</Text>
+                    <Text className="text-[#1C1917] font-inter-bold text-base mt-2">Delivery</Text>
                   </TouchableOpacity>
                 </View>
               </View>

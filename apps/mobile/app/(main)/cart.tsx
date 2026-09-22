@@ -493,9 +493,9 @@ export default function CartScreen() {
             className="flex-row items-center py-4 pr-8 -ml-2"
           >
             <Ionicons name="chevron-back" size={28} color="#A61C14" />
-            <Text className="text-[#A61C14] font-bold font-inter-bold text-xl">Back</Text>
+            <Text className="text-[#A61C14] font-inter-bold text-xl">Back</Text>
           </TouchableOpacity>
-          <Text className="text-2xl font-bold font-inter-bold ml-2 text-[#1C1917]">Cart</Text>
+          <Text className="text-2xl font-inter-bold ml-2 text-[#1C1917]">Cart</Text>
         </View>
 
         {items.length > 0 && (
@@ -509,7 +509,7 @@ export default function CartScreen() {
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             className="px-3 py-2"
           >
-            <Text className="text-[#78716C] font-bold font-inter-bold text-base">Clear</Text>
+            <Text className="text-[#78716C] font-inter-bold text-base">Clear</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -525,12 +525,12 @@ export default function CartScreen() {
             <View className="flex-row justify-between items-start mb-2">
               <View className="flex-1 pr-4">
                 <View className="flex-row items-center flex-wrap">
-                  <Text className="text-lg font-bold font-inter-bold text-[#1C1917]">
+                  <Text className="text-lg font-inter-bold text-[#1C1917]">
                     {item.quantity}x {item.name}
                   </Text>
                   {item.promoCode && (
                     <View className="ml-2 bg-[#A61C14] rounded-full px-2 py-0.5">
-                      <Text className="text-[#F4ECE1] text-xs font-bold font-inter-bold">FREE</Text>
+                      <Text className="text-[#F4ECE1] text-xs font-inter-bold">FREE</Text>
                     </View>
                   )}
                 </View>
@@ -545,7 +545,7 @@ export default function CartScreen() {
                   </Text>
                 )}
               </View>
-              <Text className="text-lg font-bold font-inter-bold text-[#A61C14]">
+              <Text className="text-lg font-inter-bold text-[#A61C14]">
                 ${item.totalPrice.toFixed(2)}
               </Text>
             </View>
@@ -553,7 +553,7 @@ export default function CartScreen() {
               onPress={() => removeItem(item.cartItemId)}
               className="self-start mt-2"
             >
-              <Text className="text-[#A61C14] font-bold font-inter-bold">Remove</Text>
+              <Text className="text-[#A61C14] font-inter-bold">Remove</Text>
             </TouchableOpacity>
           </View>
         ))}
@@ -562,7 +562,7 @@ export default function CartScreen() {
         )}
         {items.length > 0 && isAnonymous && (
           <View className="my-4 p-4 bg-white rounded-2xl border border-stone-200 shadow-sm">
-            <Text className="text-lg font-bold font-inter-bold mb-3 text-[#1C1917]">Contact Details</Text>
+            <Text className="text-lg font-inter-bold mb-3 text-[#1C1917]">Contact Details</Text>
 
             <View className="flex-row justify-between mb-3">
               <TextInput
@@ -587,7 +587,7 @@ export default function CartScreen() {
                 className="flex-row items-center bg-white border border-stone-300 rounded-lg px-3 mr-2"
               >
                 <Text className="text-base mr-1">{guestCountry.flag}</Text>
-                <Text className="text-base font-semibold font-inter-semibold text-[#1C1917] mr-1">+{guestCountry.dialCode}</Text>
+                <Text className="text-base font-inter-semibold text-[#1C1917] mr-1">+{guestCountry.dialCode}</Text>
                 <Ionicons name="chevron-down" size={14} color="#A8A29E" />
               </TouchableOpacity>
               <TextInput
@@ -614,7 +614,7 @@ export default function CartScreen() {
             {emailVerified ? (
               <View className="flex-row items-center mt-3">
                 <Ionicons name="checkmark-circle" size={16} color="#16a34a" />
-                <Text className="text-green-700 font-semibold font-inter-semibold text-sm ml-1">Email verified</Text>
+                <Text className="text-green-700 font-inter-semibold text-sm ml-1">Email verified</Text>
               </View>
             ) : otpSent ? (
               <View className="mt-3">
@@ -641,11 +641,11 @@ export default function CartScreen() {
                     {verifyingOtp ? (
                       <ActivityIndicator size="small" color="#F4ECE1" />
                     ) : (
-                      <Text className="text-[#F4ECE1] font-bold font-inter-bold text-sm">Verify</Text>
+                      <Text className="text-[#F4ECE1] font-inter-bold text-sm">Verify</Text>
                     )}
                   </TouchableOpacity>
                   <TouchableOpacity onPress={handleSendCode} disabled={sendingOtp} className="px-3 py-2.5">
-                    <Text className="text-[#78716C] font-semibold font-inter-semibold text-sm">Resend</Text>
+                    <Text className="text-[#78716C] font-inter-semibold text-sm">Resend</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -658,7 +658,7 @@ export default function CartScreen() {
                 {sendingOtp ? (
                   <ActivityIndicator size="small" color="#F4ECE1" />
                 ) : (
-                  <Text className="text-[#F4ECE1] font-bold font-inter-bold text-sm">Send Verification Code</Text>
+                  <Text className="text-[#F4ECE1] font-inter-bold text-sm">Send Verification Code</Text>
                 )}
               </TouchableOpacity>
             )}
@@ -666,12 +666,12 @@ export default function CartScreen() {
         )}
         {items.length > 0 && (
           <View className="my-4 p-4 bg-white rounded-2xl border border-stone-200 shadow-sm">
-            <Text className="text-lg font-bold font-inter-bold mb-3 text-[#1C1917]">Promo Code</Text>
+            <Text className="text-lg font-inter-bold mb-3 text-[#1C1917]">Promo Code</Text>
             {activePromoCode ? (
               <View className="flex-row items-center justify-between bg-[#FAF6F0] border border-stone-300 rounded-lg px-4 py-3">
                 <View className="flex-row items-center flex-1 mr-2">
                   <Ionicons name="pricetag" size={16} color="#A61C14" />
-                  <Text className="text-[#1C1917] font-bold font-inter-bold ml-2" numberOfLines={1}>
+                  <Text className="text-[#1C1917] font-inter-bold ml-2" numberOfLines={1}>
                     {activePromoCode} applied
                   </Text>
                 </View>
@@ -705,7 +705,7 @@ export default function CartScreen() {
                   {applyingPromo ? (
                     <ActivityIndicator size="small" color="#F4ECE1" />
                   ) : (
-                    <Text className={`font-bold font-inter-bold ${!promoCode.trim() ? 'text-stone-500' : 'text-[#F4ECE1]'}`}>Apply</Text>
+                    <Text className={`font-inter-bold ${!promoCode.trim() ? 'text-stone-500' : 'text-[#F4ECE1]'}`}>Apply</Text>
                   )}
                 </TouchableOpacity>
               </View>
@@ -733,14 +733,14 @@ export default function CartScreen() {
             can still pick 8pm), not just the next couple hours. */}
         {items.length > 0 && (
           <View className="my-4 p-4 bg-white rounded-2xl border border-stone-200 shadow-sm">
-            <Text className="text-lg font-bold font-inter-bold mb-3 text-[#1C1917]">
+            <Text className="text-lg font-inter-bold mb-3 text-[#1C1917]">
               {orderType === 'delivery' ? 'When should it arrive?' : 'When would you like it?'}
             </Text>
             <TouchableOpacity
               onPress={() => setTimePickerVisible(true)}
               className="flex-row items-center justify-between bg-[#FAF6F0] border border-stone-300 rounded-xl px-4 py-3.5"
             >
-              <Text className="font-bold font-inter-bold text-[#1C1917]">
+              <Text className="font-inter-bold text-[#1C1917]">
                 {selectedSlot
                   ? selectedSlot.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
                   : `ASAP (~${estimateReadyMinutes(orderType, itemCount)} min)`}
@@ -755,11 +755,11 @@ export default function CartScreen() {
         <View className="p-4 border-t border-stone-200 bg-[#FAF6F0]">
           <View className="flex-row justify-between mb-2">
             <Text className="text-lg text-[#78716C]">Order Type</Text>
-            <Text className="text-lg font-bold font-inter-bold uppercase text-[#1C1917]">{orderType}</Text>
+            <Text className="text-lg font-inter-bold uppercase text-[#1C1917]">{orderType}</Text>
           </View>
           <View className="flex-row justify-between mb-2">
             <Text className="text-lg text-[#78716C]">{orderType === 'delivery' ? 'Arriving' : 'Ready'}</Text>
-            <Text className="text-lg font-bold font-inter-bold text-[#1C1917]">
+            <Text className="text-lg font-inter-bold text-[#1C1917]">
               {selectedSlot
                 ? selectedSlot.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
                 : `ASAP (~${estimateReadyMinutes(orderType, itemCount)} min)`}
@@ -768,7 +768,7 @@ export default function CartScreen() {
           {orderType === 'delivery' && (
             <View className="mb-4">
               <Text className="text-sm text-[#78716C]">Delivering to:</Text>
-              <Text className="text-md font-bold font-inter-bold text-[#1C1917]" numberOfLines={2}>{deliveryAddress}</Text>
+              <Text className="text-md font-inter-bold text-[#1C1917]" numberOfLines={2}>{deliveryAddress}</Text>
             </View>
           )}
           <View className="flex-row justify-between mb-1">
@@ -786,8 +786,8 @@ export default function CartScreen() {
             <Text className="text-base text-[#1C1917]">${taxAmount.toFixed(2)}</Text>
           </View>
           <View className="flex-row justify-between mb-6 pt-2 border-t border-stone-200">
-            <Text className="text-2xl font-bold font-inter-bold text-[#1C1917]">Total</Text>
-            <Text className="text-2xl font-bold font-inter-bold text-[#A61C14]">
+            <Text className="text-2xl font-inter-bold text-[#1C1917]">Total</Text>
+            <Text className="text-2xl font-inter-bold text-[#A61C14]">
               ${grandTotal.toFixed(2)}
             </Text>
           </View>
@@ -801,7 +801,7 @@ export default function CartScreen() {
             {isSubmitting ? (
               <ActivityIndicator color="#F4ECE1" />
             ) : (
-              <Text className={`text-xl font-bold font-inter-bold ${isAnonymous && !emailVerified ? 'text-stone-500' : 'text-[#F4ECE1]'}`}>
+              <Text className={`text-xl font-inter-bold ${isAnonymous && !emailVerified ? 'text-stone-500' : 'text-[#F4ECE1]'}`}>
                 {isAnonymous && !emailVerified ? 'Verify Email to Continue' : 'Place Order'}
               </Text>
             )}

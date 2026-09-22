@@ -144,7 +144,7 @@ export default function MenuScreen() {
               size={22}
               color="#A61C14"
             />
-            <Text className="text-[#1C1917] font-semibold font-inter-semibold text-base ml-2" numberOfLines={1} style={{ maxWidth: 120 }}>
+            <Text className="text-[#1C1917] font-inter-semibold text-base ml-2" numberOfLines={1} style={{ maxWidth: 120 }}>
               {orderType === 'pickup' ? 'Pickup' : (deliveryAddress || 'Delivery')}
             </Text>
           </TouchableOpacity>
@@ -160,7 +160,7 @@ export default function MenuScreen() {
                 className="absolute bg-[#A61C14] rounded-full items-center justify-center"
                 style={{ top: -6, right: -6, minWidth: 22, height: 22, paddingHorizontal: 4 }}
               >
-                <Text className="text-[#F4ECE1] font-bold font-inter-bold" style={{ fontSize: 12 }}>{cartQuantity}</Text>
+                <Text className="text-[#F4ECE1] font-inter-bold" style={{ fontSize: 12 }}>{cartQuantity}</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -174,7 +174,7 @@ export default function MenuScreen() {
         >
           <View className="flex-row items-center flex-1 mr-2">
             <Ionicons name="pricetag" size={18} color="#F4ECE1" />
-            <Text className="text-[#F4ECE1] font-bold font-inter-bold ml-2" numberOfLines={1}>
+            <Text className="text-[#F4ECE1] font-inter-bold ml-2" numberOfLines={1}>
               Deals
             </Text>
           </View>
@@ -266,10 +266,10 @@ export default function MenuScreen() {
             onPress={() => router.push('/(main)/cart')}
           >
             <View className="bg-[#85140E] rounded-full w-8 h-8 items-center justify-center">
-              <Text className="text-[#F4ECE1] font-bold font-inter-bold">{cartQuantity}</Text>
+              <Text className="text-[#F4ECE1] font-inter-bold">{cartQuantity}</Text>
             </View>
-            <Text className="text-[#F4ECE1] font-bold font-inter-bold text-lg">View Cart</Text>
-            <Text className="text-[#F4ECE1] font-bold font-inter-bold text-lg">${cartTotal.toFixed(2)}</Text>
+            <Text className="text-[#F4ECE1] font-inter-bold text-lg">View Cart</Text>
+            <Text className="text-[#F4ECE1] font-inter-bold text-lg">${cartTotal.toFixed(2)}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -287,7 +287,7 @@ export default function MenuScreen() {
           />
           <View style={{ marginBottom: keyboardHeight }}>
             <View className="bg-[#FAF6F0] rounded-t-3xl p-5" style={{ paddingBottom: 32 }}>
-              <Text className="text-xl font-extrabold font-inter-extrabold text-[#1C1917] mb-4">Order Type</Text>
+              <Text className="text-xl font-inter-extrabold text-[#1C1917] mb-4">Order Type</Text>
 
               <View className="flex-row bg-[#E7E5E4] p-1 rounded-xl mb-4">
                 <TouchableOpacity
@@ -295,7 +295,7 @@ export default function MenuScreen() {
                   className={`flex-1 py-3 rounded-lg items-center ${orderType === 'pickup' ? 'bg-white' : ''}`}
                   style={orderType === 'pickup' ? styles.activeToggleShadow : undefined}
                 >
-                  <Text className={`font-bold font-inter-bold text-base ${orderType === 'pickup' ? 'text-[#A61C14]' : 'text-[#78716C]'}`}>
+                  <Text className={`font-inter-bold text-base ${orderType === 'pickup' ? 'text-[#A61C14]' : 'text-[#78716C]'}`}>
                     Pickup
                   </Text>
                 </TouchableOpacity>
@@ -304,7 +304,7 @@ export default function MenuScreen() {
                   className={`flex-1 py-3 rounded-lg items-center ${orderType === 'delivery' ? 'bg-white' : ''}`}
                   style={orderType === 'delivery' ? styles.activeToggleShadow : undefined}
                 >
-                  <Text className={`font-bold font-inter-bold text-base ${orderType === 'delivery' ? 'text-[#A61C14]' : 'text-[#78716C]'}`}>
+                  <Text className={`font-inter-bold text-base ${orderType === 'delivery' ? 'text-[#A61C14]' : 'text-[#78716C]'}`}>
                     Delivery
                   </Text>
                 </TouchableOpacity>
@@ -312,7 +312,7 @@ export default function MenuScreen() {
 
               {orderType === 'delivery' && (
                 <View className="mb-4">
-                  <Text className="text-[#1C1917] font-bold font-inter-bold mb-2">Delivering to:</Text>
+                  <Text className="text-[#1C1917] font-inter-bold mb-2">Delivering to:</Text>
                   <AddressAutocomplete
                     defaultAddress={deliveryAddress}
                     onAddressSelect={setDeliveryAddress}
@@ -325,7 +325,7 @@ export default function MenuScreen() {
                 onPress={() => setOrderTypeModalVisible(false)}
                 className="bg-[#A61C14] rounded-xl py-4 items-center active:bg-[#85140E]"
               >
-                <Text className="text-[#F4ECE1] font-bold font-inter-bold text-lg">Done</Text>
+                <Text className="text-[#F4ECE1] font-inter-bold text-lg">Done</Text>
               </TouchableOpacity>
             </View>
           </View>

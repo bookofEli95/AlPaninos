@@ -44,7 +44,7 @@ export default function CountryPickerSheet({ visible, onClose, onSelect, keyboar
         }}
       >
         <View className="flex-row justify-between items-center mb-4">
-          <Text className="text-xl font-extrabold font-inter-extrabold text-[#1C1917]">Select Country</Text>
+          <Text className="text-xl font-inter-extrabold text-[#1C1917]">Select Country</Text>
           <TouchableOpacity onPress={close} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Ionicons name="close" size={26} color="#1C1917" />
           </TouchableOpacity>
@@ -71,7 +71,7 @@ export default function CountryPickerSheet({ visible, onClose, onSelect, keyboar
             >
               <Text className="text-xl mr-3">{c.flag}</Text>
               <Text className="flex-1 text-base text-[#1C1917]">{c.name}</Text>
-              <Text className="text-[#78716C] font-semibold font-inter-semibold">+{c.dialCode}</Text>
+              <Text className="text-[#78716C] font-inter-semibold">+{c.dialCode}</Text>
             </TouchableOpacity>
           ))}
           {filtered.length === 0 && (
