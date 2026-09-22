@@ -28,10 +28,8 @@ import { supabase } from "../lib/supabase";
 import { useAuthStore } from "../store/authStore";
 import { useLocationStore } from "../store/locationStore";
 import { registerForPushNotificationsAsync, savePushToken } from "../lib/pushNotifications";
-import { applyGlobalFont } from "../lib/globalFont";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
-applyGlobalFont();
 const queryClient = new QueryClient();
 
 // Known-benign dev-only noise, not app bugs -- both are internal timing

@@ -51,10 +51,10 @@ export default function MenuItemGridTile({ item, isSimpleCategory }: Props) {
           </View>
         )}
         <View className="p-3">
-          <Text className="text-[#1C1917] font-bold text-sm" numberOfLines={2}>
+          <Text className="text-[#1C1917] font-bold font-inter-bold text-sm" numberOfLines={2}>
             {item.name}
           </Text>
-          <Text className="text-[#A61C14] font-bold text-sm mt-1">${item.base_price.toFixed(2)}</Text>
+          <Text className="text-[#A61C14] font-bold font-inter-bold text-sm mt-1">${item.base_price.toFixed(2)}</Text>
 
           {isSimpleCategory && (
             qty === 0 ? (
@@ -64,7 +64,7 @@ export default function MenuItemGridTile({ item, isSimpleCategory }: Props) {
                 }
                 className="bg-[#A61C14] rounded-lg py-2 items-center mt-2 active:bg-[#85140E]"
               >
-                <Text className="text-[#F4ECE1] font-bold text-xs">Add</Text>
+                <Text className="text-[#F4ECE1] font-bold font-inter-bold text-xs">Add</Text>
               </TouchableOpacity>
             ) : (
               <View className="flex-row items-center justify-between bg-stone-100 rounded-lg mt-2 px-1 py-1 border border-stone-200">
@@ -72,16 +72,16 @@ export default function MenuItemGridTile({ item, isSimpleCategory }: Props) {
                   onPress={() => decrementSimpleItem(item.id)}
                   className="bg-white w-7 h-7 rounded-md items-center justify-center shadow-sm"
                 >
-                  <Text className="font-bold text-[#1C1917]">-</Text>
+                  <Text className="font-bold font-inter-bold text-[#1C1917]">-</Text>
                 </TouchableOpacity>
-                <Text className="font-bold text-[#1C1917] text-sm">{qty}</Text>
+                <Text className="font-bold font-inter-bold text-[#1C1917] text-sm">{qty}</Text>
                 <TouchableOpacity
                   onPress={() =>
                     incrementSimpleItem({ menuItemId: item.id, name: item.name, basePrice: item.base_price }, item.location_id)
                   }
                   className="bg-white w-7 h-7 rounded-md items-center justify-center shadow-sm"
                 >
-                  <Text className="font-bold text-[#1C1917]">+</Text>
+                  <Text className="font-bold font-inter-bold text-[#1C1917]">+</Text>
                 </TouchableOpacity>
               </View>
             )

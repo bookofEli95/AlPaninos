@@ -32,7 +32,7 @@ export default function TimeSlotPickerSheet({ visible, onClose, onSelect, slots,
         style={{ marginTop: 90, maxHeight: Dimensions.get('window').height - 90 - 60 }}
       >
         <View className="flex-row justify-between items-center mb-4">
-          <Text className="text-xl font-extrabold text-[#1C1917]">Choose a Time</Text>
+          <Text className="text-xl font-extrabold font-inter-extrabold text-[#1C1917]">Choose a Time</Text>
           <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Ionicons name="close" size={26} color="#1C1917" />
           </TouchableOpacity>
@@ -45,7 +45,7 @@ export default function TimeSlotPickerSheet({ visible, onClose, onSelect, slots,
             }`}
             onPress={() => onSelect(null)}
           >
-            <Text className={`text-base ${selected === null ? 'font-bold text-[#A61C14]' : 'text-[#1C1917]'}`}>
+            <Text className={`text-base ${selected === null ? 'font-bold font-inter-bold text-[#A61C14]' : 'text-[#1C1917]'}`}>
               ASAP (~{asapLabel})
             </Text>
             {selected === null && <Ionicons name="checkmark" size={20} color="#A61C14" />}
@@ -59,7 +59,7 @@ export default function TimeSlotPickerSheet({ visible, onClose, onSelect, slots,
                 className="flex-row items-center justify-between py-3.5 border-b border-stone-100"
                 onPress={() => onSelect(slot.time)}
               >
-                <Text className={`text-base ${isSelected ? 'font-bold text-[#A61C14]' : 'text-[#1C1917]'}`}>
+                <Text className={`text-base ${isSelected ? 'font-bold font-inter-bold text-[#A61C14]' : 'text-[#1C1917]'}`}>
                   {slot.label}
                 </Text>
                 {isSelected && <Ionicons name="checkmark" size={20} color="#A61C14" />}

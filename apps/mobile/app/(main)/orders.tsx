@@ -115,7 +115,7 @@ export default function OrdersScreen() {
   if (error) {
     return (
       <View className="flex-1 bg-[#FAF6F0] justify-center items-center px-6">
-        <Text className="text-[#A61C14] font-bold text-lg mb-2">Couldn't load your orders</Text>
+        <Text className="text-[#A61C14] font-bold font-inter-bold text-lg mb-2">Couldn't load your orders</Text>
         <Text className="text-[#78716C] text-center">{(error as Error).message}</Text>
       </View>
     );
@@ -123,7 +123,7 @@ export default function OrdersScreen() {
 
   return (
     <View className="flex-1 bg-[#FAF6F0] pt-16 px-4">
-      <Text className="text-3xl font-extrabold text-[#1C1917] mb-6">Your Orders</Text>
+      <Text className="text-3xl font-extrabold font-inter-extrabold text-[#1C1917] mb-6">Your Orders</Text>
       
       <FlatList
         data={orders}
@@ -137,10 +137,10 @@ export default function OrdersScreen() {
               className="bg-white p-6 rounded-2xl mb-5 border border-stone-200 shadow-sm"
             >
               <View className="flex-row justify-between items-center mb-2">
-                <Text className="font-bold text-lg text-[#1C1917]">Order #{item.id.slice(0, 8)}</Text>
+                <Text className="font-bold font-inter-bold text-lg text-[#1C1917]">Order #{item.id.slice(0, 8)}</Text>
                 {item.status && (
                   <View className={`${badge.bg} px-3 py-1 rounded-full`}>
-                    <Text className={`${badge.text} font-semibold capitalize text-xs`}>{item.status}</Text>
+                    <Text className={`${badge.text} font-semibold font-inter-semibold capitalize text-xs`}>{item.status}</Text>
                   </View>
                 )}
               </View>
@@ -148,7 +148,7 @@ export default function OrdersScreen() {
                 <Text className="text-[#78716C]">
                   {new Date(item.created_at).toLocaleDateString()}
                 </Text>
-                <Text className="font-bold text-lg text-[#A61C14]">${Number(item.total_amount).toFixed(2)}</Text>
+                <Text className="font-bold font-inter-bold text-lg text-[#A61C14]">${Number(item.total_amount).toFixed(2)}</Text>
               </View>
               <TouchableOpacity
                 onPress={(e) => {
@@ -161,7 +161,7 @@ export default function OrdersScreen() {
                 {reorderingId === item.id ? (
                   <ActivityIndicator size="small" color="#F4ECE1" />
                 ) : (
-                  <Text className="text-[#F4ECE1] font-bold text-sm">Reorder</Text>
+                  <Text className="text-[#F4ECE1] font-bold font-inter-bold text-sm">Reorder</Text>
                 )}
               </TouchableOpacity>
             </TouchableOpacity>

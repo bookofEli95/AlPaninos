@@ -19,7 +19,7 @@ export default function NotifyPreferenceToggle({
 }: Props) {
   return (
     <View className="mb-6">
-      <Text className="text-[#1C1917] font-bold mb-2">{label}</Text>
+      <Text className="text-[#1C1917] font-bold font-inter-bold mb-2">{label}</Text>
       <View className="flex-row">
         <TouchableOpacity
           onPress={() => onChangeEmail(!notifyEmail)}
@@ -28,7 +28,7 @@ export default function NotifyPreferenceToggle({
           } justify-center`}
         >
           <Ionicons name="mail" size={16} color={notifyEmail ? '#F4ECE1' : '#78716C'} />
-          <Text className={`font-bold ml-2 ${notifyEmail ? 'text-[#F4ECE1]' : 'text-[#78716C]'}`}>
+          <Text className={`font-bold font-inter-bold ml-2 ${notifyEmail ? 'text-[#F4ECE1]' : 'text-[#78716C]'}`}>
             Email
           </Text>
         </TouchableOpacity>
@@ -39,7 +39,7 @@ export default function NotifyPreferenceToggle({
           } justify-center`}
         >
           <Ionicons name="chatbubble-ellipses" size={16} color={notifySms ? '#F4ECE1' : '#78716C'} />
-          <Text className={`font-bold ml-2 ${notifySms ? 'text-[#F4ECE1]' : 'text-[#78716C]'}`}>
+          <Text className={`font-bold font-inter-bold ml-2 ${notifySms ? 'text-[#F4ECE1]' : 'text-[#78716C]'}`}>
             Text
           </Text>
         </TouchableOpacity>

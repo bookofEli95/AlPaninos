@@ -190,14 +190,14 @@ export default function Login() {
           className="flex-row items-center self-center bg-[#A61C14] px-4 py-2 rounded-full mb-6"
         >
           <Ionicons name="gift-outline" size={16} color="#F4ECE1" />
-          <Text className="text-[#F4ECE1] font-bold text-sm ml-2">Earn rewards with every order</Text>
+          <Text className="text-[#F4ECE1] font-bold font-inter-bold text-sm ml-2">Earn rewards with every order</Text>
         </Animated.View>
 
       <Animated.View style={formStyle}>
         {errorMessage && <ErrorBanner message={errorMessage} />}
         {errorMessage && (
           <TouchableOpacity onPress={handleOpenForgotPassword} className="self-center mb-4 -mt-2 py-1">
-            <Text className="text-[#F4ECE1] text-sm font-semibold underline">Forgot your password?</Text>
+            <Text className="text-[#F4ECE1] text-sm font-semibold font-inter-semibold underline">Forgot your password?</Text>
           </TouchableOpacity>
         )}
 
@@ -236,7 +236,7 @@ export default function Login() {
           {loading ? (
             <ActivityIndicator color="#F4ECE1" />
           ) : (
-            <Text className="text-[#F4ECE1] text-center font-bold text-lg">Sign In</Text>
+            <Text className="text-[#F4ECE1] text-center font-bold font-inter-bold text-lg">Sign In</Text>
           )}
         </TouchableOpacity>
 
@@ -248,14 +248,14 @@ export default function Login() {
           {guestLoading ? (
             <ActivityIndicator color="#F4ECE1" />
           ) : (
-            <Text className="text-[#F4ECE1] text-center font-bold text-lg">Continue as Guest</Text>
+            <Text className="text-[#F4ECE1] text-center font-bold font-inter-bold text-lg">Continue as Guest</Text>
           )}
         </TouchableOpacity>
 
         <Link href="/(auth)/register" asChild>
           <TouchableOpacity disabled={isBusy} className="py-2">
-            <Text className="text-[#A61C14] text-center text-base font-semibold">
-              Don't have an account? <Text className="underline font-bold">Sign Up</Text>
+            <Text className="text-[#A61C14] text-center text-base font-semibold font-inter-semibold">
+              Don't have an account? <Text className="underline font-bold font-inter-bold">Sign Up</Text>
             </Text>
           </TouchableOpacity>
         </Link>
@@ -271,7 +271,7 @@ export default function Login() {
           />
           <View className="bg-[#FAF6F0] rounded-2xl mx-4 p-6" style={{ marginTop: 100 }}>
             <View className="flex-row justify-between items-center mb-4">
-              <Text className="text-xl font-extrabold text-[#1C1917]">Reset Password</Text>
+              <Text className="text-xl font-extrabold font-inter-extrabold text-[#1C1917]">Reset Password</Text>
               <TouchableOpacity
                 onPress={() => setForgotPasswordVisible(false)}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -304,7 +304,7 @@ export default function Login() {
                   {sendingReset ? (
                     <ActivityIndicator color="#F4ECE1" />
                   ) : (
-                    <Text className="text-[#F4ECE1] font-bold text-lg">Send Code</Text>
+                    <Text className="text-[#F4ECE1] font-bold font-inter-bold text-lg">Send Code</Text>
                   )}
                 </TouchableOpacity>
               </>
@@ -338,11 +338,11 @@ export default function Login() {
                   {submittingReset ? (
                     <ActivityIndicator color="#F4ECE1" />
                   ) : (
-                    <Text className="text-[#F4ECE1] font-bold text-lg">Reset Password</Text>
+                    <Text className="text-[#F4ECE1] font-bold font-inter-bold text-lg">Reset Password</Text>
                   )}
                 </TouchableOpacity>
                 <TouchableOpacity onPress={handleSendResetCode} disabled={sendingReset} className="py-2">
-                  <Text className="text-[#78716C] text-center text-sm font-semibold">Resend code</Text>
+                  <Text className="text-[#78716C] text-center text-sm font-semibold font-inter-semibold">Resend code</Text>
                 </TouchableOpacity>
               </>
             )}

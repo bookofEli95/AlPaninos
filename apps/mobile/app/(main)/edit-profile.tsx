@@ -174,10 +174,10 @@ export default function EditProfile() {
       >
         <TouchableOpacity onPress={goBackToProfile} className="flex-row items-center py-2 pr-8 -ml-2 mb-4">
           <Ionicons name="chevron-back" size={28} color="#A61C14" />
-          <Text className="text-[#A61C14] font-bold text-xl">Back</Text>
+          <Text className="text-[#A61C14] font-bold font-inter-bold text-xl">Back</Text>
         </TouchableOpacity>
 
-        <Text className="text-3xl font-extrabold text-[#1C1917] mb-6">Edit Profile</Text>
+        <Text className="text-3xl font-extrabold font-inter-extrabold text-[#1C1917] mb-6">Edit Profile</Text>
 
         {errorMessage && <ErrorBanner message={errorMessage} />}
 
@@ -204,7 +204,7 @@ export default function EditProfile() {
             className="flex-row items-center bg-white border border-stone-300 rounded-xl px-3 mr-2"
           >
             <Text className="text-base mr-1">{country.flag}</Text>
-            <Text className="text-base font-semibold text-[#1C1917] mr-1">+{country.dialCode}</Text>
+            <Text className="text-base font-semibold font-inter-semibold text-[#1C1917] mr-1">+{country.dialCode}</Text>
             <Ionicons name="chevron-down" size={14} color="#A8A29E" />
           </TouchableOpacity>
           <TextInput
@@ -255,7 +255,7 @@ export default function EditProfile() {
           {loading ? (
             <ActivityIndicator color="#F4ECE1" />
           ) : (
-            <Text className="text-[#F4ECE1] text-center font-bold text-lg">Save Changes</Text>
+            <Text className="text-[#F4ECE1] text-center font-bold font-inter-bold text-lg">Save Changes</Text>
           )}
         </TouchableOpacity>
       </ScrollView>
@@ -275,7 +275,7 @@ export default function EditProfile() {
             }}
           >
             <View className="flex-row justify-between items-center mb-4">
-              <Text className="text-xl font-extrabold text-[#1C1917]">Delivery Address</Text>
+              <Text className="text-xl font-extrabold font-inter-extrabold text-[#1C1917]">Delivery Address</Text>
               <TouchableOpacity onPress={() => setAddressPopupVisible(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <Ionicons name="close" size={26} color="#1C1917" />
               </TouchableOpacity>

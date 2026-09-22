@@ -171,9 +171,9 @@ export default function DealsScreen() {
           className="flex-row items-center py-4 pr-8 -ml-2"
         >
           <Ionicons name="chevron-back" size={28} color="#A61C14" />
-          <Text className="text-[#A61C14] font-bold text-xl">Back</Text>
+          <Text className="text-[#A61C14] font-bold font-inter-bold text-xl">Back</Text>
         </TouchableOpacity>
-        <Text className="text-2xl font-bold text-[#1C1917] ml-2">Deals</Text>
+        <Text className="text-2xl font-bold font-inter-bold text-[#1C1917] ml-2">Deals</Text>
       </View>
 
       {isLoading ? (
@@ -184,7 +184,7 @@ export default function DealsScreen() {
         </View>
       ) : error ? (
         <View className="mt-10 items-center px-6">
-          <Text className="text-[#A61C14] font-bold text-lg mb-2">Couldn't load deals</Text>
+          <Text className="text-[#A61C14] font-bold font-inter-bold text-lg mb-2">Couldn't load deals</Text>
           <Text className="text-[#78716C] text-center">{(error as Error).message}</Text>
         </View>
       ) : (
@@ -205,13 +205,13 @@ export default function DealsScreen() {
                 }`}
               >
                 <View className="flex-row items-center justify-between mb-1">
-                  <Text className="text-lg font-bold text-[#1C1917] flex-1 mr-2">{item.title}</Text>
+                  <Text className="text-lg font-bold font-inter-bold text-[#1C1917] flex-1 mr-2">{item.title}</Text>
                   {isApplied && <Ionicons name="checkmark-circle" size={22} color="#A61C14" />}
                 </View>
                 {item.user_id && (
                   <View className="flex-row items-center mb-2">
                     <Ionicons name="gift-outline" size={14} color="#A61C14" />
-                    <Text className="text-[#A61C14] text-xs font-bold uppercase tracking-wider ml-1">
+                    <Text className="text-[#A61C14] text-xs font-bold font-inter-bold uppercase tracking-wider ml-1">
                       Your Prize
                     </Text>
                   </View>
@@ -233,7 +233,7 @@ export default function DealsScreen() {
                       <ActivityIndicator size="small" color="#A61C14" style={{ marginRight: 6 }} />
                     )}
                     <Text
-                      className={`font-bold tracking-wider ${
+                      className={`font-bold font-inter-bold tracking-wider ${
                         alreadyUsed ? 'text-[#78716C]' : isApplied ? 'text-[#F4ECE1]' : 'text-[#A61C14]'
                       }`}
                     >
@@ -276,7 +276,7 @@ export default function DealsScreen() {
           }}
         >
           <View className="bg-[#1C1917] rounded-full py-3 px-5 items-center">
-            <Text className="text-[#F4ECE1] font-bold">{toast}</Text>
+            <Text className="text-[#F4ECE1] font-bold font-inter-bold">{toast}</Text>
           </View>
         </Animated.View>
       )}

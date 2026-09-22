@@ -146,7 +146,7 @@ export default function Register() {
             className="flex-row items-center bg-white border border-stone-300 rounded-xl px-3 mr-2"
           >
             <Text className="text-base mr-1">{country.flag}</Text>
-            <Text className="text-base font-semibold text-[#1C1917] mr-1">+{country.dialCode}</Text>
+            <Text className="text-base font-semibold font-inter-semibold text-[#1C1917] mr-1">+{country.dialCode}</Text>
             <Ionicons name="chevron-down" size={14} color="#A8A29E" />
           </TouchableOpacity>
           <TextInput
@@ -186,7 +186,7 @@ export default function Register() {
                 className="h-full rounded-full"
               />
             </View>
-            <Text style={{ color: strength.color }} className="text-xs font-bold mt-1">
+            <Text style={{ color: strength.color }} className="text-xs font-bold font-inter-bold mt-1">
               {strength.label} password
             </Text>
           </View>
@@ -221,12 +221,12 @@ export default function Register() {
           {loading ? (
             <ActivityIndicator color="#F4ECE1" />
           ) : (
-            <Text className="text-[#F4ECE1] text-center font-bold text-lg">Sign Up</Text>
+            <Text className="text-[#F4ECE1] text-center font-bold font-inter-bold text-lg">Sign Up</Text>
           )}
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => router.back()} className="mb-12 py-2">
-          <Text className="text-[#78716C] text-center text-base font-semibold">Back to Login</Text>
+          <Text className="text-[#78716C] text-center text-base font-semibold font-inter-semibold">Back to Login</Text>
         </TouchableOpacity>
       </ScrollView>
 
@@ -250,7 +250,7 @@ export default function Register() {
             }}
           >
             <View className="flex-row justify-between items-center mb-4">
-              <Text className="text-xl font-extrabold text-[#1C1917]">Delivery Address</Text>
+              <Text className="text-xl font-extrabold font-inter-extrabold text-[#1C1917]">Delivery Address</Text>
               <TouchableOpacity onPress={() => setAddressPopupVisible(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <Ionicons name="close" size={26} color="#1C1917" />
               </TouchableOpacity>

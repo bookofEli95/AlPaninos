@@ -231,9 +231,9 @@ export default function ProfileScreen() {
         {/* Hero */}
         <View className="bg-[#A61C14] pt-16 pb-8 px-6 items-center rounded-b-[32px]">
           <View className="w-24 h-24 rounded-full bg-[#F4ECE1] items-center justify-center mb-4 border-4 border-[#85140E]">
-            <Text className="text-3xl font-extrabold text-[#A61C14]">{initials}</Text>
+            <Text className="text-3xl font-extrabold font-inter-extrabold text-[#A61C14]">{initials}</Text>
           </View>
-          <Text className="text-2xl font-extrabold text-[#F4ECE1]">
+          <Text className="text-2xl font-extrabold font-inter-extrabold text-[#F4ECE1]">
             {profile ? `${profile.first_name} ${profile.last_name}` : 'Welcome back'}
           </Text>
           <Text className="text-[#F4ECE1] opacity-80 mt-1">{session?.user?.email}</Text>
@@ -242,7 +242,7 @@ export default function ProfileScreen() {
             className="flex-row items-center bg-[#85140E] px-4 py-2 rounded-full mt-4"
           >
             <Ionicons name="pencil" size={14} color="#F4ECE1" />
-            <Text className="text-[#F4ECE1] font-bold text-sm ml-2">Edit Profile</Text>
+            <Text className="text-[#F4ECE1] font-bold font-inter-bold text-sm ml-2">Edit Profile</Text>
           </TouchableOpacity>
         </View>
 
@@ -252,10 +252,10 @@ export default function ProfileScreen() {
               tile below instead, since there's no code to redeem. */}
           {profile?.wheel_prize_code && wheelPromo && (
             <View className="bg-white rounded-2xl border border-[#A61C14] shadow-sm p-5 mb-4">
-              <Text className="text-xs font-bold text-[#A61C14] uppercase tracking-wider mb-1">
+              <Text className="text-xs font-bold font-inter-bold text-[#A61C14] uppercase tracking-wider mb-1">
                 Your Welcome Prize
               </Text>
-              <Text className="text-lg font-extrabold text-[#1C1917] mb-2">{profile.wheel_prize_title}</Text>
+              <Text className="text-lg font-extrabold font-inter-extrabold text-[#1C1917] mb-2">{profile.wheel_prize_title}</Text>
               {isPickAnItemPrize(wheelPromo) ? (
                 <TouchableOpacity
                   onPress={handlePressPrize}
@@ -271,10 +271,10 @@ export default function ProfileScreen() {
                   ) : prizeInCart ? (
                     <>
                       <Ionicons name="checkmark-circle" size={16} color="#A61C14" style={{ marginRight: 6 }} />
-                      <Text className="text-[#A61C14] font-extrabold">Applied -- Tap to Remove</Text>
+                      <Text className="text-[#A61C14] font-extrabold font-inter-extrabold">Applied -- Tap to Remove</Text>
                     </>
                   ) : (
-                    <Text className="text-[#F4ECE1] font-extrabold">Redeem Now</Text>
+                    <Text className="text-[#F4ECE1] font-extrabold font-inter-extrabold">Redeem Now</Text>
                   )}
                 </TouchableOpacity>
               ) : (
@@ -283,7 +283,7 @@ export default function ProfileScreen() {
                     onPress={() => handleCopyCode(profile.wheel_prize_code!)}
                     className="flex-row items-center bg-[#FAF6F0] border border-dashed border-[#A61C14] rounded-lg px-4 py-2 self-start"
                   >
-                    <Text className="text-[#A61C14] font-extrabold tracking-widest mr-2">{profile.wheel_prize_code}</Text>
+                    <Text className="text-[#A61C14] font-extrabold font-inter-extrabold tracking-widest mr-2">{profile.wheel_prize_code}</Text>
                     <Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={16} color="#A61C14" />
                   </TouchableOpacity>
                   <Text className="text-[#78716C] text-sm mt-2">
@@ -310,7 +310,7 @@ export default function ProfileScreen() {
               <Ionicons name="receipt" size={22} color="#A61C14" />
             </View>
             <View className="flex-1">
-              <Text className="text-2xl font-extrabold text-[#1C1917]">{orderCount ?? '—'}</Text>
+              <Text className="text-2xl font-extrabold font-inter-extrabold text-[#1C1917]">{orderCount ?? '—'}</Text>
               <Text className="text-[#78716C] text-sm">Orders placed</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#A8A29E" />
@@ -322,8 +322,8 @@ export default function ProfileScreen() {
               <View className="flex-row items-center p-4 border-b border-stone-100">
                 <Ionicons name="call-outline" size={20} color="#A61C14" style={{ width: 28 }} />
                 <View>
-                  <Text className="text-xs text-[#78716C] uppercase font-bold tracking-wider">Phone</Text>
-                  <Text className="text-base font-semibold text-[#1C1917]">
+                  <Text className="text-xs text-[#78716C] uppercase font-bold font-inter-bold tracking-wider">Phone</Text>
+                  <Text className="text-base font-semibold font-inter-semibold text-[#1C1917]">
                     {(() => {
                       const { country, digits } = parsePhone(profile.phone || '');
                       return `+${country.dialCode} ${formatPhoneNumber(digits, country)}`;
@@ -334,8 +334,8 @@ export default function ProfileScreen() {
               <View className="flex-row items-center p-4">
                 <Ionicons name="location-outline" size={20} color="#A61C14" style={{ width: 28 }} />
                 <View>
-                  <Text className="text-xs text-[#78716C] uppercase font-bold tracking-wider">Address</Text>
-                  <Text className="text-base font-semibold text-[#1C1917]">{profile.address}</Text>
+                  <Text className="text-xs text-[#78716C] uppercase font-bold font-inter-bold tracking-wider">Address</Text>
+                  <Text className="text-base font-semibold font-inter-semibold text-[#1C1917]">{profile.address}</Text>
                 </View>
               </View>
             </View>
@@ -345,7 +345,7 @@ export default function ProfileScreen() {
             onPress={handleSignOut}
             className="bg-red-50 p-4 rounded-2xl w-full items-center border border-red-200 mb-8 active:bg-red-100"
           >
-            <Text className="text-[#A61C14] font-bold text-lg">Sign Out</Text>
+            <Text className="text-[#A61C14] font-bold font-inter-bold text-lg">Sign Out</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

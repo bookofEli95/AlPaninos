@@ -5,10 +5,21 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
+        // Custom fonts in React Native are each their own single-weight
+        // font file -- fontWeight on a custom fontFamily does nothing, so
+        // NativeWind's font-bold/extrabold/semibold/medium classes (weight
+        // only) are paired with one of these (family) wherever they're
+        // used, rather than a single global default -- there's no reliable
+        // "set the default font for every Text" hook in this stack (RN 0.86
+        // /React 19 removed the forwardRef trick; a custom Text wrapper
+        // would silently break NativeWind's className handling, which is
+        // keyed by exact component reference -- see react-native-css-interop).
+        'inter-medium': ['Inter_500Medium'],
+        'inter-semibold': ['Inter_600SemiBold'],
+        'inter-bold': ['Inter_700Bold'],
+        'inter-extrabold': ['Inter_800ExtraBold'],
         // For headlines/brand moments only (wordmark, category tiles, the
-        // wheel) -- everywhere else keeps the app-wide Inter default set
-        // globally in lib/globalFont.ts, so most screens need no font-*
-        // className at all to pick up the new typography.
+        // wheel) -- a bolder, more playful face than the Inter pairs above.
         display: ['Fredoka_600SemiBold'],
         'display-bold': ['Fredoka_700Bold'],
       },

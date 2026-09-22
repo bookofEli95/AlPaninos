@@ -46,15 +46,15 @@ export default function PrivacyScreen() {
       <View className="flex-row items-center mb-6">
         <TouchableOpacity onPress={goBackToMore} className="flex-row items-center py-4 pr-8 -ml-2">
           <Ionicons name="chevron-back" size={28} color="#A61C14" />
-          <Text className="text-[#A61C14] font-bold text-xl">Back</Text>
+          <Text className="text-[#A61C14] font-bold font-inter-bold text-xl">Back</Text>
         </TouchableOpacity>
-        <Text className="text-2xl font-bold text-[#1C1917] ml-2">Privacy Policy</Text>
+        <Text className="text-2xl font-bold font-inter-bold text-[#1C1917] ml-2">Privacy Policy</Text>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {SECTIONS.map((section) => (
           <View key={section.heading} className="mb-5">
-            <Text className="text-base font-bold text-[#1C1917] mb-1">{section.heading}</Text>
+            <Text className="text-base font-bold font-inter-bold text-[#1C1917] mb-1">{section.heading}</Text>
             <Text className="text-[#78716C] leading-6">{section.body}</Text>
           </View>
         ))}
