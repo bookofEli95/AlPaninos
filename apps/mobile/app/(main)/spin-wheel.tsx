@@ -267,7 +267,7 @@ export default function SpinWheelScreen() {
         pointerEvents="none"
       />
 
-      <Text className="text-[#F4ECE1] text-3xl font-extrabold text-center mb-2">Welcome to AlPaninos!</Text>
+      <Text className="text-[#F4ECE1] text-3xl font-display-bold text-center mb-2">Welcome to AlPaninos!</Text>
       <Text className="text-[#F4ECE1] opacity-80 text-center mb-10 text-base">
         Spin the wheel for a one-time welcome prize.
       </Text>
@@ -347,7 +347,7 @@ export default function SpinWheelScreen() {
             className={`px-10 py-4 rounded-full items-center shadow-lg ${spinning ? 'bg-stone-600' : 'bg-[#A61C14] active:bg-[#85140E]'}`}
             style={!spinning ? styles.spinGlow : undefined}
           >
-            <Text className="text-[#F4ECE1] font-extrabold text-xl tracking-wide">
+            <Text className="text-[#F4ECE1] font-display-bold text-xl tracking-wide">
               {spinning ? 'Spinning...' : 'SPIN'}
             </Text>
           </TouchableOpacity>
@@ -362,7 +362,7 @@ export default function SpinWheelScreen() {
             <View className="bg-[#FAF6F0] rounded-3xl p-6 w-full items-center shadow-xl border-2 border-[#D4A017]">
               <Text className="text-4xl mb-2">{isBigWin ? '🏆' : '🎉'}</Text>
               <Text className="text-[#78716C] font-bold uppercase tracking-wider text-xs mb-1">You Won</Text>
-              <Text className="text-2xl font-extrabold text-[#1C1917] text-center mb-4">{result.title}</Text>
+              <Text className="text-2xl font-display-bold text-[#1C1917] text-center mb-4">{result.title}</Text>
 
               {result.index >= 0 && (
                 <View className="mb-4">
@@ -408,7 +408,7 @@ export default function SpinWheelScreen() {
                 onPress={handleContinue}
                 className="bg-[#A61C14] px-8 py-3.5 rounded-xl items-center w-full active:bg-[#85140E]"
               >
-                <Text className="text-[#F4ECE1] font-bold text-lg">Let's Eat</Text>
+                <Text className="text-[#F4ECE1] font-display text-lg">Let's Eat</Text>
               </TouchableOpacity>
             </View>
           </Animated.View>
@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
   },
   segmentLabel: {
     color: '#F4ECE1',
-    fontWeight: 'bold',
+    fontFamily: 'Fredoka_600SemiBold',
     fontSize: LABEL_FONT_SIZE,
     textAlign: 'center',
     lineHeight: LABEL_LINE_HEIGHT,

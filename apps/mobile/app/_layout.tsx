@@ -3,6 +3,19 @@ import { useEffect, useState, useRef } from "react";
 import { View, StyleSheet, Dimensions, LogBox } from "react-native";
 import { Stack, useRouter, useSegments, SplashScreen } from "expo-router";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useFonts } from "expo-font";
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+  Inter_800ExtraBold,
+} from "@expo-google-fonts/inter";
+import {
+  Fredoka_500Medium,
+  Fredoka_600SemiBold,
+  Fredoka_700Bold,
+} from "@expo-google-fonts/fredoka";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -15,8 +28,10 @@ import { supabase } from "../lib/supabase";
 import { useAuthStore } from "../store/authStore";
 import { useLocationStore } from "../store/locationStore";
 import { registerForPushNotificationsAsync, savePushToken } from "../lib/pushNotifications";
+import { applyGlobalFont } from "../lib/globalFont";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
+applyGlobalFont();
 const queryClient = new QueryClient();
 
 // Known-benign dev-only noise, not app bugs -- both are internal timing
@@ -36,6 +51,20 @@ export default function Layout() {
   const router = useRouter();
   const [splashComplete, setSplashComplete] = useState(false);
   const navigationAttempted = useRef(false);
+
+  // Gates the splash screen below alongside auth/route readiness -- without
+  // this, the first frame after the splash would flash in the system font
+  // for a moment before swapping to Inter/Fredoka once they finish loading.
+  const [fontsLoaded] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+    Inter_800ExtraBold,
+    Fredoka_500Medium,
+    Fredoka_600SemiBold,
+    Fredoka_700Bold,
+  });
 
   // Reanimated shared values
   const logoScale = useSharedValue(2.4);
@@ -181,7 +210,7 @@ export default function Layout() {
     const rootSegment = segments[0];
     const isRouteReady = rootSegment === '(auth)' || rootSegment === '(main)';
 
-    if (!isInitialized || !isRouteReady) return;
+    if (!isInitialized || !isRouteReady || !fontsLoaded) return;
 
     SplashScreen.hideAsync().catch(() => {});
 
@@ -209,7 +238,7 @@ export default function Layout() {
       isMounted = false;
       clearTimeout(timeout);
     };
-  }, [isInitialized, segments]);
+  }, [isInitialized, segments, fontsLoaded]);
 
   const animatedTopCurtain = useAnimatedStyle(() => ({
     transform: [{ translateY: curtainTop.value }],

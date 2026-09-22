@@ -6,6 +6,8 @@
   "main": "expo-router/entry",
   "dependencies": {
     "@alpaninos/database": "workspace:*",
+    "@expo-google-fonts/fredoka": ">=0.2.3",
+    "@expo-google-fonts/inter": ">=0.2.3",
     "@expo/vector-icons": "^15.1.1",
     "@supabase/supabase-js": "^2.116.0",
     "@tanstack/react-query": "^5.102.8",
@@ -13,6 +15,7 @@
     "expo-clipboard": "~57.0.2",
     "expo-constants": "~57.0.19",
     "expo-device": "~57.0.2",
+    "expo-font": "~57.0.0",
     "expo-haptics": "~57.0.3",
     "expo-linking": "~57.0.10",
     "expo-location": "~57.0.19",

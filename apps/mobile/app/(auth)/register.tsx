@@ -118,7 +118,7 @@ export default function Register() {
             className="w-24 h-24 rounded-full mb-3 shadow-md"
             resizeMode="contain"
           />
-          <Text className="text-3xl font-extrabold text-[#1C1917]">Create Account</Text>
+          <Text className="text-3xl font-display-bold text-[#1C1917]">Create Account</Text>
         </View>
 
         {errorMessage && <ErrorBanner message={errorMessage} />}

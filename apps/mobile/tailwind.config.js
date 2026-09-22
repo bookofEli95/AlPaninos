@@ -4,6 +4,14 @@ module.exports = {
   presets: [require("nativewind/preset")],
   theme: {
     extend: {
+      fontFamily: {
+        // For headlines/brand moments only (wordmark, category tiles, the
+        // wheel) -- everywhere else keeps the app-wide Inter default set
+        // globally in lib/globalFont.ts, so most screens need no font-*
+        // className at all to pick up the new typography.
+        display: ['Fredoka_600SemiBold'],
+        'display-bold': ['Fredoka_700Bold'],
+      },
       colors: {
         brand: {
           red: '#A61C14',         // Primary crimson background

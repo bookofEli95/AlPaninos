@@ -131,7 +131,7 @@ export default function MenuScreen() {
     <View className="flex-1 bg-[#FAF6F0] pt-12">
       {/* Header */}
       <View className="flex-row items-center justify-between px-4 mb-4">
-        <Text className="text-3xl font-extrabold text-[#1C1917]">Menu</Text>
+        <Text className="text-3xl font-display-bold text-[#1C1917]">Menu</Text>
 
         <View className="flex-row items-center">
           <TouchableOpacity
@@ -245,7 +245,7 @@ export default function MenuScreen() {
                       </View>
                     )}
                     <View className="p-3">
-                      <Text className="text-[#1C1917] font-extrabold text-lg text-center tracking-wide">
+                      <Text className="text-[#1C1917] font-display-bold text-lg text-center tracking-wide">
                         {cat.name.toUpperCase()}
                       </Text>
                     </View>
