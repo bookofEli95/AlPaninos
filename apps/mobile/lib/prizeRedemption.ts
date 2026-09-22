@@ -44,6 +44,41 @@ export async function fetchEligiblePrizeItems(
   return data.filter((item) => patterns.includes(item.name.trim().toLowerCase()));
 }
 
+// A real photo of (roughly) what was won, for the wheel's win popup --
+// grabbed by category name across every location rather than a resolved
+// category_id, since this runs before the customer has necessarily picked a
+// location (the wheel shows right after signup, ahead of the usual
+// location/menu flow -- see app/_layout.tsx). Purely decorative: picking a
+// location's copy of an item at random is fine here in a way it never would
+// be for eligibility/pricing.
+export async function fetchPrizeShowcaseImage(
+  categoryName: string,
+  itemNamePatterns?: string[] | null
+): Promise<string | null> {
+  const { data: categories } = await supabase
+    .from('menu_categories')
+    .select('id')
+    .ilike('name', categoryName);
+  const categoryIds = (categories || []).map((c: any) => c.id);
+  if (categoryIds.length === 0) return null;
+
+  const { data: items } = await supabase
+    .from('menu_items')
+    .select('name, image_url')
+    .in('category_id', categoryIds)
+    .eq('is_available', true)
+    .not('image_url', 'is', null);
+  if (!items || items.length === 0) return null;
+
+  const patterns = (itemNamePatterns || []).map((p) => p.trim().toLowerCase());
+  const matching = patterns.length > 0
+    ? items.filter((item: any) => patterns.includes(item.name.trim().toLowerCase()))
+    : items;
+
+  const pool = matching.length > 0 ? matching : items;
+  return (pool[0] as any)?.image_url ?? null;
+}
+
 export async function itemHasModifiers(itemId: string): Promise<boolean> {
   const { count } = await supabase
     .from('modifier_groups')
