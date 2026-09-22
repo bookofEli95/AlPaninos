@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useBackHandler } from '../../hooks/useBackHandler';
 
 // Generic placeholder copy -- have an actual lawyer review this before
-// AlPaninos takes real orders/payments from the public.
+// Al Paninos takes real orders/payments from the public.
 const SECTIONS = [
   {
     heading: 'Information We Collect',

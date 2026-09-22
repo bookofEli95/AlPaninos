@@ -104,7 +104,7 @@ export default function MenuScreen() {
   if (isLoading) {
     return (
       <View className="flex-1 bg-[#FAF6F0] pt-12 px-4">
-        <SkeletonBox width={100} height={28} style={{ marginBottom: 24 }} />
+        <SkeletonBox width={140} height={44} style={{ marginBottom: 32 }} />
         <View className="flex-1 -mx-2">
           {[0, 1, 2].map(row => (
             <View key={row} className="flex-1 flex-row">
@@ -130,21 +130,21 @@ export default function MenuScreen() {
   return (
     <View className="flex-1 bg-[#FAF6F0] pt-12">
       {/* Header */}
-      <View className="flex-row items-center justify-between px-4 mb-4">
-        <Text className="text-3xl font-display-bold text-[#1C1917]">Menu</Text>
+      <View className="flex-row items-center justify-between px-4 mb-6">
+        <Text className="text-5xl font-display-bold text-[#1C1917]">Menu</Text>
 
         <View className="flex-row items-center">
           <TouchableOpacity
             onPress={() => setOrderTypeModalVisible(true)}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            className="flex-row items-center bg-white border border-stone-300 rounded-full px-4 py-3 mr-2"
+            className="flex-row items-center bg-white border border-stone-300 rounded-full px-5 py-4 mr-3"
           >
             <Ionicons
               name={orderType === 'pickup' ? 'storefront-outline' : 'car-outline'}
-              size={18}
+              size={22}
               color="#A61C14"
             />
-            <Text className="text-[#1C1917] font-semibold text-sm ml-2" numberOfLines={1} style={{ maxWidth: 100 }}>
+            <Text className="text-[#1C1917] font-semibold text-base ml-2" numberOfLines={1} style={{ maxWidth: 120 }}>
               {orderType === 'pickup' ? 'Pickup' : (deliveryAddress || 'Delivery')}
             </Text>
           </TouchableOpacity>
@@ -152,15 +152,15 @@ export default function MenuScreen() {
           <TouchableOpacity
             onPress={() => router.push('/(main)/cart')}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            className="bg-white border border-stone-300 rounded-full p-3"
+            className="bg-white border border-stone-300 rounded-full p-4"
           >
-            <Ionicons name="cart-outline" size={20} color="#A61C14" />
+            <Ionicons name="cart-outline" size={26} color="#A61C14" />
             {cartQuantity > 0 && (
               <View
                 className="absolute bg-[#A61C14] rounded-full items-center justify-center"
-                style={{ top: -4, right: -4, minWidth: 18, height: 18, paddingHorizontal: 3 }}
+                style={{ top: -6, right: -6, minWidth: 22, height: 22, paddingHorizontal: 4 }}
               >
-                <Text className="text-[#F4ECE1] font-bold" style={{ fontSize: 11 }}>{cartQuantity}</Text>
+                <Text className="text-[#F4ECE1] font-bold" style={{ fontSize: 12 }}>{cartQuantity}</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -175,7 +175,7 @@ export default function MenuScreen() {
           <View className="flex-row items-center flex-1 mr-2">
             <Ionicons name="pricetag" size={18} color="#F4ECE1" />
             <Text className="text-[#F4ECE1] font-bold ml-2" numberOfLines={1}>
-              {activePromotions.length === 1 ? activePromotions[0].title : `${activePromotions.length} deals available`}
+              Deals
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color="#F4ECE1" />

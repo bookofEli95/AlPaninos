@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { useCartStore, CartItem } from '../../store/cartStore';
+import { useLocationStore } from '../../store/locationStore';
 import { useAuthStore } from '../../store/authStore';
 import { usePromoStore } from '../../store/promoStore';
 import { useBackHandler } from '../../hooks/useBackHandler';
@@ -84,9 +85,17 @@ export default function CartScreen() {
   // promo genuinely is in effect.
   const activePromoCode = appliedPromo?.code ?? rewardPromoCodes[0] ?? null;
 
+  // The cart store's own `locationId` only gets set once an item is added
+  // (it's "which location these cart items belong to"), so it's null with
+  // an empty cart -- back would then fall through to the locations picker
+  // instead of returning to the menu the customer was actually browsing.
+  // useLocationStore's locationId is the currently-browsing location
+  // regardless of what's in the cart, so it's the right source for "back".
+  const browsingLocationId = useLocationStore(state => state.locationId);
   const goBack = useCallback(() => {
-    router.replace(locationId ? `/(main)/menu/${locationId}` : '/(main)');
-  }, [locationId]);
+    const backLocationId = browsingLocationId ?? locationId;
+    router.replace(backLocationId ? `/(main)/menu/${backLocationId}` : '/(main)');
+  }, [browsingLocationId, locationId]);
   useBackHandler(goBack);
 
   useEffect(() => {

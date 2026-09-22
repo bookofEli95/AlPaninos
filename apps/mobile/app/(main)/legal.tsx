@@ -5,11 +5,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useBackHandler } from '../../hooks/useBackHandler';
 
 // Generic placeholder copy -- have an actual lawyer review this before
-// AlPaninos takes real orders/payments from the public.
+// Al Paninos takes real orders/payments from the public.
 const SECTIONS = [
   {
     heading: 'Acceptance of Terms',
-    body: 'By using the AlPaninos app, you agree to these terms. If you do not agree, please do not use the app.',
+    body: 'By using the Al Paninos app, you agree to these terms. If you do not agree, please do not use the app.',
   },
   {
     heading: 'Orders and Payment',
@@ -25,7 +25,7 @@ const SECTIONS = [
   },
   {
     heading: 'Limitation of Liability',
-    body: 'AlPaninos is not liable for indirect or incidental damages arising from use of this app, to the extent permitted by law.',
+    body: 'Al Paninos is not liable for indirect or incidental damages arising from use of this app, to the extent permitted by law.',
   },
   {
     heading: 'Changes to These Terms',

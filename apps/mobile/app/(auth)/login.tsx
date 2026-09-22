@@ -182,7 +182,7 @@ export default function Login() {
             className="w-36 h-36 rounded-full mb-3 shadow-md"
             resizeMode="contain"
           />
-          <Text className="text-3xl font-display-bold text-[#F4ECE1]">AlPaninos</Text>
+          <Text className="text-3xl font-display-bold text-[#F4ECE1]">Al Paninos</Text>
         </Animated.View>
 
         <Animated.View

@@ -267,7 +267,7 @@ export default function SpinWheelScreen() {
         pointerEvents="none"
       />
 
-      <Text className="text-[#F4ECE1] text-3xl font-display-bold text-center mb-2">Welcome to AlPaninos!</Text>
+      <Text className="text-[#F4ECE1] text-3xl font-display-bold text-center mb-2">Welcome to Al Paninos!</Text>
       <Text className="text-[#F4ECE1] opacity-80 text-center mb-10 text-base">
         Spin the wheel for a one-time welcome prize.
       </Text>
