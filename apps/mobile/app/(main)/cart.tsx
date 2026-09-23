@@ -1,14 +1,16 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Keyboard } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Keyboard, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { supabase } from '../../lib/supabase';
 import { useCartStore, CartItem } from '../../store/cartStore';
 import { useLocationStore } from '../../store/locationStore';
 import { useAuthStore } from '../../store/authStore';
 import { usePromoStore } from '../../store/promoStore';
 import { useBackHandler } from '../../hooks/useBackHandler';
+import { useLocationDetails } from '../../hooks/useLocationDetails';
 import { computeEligibleDiscount, hasUserRedeemedCode, resolvePromoCategoryId } from '../../lib/promoEligibility';
 import NotifyPreferenceToggle from '../../components/NotifyPreferenceToggle';
 import CountryPickerSheet from '../../components/CountryPickerSheet';
@@ -16,13 +18,15 @@ import TimeSlotPickerSheet from '../../components/TimeSlotPickerSheet';
 import CartUpsellTray from '../../components/CartUpsellTray';
 import { isValidEmail } from '../../lib/passwordStrength';
 import { estimateReadyMinutes, getPickupSlots } from '../../lib/orderTiming';
-import { WeekHours } from '../../lib/hours';
 import { Country, DEFAULT_COUNTRY, formatPhoneNumber, isValidPhoneForCountry, parsePhone } from '../../lib/countries';
+
+const hapticSuccess = () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+const hapticError = () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
 
 export default function CartScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { items, locationId, removeItem, clearCart, orderType, deliveryAddress, removeItemsByPromoCode } = useCartStore();
+  const { items, locationId, removeItem, updateItemQuantity, clearCart, orderType, deliveryAddress, removeItemsByPromoCode } = useCartStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { session } = useAuthStore();
   // Verifying email during guest checkout (below) flips the session's
@@ -58,9 +62,6 @@ export default function CartScreen() {
   // false and ask for re-verification.
   const [verifiedEmail, setVerifiedEmail] = useState<string | null>(() => session?.user?.email ?? null);
   const emailVerified = !!verifiedEmail && verifiedEmail === guestEmail.trim();
-  const [taxRate, setTaxRate] = useState(0.13);
-  const [locationName, setLocationName] = useState<string | null>(null);
-  const [locationHours, setLocationHours] = useState<WeekHours | null>(null);
   // null = ASAP (the default) -- a specific Date means the customer
   // committed to a slot instead of an open-ended estimate.
   const [selectedSlot, setSelectedSlot] = useState<Date | null>(null);
@@ -155,22 +156,13 @@ export default function CartScreen() {
   // hours feed the pickup-time slot picker below, never offering a slot
   // past closing) -- name is shown in the fulfillment strip so "Carryout"
   // reads as a real, specific location rather than a generic label.
-  // 13% (Ontario HST) is just the fallback while this loads.
-  useEffect(() => {
-    if (!locationId) return;
-    (async () => {
-      const { data, error } = await (supabase as any)
-        .from('locations')
-        .select('name, tax_rate, hours')
-        .eq('id', locationId)
-        .single();
-      if (!error && data) {
-        setLocationName(data.name ?? null);
-        setTaxRate(Number(data.tax_rate));
-        setLocationHours(data.hours ?? null);
-      }
-    })();
-  }, [locationId]);
+  // 13% (Ontario HST) is just the fallback while this loads. A query hook
+  // instead of a useEffect + direct call means re-opening the cart on the
+  // same location doesn't re-fetch tax rate/hours it already has cached.
+  const { data: locationDetails } = useLocationDetails(locationId);
+  const taxRate = locationDetails?.taxRate ?? 0.13;
+  const locationName = locationDetails?.name ?? null;
+  const locationHours = locationDetails?.hours ?? null;
 
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
   const pickupSlots = useMemo(
@@ -197,6 +189,7 @@ export default function CartScreen() {
         .maybeSingle();
       if (error) throw error;
       if (!promo) {
+        hapticError();
         Alert.alert('Invalid Code', "That promo code doesn't exist or is no longer active.");
         return;
       }
@@ -204,6 +197,7 @@ export default function CartScreen() {
       if (promo.single_use !== false && session?.user?.id) {
         const alreadyRedeemed = await hasUserRedeemedCode(session.user.id, promo.code);
         if (alreadyRedeemed) {
+          hapticError();
           Alert.alert('Already Used', "You've already redeemed this code before.");
           return;
         }
@@ -232,6 +226,7 @@ export default function CartScreen() {
         infoMap
       );
       if (eligibleDiscount <= 0) {
+        hapticError();
         Alert.alert('No Eligible Items', 'None of the items currently in your cart qualify for this promo code.');
         return;
       }
@@ -245,9 +240,11 @@ export default function CartScreen() {
         itemNamePatterns: promo.item_name_patterns,
         maxDiscountAmount,
       });
+      hapticSuccess();
       setPromoCode('');
       setPromoInputOpen(false);
     } catch (e: any) {
+      hapticError();
       Alert.alert("Couldn't apply code", e.message);
     } finally {
       setApplyingPromo(false);
@@ -352,27 +349,33 @@ export default function CartScreen() {
     if (!locationId || items.length === 0) return;
 
     if (orderType === 'delivery' && !deliveryAddress) {
+      hapticError();
       Alert.alert('Missing Address', 'Please provide a delivery address on the Home screen before checking out.');
       return;
     }
 
     if (isAnonymous && (!guestFirstName.trim() || !guestLastName.trim() || !guestPhone.trim() || !guestEmail.trim())) {
+      hapticError();
       Alert.alert('Missing Details', 'Please enter your name, phone number, and email for the order.');
       return;
     }
     if (isAnonymous && !isValidEmail(guestEmail)) {
+      hapticError();
       Alert.alert('Invalid Email', 'Please enter a valid email address.');
       return;
     }
     if (isAnonymous && !isValidPhoneForCountry(guestPhone, guestCountry)) {
+      hapticError();
       Alert.alert('Invalid Phone', `Please enter a valid phone number for ${guestCountry.name}.`);
       return;
     }
     if (isAnonymous && !emailVerified) {
+      hapticError();
       Alert.alert('Verify Your Email', 'Please verify your email address before placing the order.');
       return;
     }
     if (!notifyEmail && !notifySms) {
+      hapticError();
       Alert.alert('Notification Preference', 'Choose at least one way to receive order updates.');
       return;
     }
@@ -488,11 +491,13 @@ export default function CartScreen() {
       clearCart();
       setAppliedPromo(null);
       setSelectedSlot(null);
+      hapticSuccess();
       Alert.alert('Order Placed!', 'You can track its status now.', [
         { text: 'Track Order', onPress: () => router.replace(`/(main)/order/${orderData.id}`) }
       ]);
 
     } catch (error: any) {
+      hapticError();
       Alert.alert('Checkout Failed', error.message);
     } finally {
       setIsSubmitting(false);
@@ -602,11 +607,16 @@ export default function CartScreen() {
             {items.map(item => (
               <View key={item.cartItemId} className="bg-white p-4 rounded-2xl border border-stone-200 mb-3 shadow-sm">
                 <View className="flex-row justify-between items-start">
+                  {item.imageUrl ? (
+                    <Image source={{ uri: item.imageUrl }} className="w-14 h-14 rounded-xl bg-stone-100 mr-3" resizeMode="cover" />
+                  ) : (
+                    <View className="w-14 h-14 rounded-xl bg-[#FAF6F0] items-center justify-center mr-3">
+                      <Ionicons name="restaurant" size={20} color="#A8A29E" />
+                    </View>
+                  )}
                   <View className="flex-1 pr-3">
                     <View className="flex-row items-center flex-wrap mb-1">
-                      <Text className="text-base font-inter-bold text-[#1C1917]">
-                        {item.quantity}x {item.name}
-                      </Text>
+                      <Text className="text-base font-inter-bold text-[#1C1917]">{item.name}</Text>
                       {item.promoCode && (
                         <View className="bg-[#A61C14] rounded-full px-2 py-0.5 ml-2">
                           <Text className="text-[#F4ECE1] text-[10px] font-inter-bold">FREE</Text>
@@ -639,12 +649,42 @@ export default function CartScreen() {
                 </View>
                 <View className="flex-row justify-between items-center mt-3 pt-2.5 border-t border-stone-100">
                   <TouchableOpacity
-                    onPress={() => removeItem(item.cartItemId)}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+                      removeItem(item.cartItemId);
+                    }}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
                     <Text className="text-stone-400 font-inter-medium text-xs">Remove</Text>
                   </TouchableOpacity>
-                  <Text className="text-xs font-inter-semibold text-stone-500">Qty: {item.quantity}</Text>
+                  {/* A redeemed reward's free line is always exactly one item
+                      (see item/[id].tsx) -- a stepper here would let someone
+                      turn one redemption into several free sandwiches. */}
+                  {item.promoCode ? (
+                    <Text className="text-xs font-inter-semibold text-stone-500">Qty: {item.quantity}</Text>
+                  ) : (
+                    <View className="flex-row items-center bg-stone-100 rounded-lg p-1 border border-stone-200">
+                      <TouchableOpacity
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                          updateItemQuantity(item.cartItemId, item.quantity - 1);
+                        }}
+                        className="bg-white w-7 h-7 rounded-md items-center justify-center shadow-sm"
+                      >
+                        <Ionicons name="remove" size={14} color="#1C1917" />
+                      </TouchableOpacity>
+                      <Text className="font-inter-bold text-[#1C1917] text-sm w-7 text-center">{item.quantity}</Text>
+                      <TouchableOpacity
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                          updateItemQuantity(item.cartItemId, item.quantity + 1);
+                        }}
+                        className="bg-white w-7 h-7 rounded-md items-center justify-center shadow-sm"
+                      >
+                        <Ionicons name="add" size={14} color="#1C1917" />
+                      </TouchableOpacity>
+                    </View>
+                  )}
                 </View>
               </View>
             ))}

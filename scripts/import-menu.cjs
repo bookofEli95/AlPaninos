@@ -67,9 +67,10 @@ async function runImport() {
     const description = row.description?.trim() || null;
     const basePrice = parseFloat(row.base_price) || 0;
     const imageFilename = row.image_filename?.trim();
-    const imageUrl = imageFilename 
-      ? `${SUPABASE_URL}/storage/v1/object/public/menu-images/${imageFilename}` 
+    const imageUrl = imageFilename
+      ? `${SUPABASE_URL}/storage/v1/object/public/menu-images/${imageFilename}`
       : null;
+    const upsellGroup = row.upsell_group?.trim() || null;
 
     let modifiers = [];
     if (row.modifiers) {
@@ -103,6 +104,7 @@ async function runImport() {
           base_price: basePrice,
           image_url: imageUrl,
           is_available: true,
+          upsell_group: upsellGroup,
         })
         .select('id')
         .single();

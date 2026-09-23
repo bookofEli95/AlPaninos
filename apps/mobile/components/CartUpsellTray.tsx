@@ -9,19 +9,12 @@ import { useCartStore, CartItem } from '../store/cartStore';
 
 type UpsellItem = { id: string; name: string; base_price: number; image_url: string | null; hasModifiers: boolean };
 
-// Curated by name rather than by category (Extras also holds non-sauce
-// add-ons like Side Grilled Chicken; Sides also holds salads) -- same
-// pattern as promoEligibility.ts's item_name_patterns, and just as tolerant
-// of the item being renamed or 86'd: it simply stops matching instead of
-// breaking. Order here is display order within each tray.
-const DUNK_IT_PATTERNS = ['Side Paninos Fancy Sauce', 'Side Garlic Aioli', 'Side Tzatziki', 'Side Hot Sauce'];
-const MEAL_PATTERNS = ['Fries', 'Greek Fries', 'Philly Fries', 'Fries N Gravy', 'Pulled Pork Fries'];
-const SWEET_FINISH_PATTERNS = ["Al's Tiramisu", "Al's Toasted Coconut Cheesecake"];
+// Candidates come straight off each item's own upsell_group column (see the
+// menu_item_upsell_group migration) rather than matching against a
+// hardcoded name list -- a staffer renaming "Side Garlic Aioli" to "House
+// Garlic Aioli" in Studio no longer silently drops it out of the tray with
+// nothing to notice.
 const SANDWICH_CATEGORY_NAMES = ['The Mob', "Al's Wraps"];
-
-function normalize(name: string) {
-  return name.trim().toLowerCase();
-}
 
 type Bucket = { key: string; title: string; items: UpsellItem[] };
 
@@ -62,7 +55,7 @@ export default function CartUpsellTray({
 
       const { data: menuItems, error: itemsError } = await supabase
         .from('menu_items')
-        .select('id, name, base_price, image_url, is_available, category_id')
+        .select('id, name, base_price, image_url, is_available, category_id, upsell_group')
         .eq('location_id', locationId)
         .eq('is_available', true)
         .in('category_id', (categories || []).map((c) => c.id));
@@ -83,16 +76,23 @@ export default function CartUpsellTray({
       if (groupsError) throw groupsError;
       const itemIdsWithModifiers = new Set((groupRows || []).map((g: any) => g.menu_item_id));
 
+      const upsellItems: (UpsellItem & { upsell_group: string | null })[] = (menuItems || []).map((m: any) => ({
+        ...m,
+        hasModifiers: itemIdsWithModifiers.has(m.id),
+      }));
+
       return {
         categoryNameByItemId: Object.fromEntries(
           (menuItems || []).map((m: any) => [m.id, categoryNameById[m.category_id]])
         ) as Record<string, string>,
-        itemsByName: Object.fromEntries(
-          (menuItems || []).map((m: any) => [
-            normalize(m.name),
-            { ...m, hasModifiers: itemIdsWithModifiers.has(m.id) },
-          ])
-        ) as Record<string, UpsellItem>,
+        upsellGroupByItemId: Object.fromEntries(
+          (menuItems || []).map((m: any) => [m.id, m.upsell_group])
+        ) as Record<string, string | null>,
+        itemsByGroup: {
+          sauce: upsellItems.filter((m) => m.upsell_group === 'sauce'),
+          meal: upsellItems.filter((m) => m.upsell_group === 'meal'),
+          dessert: upsellItems.filter((m) => m.upsell_group === 'dessert'),
+        } as Record<'sauce' | 'meal' | 'dessert', UpsellItem[]>,
       };
     },
     enabled: !!locationId,
@@ -101,21 +101,16 @@ export default function CartUpsellTray({
   const buckets: Bucket[] = useMemo(() => {
     if (!catalog) return [];
 
-    const findAvailable = (patterns: string[]): UpsellItem[] =>
-      patterns
-        .map((p) => catalog.itemsByName[normalize(p)])
-        .filter((m): m is UpsellItem => !!m);
-
-    const hasByPattern = (patterns: string[]) =>
-      items.some((i) => patterns.some((p) => normalize(p) === normalize(i.name)));
+    const hasByGroup = (group: string) =>
+      items.some((i) => catalog.upsellGroupByItemId[i.menuItemId] === group);
 
     const hasSandwich = items.some((i) => SANDWICH_CATEGORY_NAMES.includes(catalog.categoryNameByItemId[i.menuItemId]));
     const hasDrink = items.some((i) => catalog.categoryNameByItemId[i.menuItemId] === 'Drinks');
-    const hasMealSide = hasByPattern(MEAL_PATTERNS);
+    const hasMealSide = hasByGroup('meal');
 
     const result: Bucket[] = [];
     if (!hasMealSide && !hasDrink) {
-      const meal = findAvailable(MEAL_PATTERNS).slice(0, 3);
+      const meal = catalog.itemsByGroup.meal.slice(0, 3);
       if (meal.length > 0) result.push({ key: 'meal', title: 'Make It a Meal', items: meal });
     }
     // Dunk It and Sweet Finish stay put once triggered, rather than
@@ -125,11 +120,11 @@ export default function CartUpsellTray({
     // is left as before (hides once satisfied) since the user only asked
     // for the "stays visible" treatment on these two.
     if (hasSandwich) {
-      const dips = findAvailable(DUNK_IT_PATTERNS);
+      const dips = catalog.itemsByGroup.sauce;
       if (dips.length > 0) result.push({ key: 'dunk', title: 'Dunk It', items: dips });
     }
     if (cartTotal > 20) {
-      const sweets = findAvailable(SWEET_FINISH_PATTERNS);
+      const sweets = catalog.itemsByGroup.dessert;
       if (sweets.length > 0) result.push({ key: 'sweet', title: 'Sweet Finish', items: sweets });
     }
     return result;
@@ -181,7 +176,12 @@ export default function CartUpsellTray({
                       <TouchableOpacity
                         onPress={() =>
                           incrementSimpleItem(
-                            { menuItemId: upsellItem.id, name: upsellItem.name, basePrice: upsellItem.base_price },
+                            {
+                              menuItemId: upsellItem.id,
+                              name: upsellItem.name,
+                              basePrice: upsellItem.base_price,
+                              imageUrl: upsellItem.image_url,
+                            },
                             locationId
                           )
                         }
@@ -202,7 +202,12 @@ export default function CartUpsellTray({
                         <TouchableOpacity
                           onPress={() =>
                             incrementSimpleItem(
-                              { menuItemId: upsellItem.id, name: upsellItem.name, basePrice: upsellItem.base_price },
+                              {
+                                menuItemId: upsellItem.id,
+                                name: upsellItem.name,
+                                basePrice: upsellItem.base_price,
+                                imageUrl: upsellItem.image_url,
+                              },
                               locationId
                             )
                           }

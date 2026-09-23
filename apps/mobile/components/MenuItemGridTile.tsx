@@ -60,7 +60,10 @@ export default function MenuItemGridTile({ item, isSimpleCategory }: Props) {
             qty === 0 ? (
               <TouchableOpacity
                 onPress={() =>
-                  incrementSimpleItem({ menuItemId: item.id, name: item.name, basePrice: item.base_price }, item.location_id)
+                  incrementSimpleItem(
+                    { menuItemId: item.id, name: item.name, basePrice: item.base_price, imageUrl: item.image_url },
+                    item.location_id
+                  )
                 }
                 className="bg-[#A61C14] rounded-lg py-2 items-center mt-2 active:bg-[#85140E]"
               >
@@ -77,7 +80,10 @@ export default function MenuItemGridTile({ item, isSimpleCategory }: Props) {
                 <Text className="font-inter-bold text-[#1C1917] text-sm">{qty}</Text>
                 <TouchableOpacity
                   onPress={() =>
-                    incrementSimpleItem({ menuItemId: item.id, name: item.name, basePrice: item.base_price }, item.location_id)
+                    incrementSimpleItem(
+                      { menuItemId: item.id, name: item.name, basePrice: item.base_price, imageUrl: item.image_url },
+                      item.location_id
+                    )
                   }
                   className="bg-white w-7 h-7 rounded-md items-center justify-center shadow-sm"
                 >

@@ -15,6 +15,7 @@ export type CartItem = {
   modifiers: CartModifier[];
   totalPrice: number;
   specialInstructions?: string;
+  imageUrl?: string | null;
   // Set when this line is a wheel-prize/PaninoPoints reward's free item --
   // forces totalPrice to 0 regardless of modifiers (see addFreeItem) and is
   // how Deals/Profile know a reward is actually "applied" (present in the
@@ -50,10 +51,29 @@ interface CartState {
   addItem: (item: CartItem, locationId: string) => void;
   removeItem: (cartItemId: string) => void;
   clearCart: () => void;
-  incrementSimpleItem: (item: { menuItemId: string; name: string; basePrice: number }, locationId: string) => void;
+  incrementSimpleItem: (
+    item: { menuItemId: string; name: string; basePrice: number; imageUrl?: string | null },
+    locationId: string
+  ) => void;
   decrementSimpleItem: (menuItemId: string) => void;
+  // Sets a cart line's quantity directly (the in-cart [-] [n] [+] stepper),
+  // for any line -- with modifiers or without. incrementSimpleItem/
+  // decrementSimpleItem only ever handled no-modifier lines one step at a
+  // time; a customized item previously had no way to change quantity short
+  // of removing it and re-picking every modifier from scratch. Recomputes
+  // totalPrice from the line's own per-unit price (totalPrice / quantity)
+  // rather than needing a separate stored unit price field, and dropping to
+  // 0 removes the line the same way decrementSimpleItem already does.
+  updateItemQuantity: (cartItemId: string, quantity: number) => void;
   addFreeItem: (
-    item: { menuItemId: string; name: string; basePrice: number; modifiers?: CartModifier[]; specialInstructions?: string },
+    item: {
+      menuItemId: string;
+      name: string;
+      basePrice: number;
+      modifiers?: CartModifier[];
+      specialInstructions?: string;
+      imageUrl?: string | null;
+    },
     locationId: string,
     promoCode: string
   ) => void;
@@ -159,6 +179,7 @@ export const useCartStore = create<CartState>((set) => ({
         quantity: 1,
         modifiers: [],
         totalPrice: item.basePrice,
+        imageUrl: item.imageUrl,
       };
       newItems = (current.locationId && current.locationId !== locationId)
         ? [newItem]
@@ -166,6 +187,32 @@ export const useCartStore = create<CartState>((set) => ({
     }
 
     const updatedCart: AccountCart = { ...current, items: newItems, locationId };
+    return {
+      ...updatedCart,
+      carts: { ...state.carts, [state.activeUserId]: updatedCart },
+    };
+  }),
+
+  updateItemQuantity: (cartItemId, quantity) => set((state) => {
+    const current = state.carts[state.activeUserId] || { ...defaultCart };
+
+    if (quantity <= 0) {
+      const updatedCart: AccountCart = {
+        ...current,
+        items: current.items.filter((i) => i.cartItemId !== cartItemId),
+      };
+      return {
+        ...updatedCart,
+        carts: { ...state.carts, [state.activeUserId]: updatedCart },
+      };
+    }
+
+    const newItems = current.items.map((i) => {
+      if (i.cartItemId !== cartItemId) return i;
+      const unitPrice = i.quantity > 0 ? i.totalPrice / i.quantity : 0;
+      return { ...i, quantity, totalPrice: unitPrice * quantity };
+    });
+    const updatedCart: AccountCart = { ...current, items: newItems };
     return {
       ...updatedCart,
       carts: { ...state.carts, [state.activeUserId]: updatedCart },
@@ -207,6 +254,7 @@ export const useCartStore = create<CartState>((set) => ({
       modifiers: item.modifiers || [],
       totalPrice: 0,
       specialInstructions: item.specialInstructions,
+      imageUrl: item.imageUrl,
       promoCode,
     };
     const newItems = (current.locationId && current.locationId !== locationId)

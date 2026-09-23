@@ -101,7 +101,12 @@ export default function ItemAddOns({
               <TouchableOpacity
                 onPress={() =>
                   incrementSimpleItem(
-                    { menuItemId: suggestion.menuItemId, name: suggestion.name, basePrice: suggestion.basePrice },
+                    {
+                      menuItemId: suggestion.menuItemId,
+                      name: suggestion.name,
+                      basePrice: suggestion.basePrice,
+                      imageUrl: suggestion.imageUrl,
+                    },
                     locationId
                   )
                 }
@@ -121,7 +126,12 @@ export default function ItemAddOns({
                 <TouchableOpacity
                   onPress={() =>
                     incrementSimpleItem(
-                      { menuItemId: suggestion.menuItemId, name: suggestion.name, basePrice: suggestion.basePrice },
+                      {
+                        menuItemId: suggestion.menuItemId,
+                        name: suggestion.name,
+                        basePrice: suggestion.basePrice,
+                        imageUrl: suggestion.imageUrl,
+                      },
                       locationId
                     )
                   }

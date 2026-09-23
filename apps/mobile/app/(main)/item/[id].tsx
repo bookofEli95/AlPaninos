@@ -314,6 +314,7 @@ export default function ItemDetailScreen() {
       totalPrice: finalPrice,
       specialInstructions: specialInstructions.trim() || undefined,
       promoCode: promoCode || undefined,
+      imageUrl: data.image_url,
     }, data.location_id!);
 
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

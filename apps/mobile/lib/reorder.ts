@@ -25,7 +25,7 @@ export async function reorderFromOrder(orderId: string): Promise<ReorderResult> 
       unit_price,
       total_price,
       special_instructions,
-      menu_items ( name, is_available ),
+      menu_items ( name, is_available, image_url ),
       order_item_modifiers (
         modifier_option_id,
         price_adjustment,
@@ -66,6 +66,7 @@ export async function reorderFromOrder(orderId: string): Promise<ReorderResult> 
       modifiers,
       totalPrice: (oi.unit_price + modifiers.reduce((sum: number, m: any) => sum + m.price, 0)) * oi.quantity,
       specialInstructions: oi.special_instructions || undefined,
+      imageUrl: oi.menu_items?.image_url,
     };
 
     useCartStore.getState().addItem(cartItem, order.location_id);
@@ -85,7 +86,7 @@ export type UsualItemResult = {
 export async function reorderUsualItem(menuItemId: string): Promise<UsualItemResult> {
   const { data: menuItem, error: itemError } = await supabase
     .from('menu_items')
-    .select('id, name, base_price, location_id, is_available')
+    .select('id, name, base_price, location_id, is_available, image_url')
     .eq('id', menuItemId)
     .single();
   if (itemError) throw itemError;
@@ -128,6 +129,7 @@ export async function reorderUsualItem(menuItemId: string): Promise<UsualItemRes
     modifiers,
     totalPrice: unitPrice + modifiers.reduce((sum: number, m: any) => sum + m.price, 0),
     specialInstructions: lastOrderItem?.special_instructions || undefined,
+    imageUrl: menuItem.image_url,
   };
 
   useCartStore.getState().addItem(cartItem, menuItem.location_id);
