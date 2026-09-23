@@ -19,6 +19,7 @@ import CartUpsellTray from '../../components/CartUpsellTray';
 import { isValidEmail } from '../../lib/passwordStrength';
 import { estimateReadyMinutes, getPickupSlots } from '../../lib/orderTiming';
 import { Country, DEFAULT_COUNTRY, formatPhoneNumber, isValidPhoneForCountry, parsePhone } from '../../lib/countries';
+import { tabularNums } from '../../lib/typography';
 
 const hapticSuccess = () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
 const hapticError = () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
@@ -556,7 +557,7 @@ export default function CartScreen() {
                       </Text>
                     )}
                   </View>
-                  <Text className="text-base font-inter-bold text-[#1C1917]">
+                  <Text className="text-base font-inter-bold text-[#1C1917]" style={tabularNums}>
                     ${item.totalPrice.toFixed(2)}
                   </Text>
                 </View>
@@ -795,17 +796,17 @@ export default function CartScreen() {
         <View className="px-5 pt-3 pb-8 border-t border-stone-200 bg-white shadow-lg">
           <View className="flex-row justify-between items-center mb-1">
             <Text className="text-xs font-inter-medium text-stone-500">Subtotal</Text>
-            <Text className="text-xs font-inter-semibold text-[#1C1917]">${cartTotal.toFixed(2)}</Text>
+            <Text className="text-xs font-inter-semibold text-[#1C1917]" style={tabularNums}>${cartTotal.toFixed(2)}</Text>
           </View>
           {discountAmount > 0 && (
             <View className="flex-row justify-between items-center mb-1">
               <Text className="text-xs font-inter-medium text-green-700">Discount ({appliedPromo?.code})</Text>
-              <Text className="text-xs font-inter-bold text-green-700">-${discountAmount.toFixed(2)}</Text>
+              <Text className="text-xs font-inter-bold text-green-700" style={tabularNums}>-${discountAmount.toFixed(2)}</Text>
             </View>
           )}
           <View className="flex-row justify-between items-center mb-3">
             <Text className="text-xs font-inter-medium text-stone-500">Tax</Text>
-            <Text className="text-xs font-inter-semibold text-[#1C1917]">${taxAmount.toFixed(2)}</Text>
+            <Text className="text-xs font-inter-semibold text-[#1C1917]" style={tabularNums}>${taxAmount.toFixed(2)}</Text>
           </View>
 
           <TouchableOpacity
@@ -827,7 +828,7 @@ export default function CartScreen() {
               <>
                 <Text className="text-[#F4ECE1] font-inter-bold text-base">Place Order</Text>
                 <View className="flex-row items-center">
-                  <Text className="text-[#F4ECE1] font-inter-bold text-lg mr-1.5">${grandTotal.toFixed(2)}</Text>
+                  <Text className="text-[#F4ECE1] font-inter-bold text-lg mr-1.5" style={tabularNums}>${grandTotal.toFixed(2)}</Text>
                   <Ionicons name="arrow-forward" size={18} color="#F4ECE1" />
                 </View>
               </>

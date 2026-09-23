@@ -21,6 +21,7 @@ import { reorderUsualItem } from '../../lib/reorder';
 import { distanceKm } from '../../lib/geo';
 import { isOpenNow, getTodayHoursLabel } from '../../lib/hours';
 import { shadowSm } from '../../lib/shadows';
+import { useLocations } from '../../hooks/useLocations';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -49,14 +50,7 @@ export default function HomeScreen() {
     loadProfile();
   }, [session, deliveryAddress, setDeliveryAddress]);
 
-  const { data: locations, isLoading, error: locationsError } = useQuery({
-    queryKey: ['locations'],
-    queryFn: async () => {
-      const { data, error } = await supabase.from('locations').select('*').order('name');
-      if (error) throw error;
-      return data;
-    },
-  });
+  const { data: locations, isLoading, error: locationsError } = useLocations();
 
   const { data: usualItem } = useQuery({
     queryKey: ['usualItem', session?.user?.id],

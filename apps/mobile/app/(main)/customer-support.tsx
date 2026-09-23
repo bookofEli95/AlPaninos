@@ -8,10 +8,23 @@ import { useBackHandler } from '../../hooks/useBackHandler';
 
 const SUPPORT_PHONE = '(519) 555-0123';
 
+// Optional one-tap topic, saved alongside the message (customer_feedback.
+// topic) so staff can sort feedback -- a "Missing Item" can be acted on
+// right away instead of being buried among general comments. Each topic
+// also swaps in a placeholder that prompts for the details that matter.
+const TOPICS = [
+  { label: 'Food Quality', icon: 'restaurant-outline', placeholder: 'Which item was it, and what was wrong?' },
+  { label: 'Missing Item', icon: 'bag-remove-outline', placeholder: 'What was missing, and roughly when did you order?' },
+  { label: 'Order Speed', icon: 'time-outline', placeholder: 'How long did it take, and was it pickup or delivery?' },
+  { label: 'Compliment', icon: 'heart-outline', placeholder: 'What did you love? We will pass it on to the team.' },
+  { label: 'Other', icon: 'chatbubble-ellipses-outline', placeholder: 'Tell us what you think...' },
+];
+
 export default function CustomerSupportScreen() {
   const router = useRouter();
   const { session } = useAuthStore();
   const [message, setMessage] = useState('');
+  const [topic, setTopic] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const goBackToMore = useCallback(() => {
@@ -29,9 +42,13 @@ export default function CustomerSupportScreen() {
       const { error } = await (supabase as any).from('customer_feedback').insert({
         user_id: session?.user?.id,
         message: message.trim(),
+        // Only sent when picked, so a plain comment still goes through the
+        // same way it always has.
+        ...(topic ? { topic } : {}),
       });
       if (error) throw error;
       setMessage('');
+      setTopic(null);
       Alert.alert('Thank You!', 'Your feedback has been sent.');
     } catch (e: any) {
       Alert.alert("Couldn't send feedback", e.message);
@@ -64,11 +81,31 @@ export default function CustomerSupportScreen() {
           </View>
         </TouchableOpacity>
 
-        <Text className="text-base font-inter-bold text-[#1C1917] mb-2">Leave a Comment or Review</Text>
+        <Text className="text-base font-inter-bold text-[#1C1917] mb-1">Leave a Comment or Review</Text>
+        <Text className="text-xs text-[#78716C] mb-3">What's it about? (optional)</Text>
+        <View className="flex-row flex-wrap mb-3">
+          {TOPICS.map((t) => {
+            const selected = topic === t.label;
+            return (
+              <TouchableOpacity
+                key={t.label}
+                onPress={() => setTopic(selected ? null : t.label)}
+                className={`flex-row items-center px-3 py-2 rounded-full border mr-2 mb-2 ${
+                  selected ? 'bg-[#A61C14] border-[#A61C14]' : 'bg-white border-stone-300'
+                }`}
+              >
+                <Ionicons name={t.icon as any} size={14} color={selected ? '#F4ECE1' : '#78716C'} />
+                <Text className={`text-xs font-inter-semibold ml-1.5 ${selected ? 'text-[#F4ECE1]' : 'text-[#1C1917]'}`}>
+                  {t.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
         <TextInput
           className="bg-white border border-stone-300 rounded-xl p-3.5 text-sm text-[#1C1917] mb-4"
           style={{ minHeight: 120 }}
-          placeholder="Tell us what you think..."
+          placeholder={TOPICS.find((t) => t.label === topic)?.placeholder ?? 'Tell us what you think...'}
           placeholderTextColor="#A8A29E"
           value={message}
           onChangeText={setMessage}

@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/authStore';
 import { useLocationStore } from '../../store/locationStore';
 import { useCartStore } from '../../store/cartStore';
+import { tabularNums } from '../../lib/typography';
 
 export default function MainLayout() {
   const router = useRouter();
@@ -99,14 +100,6 @@ export default function MainLayout() {
           }}
         />
         <Tabs.Screen
-          name="guest-exit"
-          options={{
-            title: 'Sign Out',
-            tabBarIcon: ({ color }) => <Ionicons name="log-out-outline" size={22} color={color} />,
-            href: isAnonymous ? undefined : null,
-          }}
-        />
-        <Tabs.Screen
           name="more"
           options={{
             title: 'More',
@@ -150,7 +143,7 @@ export default function MainLayout() {
               <Text className="text-[#F4ECE1] font-inter-bold text-base">View Cart</Text>
             </View>
             <View className="flex-row items-center">
-              <Text className="text-[#F4ECE1] font-inter-bold text-base mr-1.5">${cartTotal.toFixed(2)}</Text>
+              <Text className="text-[#F4ECE1] font-inter-bold text-base mr-1.5" style={tabularNums}>${cartTotal.toFixed(2)}</Text>
               <Ionicons name="arrow-forward" size={16} color="#F4ECE1" />
             </View>
           </TouchableOpacity>

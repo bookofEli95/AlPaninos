@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import SkeletonBox from '../../../components/Skeleton';
 import { getEtaDisplay } from '../../../lib/orderTiming';
 import { reorderFromOrder } from '../../../lib/reorder';
+import { tabularNums } from '../../../lib/typography';
 
 const DELIVERY_STEPS = [
   { key: 'received', label: 'Received' },
@@ -337,24 +338,24 @@ export default function OrderDetailScreen() {
                 <View className="pt-2.5">
                   <View className="flex-row justify-between mb-1">
                     <Text className="text-[#78716C]">Subtotal</Text>
-                    <Text className="text-[#1C1917]">${Number(order.subtotal_amount).toFixed(2)}</Text>
+                    <Text className="text-[#1C1917]" style={tabularNums}>${Number(order.subtotal_amount).toFixed(2)}</Text>
                   </View>
                   {order.discount_amount > 0 && (
                     <View className="flex-row justify-between mb-1">
                       <Text className="text-green-700">Discount{order.promo_code ? ` (${order.promo_code})` : ''}</Text>
-                      <Text className="text-green-700 font-inter-bold">-${Number(order.discount_amount).toFixed(2)}</Text>
+                      <Text className="text-green-700 font-inter-bold" style={tabularNums}>-${Number(order.discount_amount).toFixed(2)}</Text>
                     </View>
                   )}
                   <View className="flex-row justify-between">
                     <Text className="text-[#78716C]">Tax</Text>
-                    <Text className="text-[#1C1917]">${Number(order.tax_amount).toFixed(2)}</Text>
+                    <Text className="text-[#1C1917]" style={tabularNums}>${Number(order.tax_amount).toFixed(2)}</Text>
                   </View>
                 </View>
               )}
 
               <View className="flex-row justify-between items-center pt-2.5 mt-2.5 border-t border-stone-100">
                 <Text className="text-base font-inter-bold text-[#1C1917]">Total</Text>
-                <Text className="text-xl font-inter-bold text-[#A61C14]">${Number(order.total_amount).toFixed(2)}</Text>
+                <Text className="text-xl font-inter-bold text-[#A61C14]" style={tabularNums}>${Number(order.total_amount).toFixed(2)}</Text>
               </View>
             </View>
 
@@ -386,7 +387,7 @@ export default function OrderDetailScreen() {
               <Text className="font-inter-bold text-base text-[#1C1917] flex-1 mr-2">
                 {item.quantity}x {item.menu_items?.name || 'Item'}
               </Text>
-              <Text className="font-inter-bold text-base text-[#A61C14]">${Number(item.total_price).toFixed(2)}</Text>
+              <Text className="font-inter-bold text-base text-[#A61C14]" style={tabularNums}>${Number(item.total_price).toFixed(2)}</Text>
             </View>
 
             {item.order_item_modifiers?.length > 0 && (

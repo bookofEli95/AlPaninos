@@ -19,6 +19,7 @@ import SkeletonBox from '../../../components/Skeleton';
 import ItemAddOns from '../../../components/ItemAddOns';
 import { optionsConflict } from '../../../lib/modifierConflicts';
 import { shadowSm } from '../../../lib/shadows';
+import { tabularNums } from '../../../lib/typography';
 
 const QUICK_INSTRUCTIONS = [
   'Cut in half',
@@ -582,7 +583,7 @@ export default function ItemDetailScreen() {
                 {promoCode ? 'Claim Free Item' : 'Add to Cart'}
               </Text>
               <View className="flex-row items-center">
-                <Text className="font-inter-bold text-base text-[#F4ECE1] mr-1.5">
+                <Text className="font-inter-bold text-base text-[#F4ECE1] mr-1.5" style={tabularNums}>
                   {promoCode ? 'FREE' : `$${finalPrice.toFixed(2)}`}
                 </Text>
                 <Ionicons name="arrow-forward" size={16} color="#F4ECE1" />

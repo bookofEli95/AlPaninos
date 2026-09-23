@@ -194,6 +194,12 @@ export default function DealsScreen() {
     NEXT_TIER_BY_POINTS[NEXT_TIER_BY_POINTS.length - 1];
   const pointsProgress = Math.min(100, Math.round((currentPoints / nextTier.cost) * 100));
   const hasCartItems = items.length > 0;
+  // A coupon applied here with nothing in the cart used to leave the
+  // customer on this screen with no obvious next step. Once anything is in
+  // the cart, the shared floating "View Cart" bar ((main)/_layout.tsx) takes
+  // this spot instead, so the two never stack.
+  const showStartOrderBar = !!appliedPromo && !hasCartItems;
+  const hasBottomBar = hasCartItems || showStartOrderBar;
 
   return (
     <View className="flex-1 bg-[#FAF6F0] pt-14">
@@ -218,7 +224,7 @@ export default function DealsScreen() {
       <FlatList
         data={promotions}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: hasCartItems ? 96 : 32 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: hasBottomBar ? 96 : 32 }}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <View className="mb-4">
@@ -379,7 +385,7 @@ export default function DealsScreen() {
           pointerEvents="none"
           style={{
             position: 'absolute',
-            bottom: hasCartItems ? 96 : 32,
+            bottom: hasBottomBar ? 96 : 32,
             left: 24,
             right: 24,
             opacity: toastOpacity,
@@ -389,6 +395,32 @@ export default function DealsScreen() {
             <Text className="text-[#F4ECE1] font-inter-semibold text-xs">{toast}</Text>
           </View>
         </Animated.View>
+      )}
+
+      {showStartOrderBar && (
+        <View className="absolute bottom-5 left-4 right-4">
+          <TouchableOpacity
+            onPress={goBack}
+            activeOpacity={0.9}
+            className="bg-[#A61C14] py-3.5 px-4 rounded-2xl flex-row items-center justify-between shadow-lg active:bg-[#85140E]"
+          >
+            <View className="flex-row items-center flex-1 mr-3">
+              <Ionicons name="checkmark-circle" size={18} color="#F4ECE1" />
+              <View className="ml-2 flex-1">
+                <Text className="text-[#F4ECE1] opacity-80 font-inter-bold text-[11px] uppercase tracking-wider">
+                  Promo Applied
+                </Text>
+                <Text className="text-[#F4ECE1] font-inter-bold text-sm" numberOfLines={1}>
+                  {appliedPromo?.title}
+                </Text>
+              </View>
+            </View>
+            <View className="flex-row items-center">
+              <Text className="text-[#F4ECE1] font-inter-bold text-base mr-1.5">Start Order</Text>
+              <Ionicons name="arrow-forward" size={16} color="#F4ECE1" />
+            </View>
+          </TouchableOpacity>
+        </View>
       )}
 
       {picker && (

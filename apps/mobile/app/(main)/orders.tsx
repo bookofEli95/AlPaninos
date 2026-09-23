@@ -6,6 +6,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useRouter, useNavigation } from 'expo-router';
 import SkeletonBox from '../../components/Skeleton';
 import { reorderFromOrder } from '../../lib/reorder';
+import { tabularNums } from '../../lib/typography';
 
 const STATUS_CONFIG: Record<string, { bg: string; text: string }> = {
   received: { bg: 'bg-amber-100', text: 'text-amber-800' },
@@ -148,7 +149,7 @@ export default function OrdersScreen() {
                 <Text className="text-[#78716C] text-xs">
                   {new Date(item.created_at).toLocaleDateString()}
                 </Text>
-                <Text className="font-inter-bold text-base text-[#A61C14]">${Number(item.total_amount).toFixed(2)}</Text>
+                <Text className="font-inter-bold text-base text-[#A61C14]" style={tabularNums}>${Number(item.total_amount).toFixed(2)}</Text>
               </View>
               <TouchableOpacity
                 onPress={(e) => {
