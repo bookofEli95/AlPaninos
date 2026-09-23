@@ -445,7 +445,7 @@ export default function ItemDetailScreen() {
         {data.image_url ? (
           <Image
             source={{ uri: data.image_url }}
-            className="w-full h-64 rounded-3xl bg-stone-200 mb-4 shadow-xs"
+            className="w-full h-64 rounded-3xl bg-stone-200 mb-4 shadow-sm"
             resizeMode="cover"
           />
         ) : (
@@ -512,7 +512,7 @@ export default function ItemDetailScreen() {
                       onPress={() => handleToggleOption(group.id, option.id, group.max_selections)}
                       activeOpacity={0.8}
                       className={`flex-row justify-between items-center p-3.5 rounded-2xl border ${
-                        isSelected ? 'bg-white border-[#A61C14] shadow-xs' : 'bg-white/70 border-stone-200'
+                        isSelected ? 'bg-white border-[#A61C14] shadow-sm' : 'bg-white/70 border-stone-200'
                       }`}
                     >
                       <View className="flex-row items-center flex-1 mr-2">
@@ -609,7 +609,7 @@ export default function ItemDetailScreen() {
             <Text className="text-sm font-inter-bold text-[#1C1917]">Quantity</Text>
             <View className="flex-row items-center bg-[#FAF6F0] rounded-xl p-1 border border-stone-200">
               <TouchableOpacity
-                className="bg-white w-8 h-8 rounded-lg items-center justify-center shadow-xs"
+                className="bg-white w-8 h-8 rounded-lg items-center justify-center shadow-sm"
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   setQuantity(Math.max(1, quantity - 1));
@@ -619,7 +619,7 @@ export default function ItemDetailScreen() {
               </TouchableOpacity>
               <Text className="px-4 text-sm font-inter-bold text-[#1C1917]">{quantity}</Text>
               <TouchableOpacity
-                className="bg-white w-8 h-8 rounded-lg items-center justify-center shadow-xs"
+                className="bg-white w-8 h-8 rounded-lg items-center justify-center shadow-sm"
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   setQuantity(quantity + 1);
@@ -635,7 +635,7 @@ export default function ItemDetailScreen() {
           onPress={handleAddToCart}
           disabled={!isValid || justAdded}
           activeOpacity={0.9}
-          className={`py-4 px-5 rounded-2xl items-center flex-row justify-between shadow-xs ${
+          className={`py-4 px-5 rounded-2xl items-center flex-row justify-between shadow-sm ${
             justAdded ? 'bg-emerald-600' : isValid ? 'bg-[#A61C14] active:bg-[#85140E]' : 'bg-stone-300'
           }`}
         >

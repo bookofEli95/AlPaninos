@@ -149,7 +149,7 @@ export default function HomeScreen() {
         <TouchableOpacity
           onPress={handleUseMyLocation}
           disabled={locatingUser}
-          className="bg-white border border-stone-200 px-3 py-1.5 rounded-full flex-row items-center shadow-xs"
+          className="bg-white border border-stone-200 px-3 py-1.5 rounded-full flex-row items-center shadow-sm"
         >
           {locatingUser ? (
             <ActivityIndicator size="small" color="#A61C14" />
@@ -167,7 +167,7 @@ export default function HomeScreen() {
         <TouchableOpacity
           onPress={() => setOrderType('pickup')}
           className={`flex-1 py-2.5 rounded-xl flex-row items-center justify-center ${
-            orderType === 'pickup' ? 'bg-white shadow-xs' : ''
+            orderType === 'pickup' ? 'bg-white shadow-sm' : ''
           }`}
         >
           <Ionicons
@@ -187,7 +187,7 @@ export default function HomeScreen() {
         <TouchableOpacity
           onPress={() => setOrderType('delivery')}
           className={`flex-1 py-2.5 rounded-xl flex-row items-center justify-center ${
-            orderType === 'delivery' ? 'bg-white shadow-xs' : ''
+            orderType === 'delivery' ? 'bg-white shadow-sm' : ''
           }`}
         >
           <Ionicons
@@ -211,7 +211,7 @@ export default function HomeScreen() {
           onPress={handleOrderUsual}
           disabled={addingUsual}
           activeOpacity={0.85}
-          className="bg-white rounded-2xl border border-stone-200 shadow-xs p-3.5 mb-4 flex-row items-center"
+          className="bg-white rounded-2xl border border-stone-200 shadow-sm p-3.5 mb-4 flex-row items-center"
         >
           {usualItem.image_url ? (
             <Image
@@ -255,7 +255,7 @@ export default function HomeScreen() {
           const open = isOpenNow(item.hours);
 
           return (
-            <View className="bg-white p-4 rounded-2xl mb-3 border border-stone-200 shadow-xs">
+            <View className="bg-white p-4 rounded-2xl mb-3 border border-stone-200 shadow-sm">
               <View className="flex-row justify-between items-start mb-1">
                 <Text className="text-lg font-inter-bold text-[#1C1917] flex-1 mr-2">
                   {item.name}

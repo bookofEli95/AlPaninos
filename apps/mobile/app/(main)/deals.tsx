@@ -238,7 +238,7 @@ export default function DealsScreen() {
           <Text className="text-2xl font-display-bold text-[#1C1917] ml-1">Rewards & Deals</Text>
         </View>
 
-        <View className="bg-white border border-stone-200 px-3 py-1.5 rounded-full flex-row items-center shadow-xs">
+        <View className="bg-white border border-stone-200 px-3 py-1.5 rounded-full flex-row items-center shadow-sm">
           <Ionicons name="sparkles" size={14} color="#A61C14" />
           <Text className="text-[#1C1917] font-inter-bold text-xs ml-1.5">
             {currentPoints} pts
@@ -254,7 +254,7 @@ export default function DealsScreen() {
         ListHeaderComponent={
           <View className="mb-4">
             {/* Loyalty Milestone Card */}
-            <View className="bg-white p-5 rounded-3xl border border-stone-200 shadow-xs mb-4">
+            <View className="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm mb-4">
               <View className="flex-row justify-between items-center mb-2">
                 <View>
                   <Text className="text-xs font-inter-bold uppercase tracking-wider text-stone-500">
@@ -303,7 +303,7 @@ export default function DealsScreen() {
               onPress={() => handleTogglePromo(item)}
               disabled={alreadyUsed || !item.code}
               activeOpacity={0.8}
-              className={`bg-white rounded-2xl border p-4 mb-3 shadow-xs ${
+              className={`bg-white rounded-2xl border p-4 mb-3 shadow-sm ${
                 alreadyUsed
                   ? 'opacity-50 border-stone-200'
                   : isApplied

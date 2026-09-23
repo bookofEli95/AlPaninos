@@ -71,7 +71,7 @@ export default function MenuCategoryScreen() {
         <TouchableOpacity
           onPress={() => router.push('/(main)/cart')}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          className="bg-white border border-stone-200 rounded-full p-2.5 shadow-xs relative"
+          className="bg-white border border-stone-200 rounded-full p-2.5 shadow-sm relative"
         >
           <Ionicons name="bag-handle-outline" size={20} color="#1C1917" />
           {cartQuantity > 0 && (
