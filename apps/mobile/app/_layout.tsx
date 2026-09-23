@@ -114,16 +114,26 @@ export default function Layout() {
     });
   }, []);
 
-  // 2. Auth Session Bootstrap
+  // 2. Auth Session Bootstrap -- wrapped in try/catch so a transient failure
+  // (e.g. a network blip on a cold start) still marks the app initialized
+  // instead of leaving the navigation guard below waiting forever and
+  // stranding the user on the splash screen with no way in.
   useEffect(() => {
     let isMounted = true;
 
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
-      if (isMounted) {
-        setSession(currentSession);
-        setInitialized(true);
-      }
-    });
+    supabase.auth.getSession()
+      .then(({ data: { session: currentSession } }) => {
+        if (isMounted) {
+          setSession(currentSession);
+          setInitialized(true);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setSession(null);
+          setInitialized(true);
+        }
+      });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, currentSession) => {
       if (isMounted) setSession(currentSession);
