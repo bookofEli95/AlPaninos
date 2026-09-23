@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView, Alert } fr
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
+import * as Haptics from 'expo-haptics';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { useLocationStore } from '../../store/locationStore';
@@ -86,12 +87,14 @@ export default function ProfileScreen() {
   // back here -- re-checking on every focus is what actually catches a
   // promo/points balance that changed elsewhere (checkout already
   // invalidates these keys too, but this covers it even if that path is
-  // ever missed).
+  // ever missed). orderCount is included because checkout doesn't
+  // invalidate it, so it would otherwise stay stale after a new order.
   useFocusEffect(
     useCallback(() => {
       if (!session?.user?.id) return;
       queryClient.invalidateQueries({ queryKey: ['profile', session.user.id] });
       queryClient.invalidateQueries({ queryKey: ['wheelPromo', session.user.id] });
+      queryClient.invalidateQueries({ queryKey: ['orderCount', session.user.id] });
     }, [session?.user?.id])
   );
 
@@ -109,6 +112,7 @@ export default function ProfileScreen() {
   const [copied, setCopied] = useState(false);
   const handleCopyCode = async (code: string) => {
     await Clipboard.setStringAsync(code);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
@@ -131,7 +135,11 @@ export default function ProfileScreen() {
           params: { promoCode: promo.code, promoTitle: promo.title },
         });
       } else if (locationId) {
-        addFreeItem({ menuItemId: target.id, name: target.name, basePrice: target.base_price }, locationId, promo.code);
+        addFreeItem(
+          { menuItemId: target.id, name: target.name, basePrice: target.base_price, imageUrl: target.image_url },
+          locationId,
+          promo.code
+        );
         Alert.alert('Added!', `${target.name} was added to your cart -- it's free.`);
       }
     });
@@ -177,6 +185,7 @@ export default function ProfileScreen() {
     }
     if (prizeInCart) {
       removeItemsByPromoCode(wheelPromo.code);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
       return;
     }
     resolveAndRedeem(wheelPromo);
@@ -192,7 +201,7 @@ export default function ProfileScreen() {
     // update the instant this resolves, instead of waiting on the refetch
     // that invalidateQueries below only schedules.
     queryClient.setQueryData(['profile', session.user.id], (old: any) =>
-      old ? { ...old, panino_points: (old.panino_points ?? 0) - pointsSpent } : old
+      old ? { ...old, panino_points: Math.max(0, (old.panino_points ?? 0) - pointsSpent) } : old
     );
     queryClient.invalidateQueries({ queryKey: ['profile', session.user.id] });
     const { data: promo, error } = await (supabase as any)
@@ -218,10 +227,19 @@ export default function ProfileScreen() {
     enabled: !isAnonymous && !!session?.user?.id
   });
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut().catch(console.warn);
-    setSession(null);
-    router.replace('/(auth)/login');
+  const handleSignOut = () => {
+    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign Out',
+        style: 'destructive',
+        onPress: async () => {
+          await supabase.auth.signOut().catch(console.warn);
+          setSession(null);
+          router.replace('/(auth)/login');
+        },
+      },
+    ]);
   };
 
   const initials = profile
@@ -335,10 +353,12 @@ export default function ProfileScreen() {
                 <View>
                   <Text className="text-xs text-[#78716C] uppercase font-inter-bold tracking-wider">Phone</Text>
                   <Text className="text-base font-inter-semibold text-[#1C1917]">
-                    {(() => {
-                      const { country, digits } = parsePhone(profile.phone || '');
-                      return `+${country.dialCode} ${formatPhoneNumber(digits, country)}`;
-                    })()}
+                    {profile.phone
+                      ? (() => {
+                          const { country, digits } = parsePhone(profile.phone);
+                          return `+${country.dialCode} ${formatPhoneNumber(digits, country)}`;
+                        })()
+                      : 'Not provided'}
                   </Text>
                 </View>
               </View>
@@ -346,7 +366,9 @@ export default function ProfileScreen() {
                 <Ionicons name="location-outline" size={20} color="#A61C14" style={{ width: 28 }} />
                 <View>
                   <Text className="text-xs text-[#78716C] uppercase font-inter-bold tracking-wider">Address</Text>
-                  <Text className="text-base font-inter-semibold text-[#1C1917]">{profile.address}</Text>
+                  <Text className="text-base font-inter-semibold text-[#1C1917]">
+                    {profile.address || 'No default address saved'}
+                  </Text>
                 </View>
               </View>
             </View>
