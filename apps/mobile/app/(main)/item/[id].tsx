@@ -53,7 +53,8 @@ export default function ItemDetailScreen() {
       const { data: groups, error: groupsError } = await supabase
         .from('modifier_groups')
         .select('*')
-        .eq('menu_item_id', itemId);
+        .eq('menu_item_id', itemId)
+        .order('sort_order');
       if (groupsError) throw groupsError;
 
       // 3. Fetch Options (if groups exist)
@@ -63,7 +64,8 @@ export default function ItemDetailScreen() {
         const { data: opts, error: optsError } = await supabase
           .from('modifier_options')
           .select('*')
-          .in('group_id', groupIds);
+          .in('group_id', groupIds)
+          .order('sort_order');
         if (optsError) throw optsError;
         options = opts || [];
       }

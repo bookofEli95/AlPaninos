@@ -116,8 +116,8 @@ async function runImport() {
       // parent option (via that option's own "modifiers" array) so it only makes
       // sense to show once that option is selected -- e.g. picking "Greek Fries"
       // reveals a Greek-Fries-specific toppings group.
-      for (const group of modifiers) {
-        await insertGroup(supabase, itemData.id, itemName, group, null);
+      for (let i = 0; i < modifiers.length; i++) {
+        await insertGroup(supabase, itemData.id, itemName, modifiers[i], null, i);
       }
     }
   }

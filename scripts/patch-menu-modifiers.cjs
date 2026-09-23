@@ -90,8 +90,8 @@ async function runPatch() {
         continue;
       }
 
-      for (const group of modifiers) {
-        await insertGroup(supabase, itemId, itemName, group, null);
+      for (let i = 0; i < modifiers.length; i++) {
+        await insertGroup(supabase, itemId, itemName, modifiers[i], null, i);
       }
       console.log(`Patched modifiers for "${itemName}" at "${location.name}".`);
       patched++;
