@@ -52,8 +52,13 @@ export default function DealsScreen() {
   }, [locationId, router]);
   useBackHandler(goBack);
 
+  // Its own key, not ['profile', id] -- profile.tsx caches the full row
+  // (select '*') under that exact key, and sharing it with this partial
+  // select meant whichever screen loaded first decided what the other saw
+  // (e.g. Profile showing no last name/phone/address right after signup).
+  // Invalidating ['profile', id] still refreshes this too (prefix match).
   const { data: profile } = useQuery({
-    queryKey: ['profile', session?.user?.id],
+    queryKey: ['profile', session?.user?.id, 'deals'],
     queryFn: async () => {
       if (!session?.user?.id) return null;
       const { data, error } = await (supabase as any)

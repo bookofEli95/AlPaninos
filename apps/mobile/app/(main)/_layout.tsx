@@ -48,6 +48,11 @@ export default function MainLayout() {
           tabBarLabelStyle: {
             fontFamily: 'Inter_600SemiBold',
             fontSize: 11,
+            // The navigator's default label style adds fontWeight '500' for
+            // the system font -- on a single-weight custom font that can
+            // make the phone synthesize/measure a different weight than the
+            // one it draws. The weight is already baked into the font file.
+            fontWeight: 'normal',
           },
           // Labels are single-line, so a phone set to large text would cut
           // them off ("Prof…"). The icons carry the meaning at any size.

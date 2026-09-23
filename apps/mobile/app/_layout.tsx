@@ -45,7 +45,12 @@ export default function Layout() {
   const [splashComplete, setSplashComplete] = useState(false);
   const navigationAttempted = useRef(false);
 
-  const [fontsLoaded] = useFonts({
+  // Screens only mount once fonts are ready (see the Stack below) -- text
+  // measured before a custom font loads keeps the fallback font's width, so
+  // single-line labels (the tab bar) came out cut off ("Me…" for "Menu").
+  // A font load error still lets the app in, just with the system font,
+  // rather than leaving it stuck on the splash screen forever.
+  const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
     Inter_600SemiBold,
@@ -55,6 +60,7 @@ export default function Layout() {
     PlusJakartaSans_700Bold,
     PlusJakartaSans_800ExtraBold,
   });
+  const fontsReady = fontsLoaded || !!fontError;
 
   const logoScale = useSharedValue(2.4);
   const logoOpacity = useSharedValue(0);
@@ -184,7 +190,7 @@ export default function Layout() {
     const rootSegment = segments[0];
     const isRouteReady = rootSegment === '(auth)' || rootSegment === '(main)';
 
-    if (!isInitialized || !isRouteReady || !fontsLoaded) return;
+    if (!isInitialized || !isRouteReady || !fontsReady) return;
 
     SplashScreen.hideAsync().catch(() => {});
 
@@ -212,7 +218,7 @@ export default function Layout() {
       isMounted = false;
       clearTimeout(timeout);
     };
-  }, [isInitialized, segments, fontsLoaded]);
+  }, [isInitialized, segments, fontsReady]);
 
   const animatedTopCurtain = useAnimatedStyle(() => ({
     transform: [{ translateY: curtainTop.value }],
@@ -242,7 +248,7 @@ export default function Layout() {
   return (
     <QueryClientProvider client={queryClient}>
       <View style={styles.root}>
-        <Stack screenOptions={{ headerShown: false }} />
+        {fontsReady && <Stack screenOptions={{ headerShown: false }} />}
 
         {!splashComplete && (
           <View pointerEvents="none" style={styles.splashContainer}>
