@@ -51,10 +51,15 @@ export default function CartScreen() {
   const [sendingOtp, setSendingOtp] = useState(false);
   const [verifyingOtp, setVerifyingOtp] = useState(false);
   // Tracks which exact email address was verified -- if the guest edits the
-  // field afterwards it no longer matches, so they have to re-verify.
+  // field afterwards it no longer matches, so they have to re-verify. The
+  // field itself always stays editable (an earlier version locked it once
+  // verified, which meant a typo'd email had no way back) -- editing it away
+  // from verifiedEmail is exactly what should flip emailVerified back to
+  // false and ask for re-verification.
   const [verifiedEmail, setVerifiedEmail] = useState<string | null>(() => session?.user?.email ?? null);
   const emailVerified = !!verifiedEmail && verifiedEmail === guestEmail.trim();
   const [taxRate, setTaxRate] = useState(0.13);
+  const [locationName, setLocationName] = useState<string | null>(null);
   const [locationHours, setLocationHours] = useState<WeekHours | null>(null);
   // null = ASAP (the default) -- a specific Date means the customer
   // committed to a slot instead of an open-ended estimate.
@@ -62,6 +67,10 @@ export default function CartScreen() {
   const [timePickerVisible, setTimePickerVisible] = useState(false);
   const [promoCode, setPromoCode] = useState('');
   const [applyingPromo, setApplyingPromo] = useState(false);
+  // Collapsed by default -- an always-open text box is one more thing to
+  // visually parse for the vast majority of carts that never use a promo
+  // code at all.
+  const [promoInputOpen, setPromoInputOpen] = useState(false);
   // Shared with the Deals screen -- applying a code there shows up applied
   // here too, and vice versa.
   const { appliedPromo, setAppliedPromo } = usePromoStore();
@@ -142,19 +151,21 @@ export default function CartScreen() {
   const taxAmount = discountedSubtotal * taxRate;
   const grandTotal = discountedSubtotal + taxAmount;
 
-  // Tax rate lives per-location (see locations.tax_rate) since it can vary
-  // by province -- 13% (Ontario HST) is just the fallback while this loads.
-  // Hours feed the pickup-time slot picker below (never offer a slot past
-  // closing).
+  // Tax rate and hours live per-location (tax rate can vary by province;
+  // hours feed the pickup-time slot picker below, never offering a slot
+  // past closing) -- name is shown in the fulfillment strip so "Carryout"
+  // reads as a real, specific location rather than a generic label.
+  // 13% (Ontario HST) is just the fallback while this loads.
   useEffect(() => {
     if (!locationId) return;
     (async () => {
       const { data, error } = await (supabase as any)
         .from('locations')
-        .select('tax_rate, hours')
+        .select('name, tax_rate, hours')
         .eq('id', locationId)
         .single();
       if (!error && data) {
+        setLocationName(data.name ?? null);
         setTaxRate(Number(data.tax_rate));
         setLocationHours(data.hours ?? null);
       }
@@ -205,7 +216,9 @@ export default function CartScreen() {
           .select('id, category_id, name')
           .eq('location_id', locationId);
         if (miError) throw miError;
-        infoMap = Object.fromEntries((menuItems || []).map((m: any) => [m.id, { categoryId: m.category_id, name: m.name }]));
+        infoMap = Object.fromEntries(
+          (menuItems || []).map((m: any) => [m.id, { categoryId: m.category_id, name: m.name }])
+        );
         setMenuItemInfoMap(infoMap);
       }
 
@@ -219,7 +232,7 @@ export default function CartScreen() {
         infoMap
       );
       if (eligibleDiscount <= 0) {
-        Alert.alert('No Eligible Items', "None of the items currently in your cart qualify for this promo code.");
+        Alert.alert('No Eligible Items', 'None of the items currently in your cart qualify for this promo code.');
         return;
       }
 
@@ -233,6 +246,7 @@ export default function CartScreen() {
         maxDiscountAmount,
       });
       setPromoCode('');
+      setPromoInputOpen(false);
     } catch (e: any) {
       Alert.alert("Couldn't apply code", e.message);
     } finally {
@@ -336,7 +350,7 @@ export default function CartScreen() {
 
   const handleCheckout = async () => {
     if (!locationId || items.length === 0) return;
-    
+
     if (orderType === 'delivery' && !deliveryAddress) {
       Alert.alert('Missing Address', 'Please provide a delivery address on the Home screen before checking out.');
       return;
@@ -438,7 +452,7 @@ export default function CartScreen() {
             modifier_option_id: mod.optionId,
             price_adjustment: mod.price
           }));
-          
+
           const { error: modError } = await (supabase as any).from('order_item_modifiers').insert(modsToInsert);
           if (modError) throw modError;
         }
@@ -487,16 +501,18 @@ export default function CartScreen() {
 
   return (
     <View className="flex-1 bg-[#FAF6F0] pt-12">
-      <View className="flex-row items-center justify-between px-4 mb-4">
+      <View className="flex-row items-center justify-between px-4 mb-2">
         <View className="flex-row items-center">
           <TouchableOpacity
             onPress={goBack}
-            className="flex-row items-center py-4 pr-8 -ml-2"
+            className="flex-row items-center py-2 pr-4 -ml-2"
           >
-            <Ionicons name="chevron-back" size={28} color="#A61C14" />
-            <Text className="text-[#A61C14] font-inter-bold text-xl">Back</Text>
+            <Ionicons name="chevron-back" size={26} color="#A61C14" />
+            <Text className="text-[#A61C14] font-inter-bold text-lg">Back</Text>
           </TouchableOpacity>
-          <Text className="text-2xl font-display-bold ml-2 text-[#1C1917]">Cart</Text>
+          <Text className="text-2xl font-display-bold ml-1 text-[#1C1917]">
+            Cart{itemCount > 0 ? ` (${itemCount})` : ''}
+          </Text>
         </View>
 
         {items.length > 0 && (
@@ -508,307 +524,370 @@ export default function CartScreen() {
               ]);
             }}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            className="px-3 py-2"
+            className="px-2 py-1"
           >
-            <Text className="text-[#78716C] font-inter-bold text-base">Clear</Text>
+            <Text className="text-stone-500 font-inter-medium text-sm">Clear</Text>
           </TouchableOpacity>
         )}
       </View>
 
-      <ScrollView
-        className="flex-1 px-4"
-        contentContainerStyle={{ paddingBottom: keyboardHeight }}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
-      >
-        {items.map(item => (
-          <View key={item.cartItemId} className="py-4 border-b border-stone-200">
-            <View className="flex-row justify-between items-start mb-2">
-              <View className="flex-1 pr-4">
-                <View className="flex-row items-center flex-wrap">
-                  <Text className="text-lg font-inter-bold text-[#1C1917]">
-                    {item.quantity}x {item.name}
-                  </Text>
-                  {item.promoCode && (
-                    <View className="ml-2 bg-[#A61C14] rounded-full px-2 py-0.5">
-                      <Text className="text-[#F4ECE1] text-xs font-inter-bold">FREE</Text>
-                    </View>
-                  )}
-                </View>
-                {item.modifiers.map(mod => (
-                  <Text key={mod.optionId} className="text-[#78716C] text-sm mt-1">
-                    + {mod.name} {!item.promoCode && mod.price > 0 ? `($${mod.price.toFixed(2)})` : ''}
-                  </Text>
-                ))}
-                {item.specialInstructions && (
-                  <Text className="text-[#78716C] text-sm mt-1 italic">
-                    Note: {item.specialInstructions}
-                  </Text>
-                )}
+      {/* Fulfillment strip -- folds together what used to be a separate
+          "When would you like it?" card mid-scroll plus the order-type/ready
+          rows repeated again in the bottom sheet, so this info exists in
+          exactly one place instead of two slightly different-looking ones. */}
+      {items.length > 0 && (
+        <View className="mx-4 mb-3 bg-white p-3.5 rounded-2xl border border-stone-200 shadow-sm">
+          <View className="flex-row items-center justify-between">
+            <View className="flex-row items-center flex-1 mr-2">
+              <View className="w-9 h-9 rounded-full bg-[#FAF6F0] items-center justify-center mr-3 border border-stone-200">
+                <Ionicons name={orderType === 'delivery' ? 'bicycle' : 'bag-handle'} size={18} color="#A61C14" />
               </View>
-              <Text className="text-lg font-inter-bold text-[#A61C14]">
-                ${item.totalPrice.toFixed(2)}
-              </Text>
-            </View>
-            <TouchableOpacity
-              onPress={() => removeItem(item.cartItemId)}
-              className="self-start mt-2"
-            >
-              <Text className="text-[#A61C14] font-inter-bold">Remove</Text>
-            </TouchableOpacity>
-          </View>
-        ))}
-        {items.length === 0 && (
-          <Text className="text-center text-[#78716C] mt-10">Your cart is empty</Text>
-        )}
-        {items.length > 0 && isAnonymous && (
-          <View className="my-4 p-4 bg-white rounded-2xl border border-stone-200 shadow-sm">
-            <Text className="text-lg font-inter-bold mb-3 text-[#1C1917]">Contact Details</Text>
-
-            <View className="flex-row justify-between mb-3">
-              <TextInput
-                className="bg-white border border-stone-300 p-3 rounded-lg flex-1 mr-2 text-base text-[#1C1917]"
-                placeholder="First Name"
-                placeholderTextColor="#A8A29E"
-                value={guestFirstName}
-                onChangeText={setGuestFirstName}
-              />
-              <TextInput
-                className="bg-white border border-stone-300 p-3 rounded-lg flex-1 ml-2 text-base text-[#1C1917]"
-                placeholder="Last Name"
-                placeholderTextColor="#A8A29E"
-                value={guestLastName}
-                onChangeText={setGuestLastName}
-              />
-            </View>
-
-            <View className="flex-row mb-3">
-              <TouchableOpacity
-                onPress={() => setCountryPickerVisible(true)}
-                className="flex-row items-center bg-white border border-stone-300 rounded-lg px-3 mr-2"
-              >
-                <Text className="text-base mr-1">{guestCountry.flag}</Text>
-                <Text className="text-base font-inter-semibold text-[#1C1917] mr-1">+{guestCountry.dialCode}</Text>
-                <Ionicons name="chevron-down" size={14} color="#A8A29E" />
-              </TouchableOpacity>
-              <TextInput
-                className="bg-white border border-stone-300 p-3 rounded-lg flex-1 text-base text-[#1C1917]"
-                placeholder="Phone Number"
-                placeholderTextColor="#A8A29E"
-                keyboardType="phone-pad"
-                value={formatPhoneNumber(guestPhone, guestCountry)}
-                onChangeText={(text) => setGuestPhone(text.replace(/[^0-9]/g, ''))}
-              />
-            </View>
-
-            <TextInput
-              className="bg-white border border-stone-300 p-3 rounded-lg text-base text-[#1C1917]"
-              placeholder="Email"
-              placeholderTextColor="#A8A29E"
-              autoCapitalize="none"
-              keyboardType="email-address"
-              value={guestEmail}
-              onChangeText={setGuestEmail}
-              editable={!emailVerified}
-            />
-
-            {emailVerified ? (
-              <View className="flex-row items-center mt-3">
-                <Ionicons name="checkmark-circle" size={16} color="#16a34a" />
-                <Text className="text-green-700 font-inter-semibold text-sm ml-1">Email verified</Text>
-              </View>
-            ) : otpSent ? (
-              <View className="mt-3">
-                <Text className="text-[#78716C] text-sm mb-2">
-                  Enter the 6-digit code we emailed to {guestEmail.trim()}.
+              <View className="flex-1">
+                <Text className="text-[11px] font-inter-bold uppercase tracking-wider text-stone-500">
+                  {orderType === 'delivery' ? 'Delivery' : `Carryout${locationName ? ` • ${locationName}` : ''}`}
                 </Text>
-                <TextInput
-                  className="bg-white border border-stone-300 p-3 rounded-lg text-base text-[#1C1917] mb-2"
-                  placeholder="6-digit code"
-                  placeholderTextColor="#A8A29E"
-                  keyboardType="number-pad"
-                  maxLength={6}
-                  value={otpCode}
-                  onChangeText={setOtpCode}
-                />
-                <View className="flex-row items-center">
-                  <TouchableOpacity
-                    onPress={handleVerifyCode}
-                    disabled={verifyingOtp || otpCode.trim().length !== 6}
-                    className={`py-2.5 rounded-lg items-center flex-1 mr-2 ${
-                      verifyingOtp || otpCode.trim().length !== 6 ? 'bg-stone-300' : 'bg-[#1C1917]'
-                    }`}
-                  >
-                    {verifyingOtp ? (
-                      <ActivityIndicator size="small" color="#F4ECE1" />
-                    ) : (
-                      <Text className="text-[#F4ECE1] font-inter-bold text-sm">Verify</Text>
-                    )}
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={handleSendCode} disabled={sendingOtp} className="px-3 py-2.5">
-                    <Text className="text-[#78716C] font-inter-semibold text-sm">Resend</Text>
-                  </TouchableOpacity>
-                </View>
+                <Text className="text-sm font-inter-bold text-[#1C1917]" numberOfLines={1}>
+                  {selectedSlot
+                    ? `${orderType === 'delivery' ? 'Arriving' : 'Ready'} at ${selectedSlot.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
+                    : `ASAP (~${estimateReadyMinutes(orderType, itemCount)} min)`}
+                </Text>
               </View>
-            ) : (
-              <TouchableOpacity
-                onPress={handleSendCode}
-                disabled={sendingOtp}
-                className="bg-[#1C1917] py-2.5 rounded-lg items-center mt-3"
-              >
-                {sendingOtp ? (
-                  <ActivityIndicator size="small" color="#F4ECE1" />
-                ) : (
-                  <Text className="text-[#F4ECE1] font-inter-bold text-sm">Send Verification Code</Text>
-                )}
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
-        {items.length > 0 && (
-          <View className="my-4 p-4 bg-white rounded-2xl border border-stone-200 shadow-sm">
-            <Text className="text-lg font-inter-bold mb-3 text-[#1C1917]">Promo Code</Text>
-            {activePromoCode ? (
-              <View className="flex-row items-center justify-between bg-[#FAF6F0] border border-stone-300 rounded-lg px-4 py-3">
-                <View className="flex-row items-center flex-1 mr-2">
-                  <Ionicons name="pricetag" size={16} color="#A61C14" />
-                  <Text className="text-[#1C1917] font-inter-bold ml-2" numberOfLines={1}>
-                    {activePromoCode} applied
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => {
-                    if (appliedPromo) setAppliedPromo(null);
-                    else removeItemsByPromoCode(activePromoCode);
-                  }}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Ionicons name="close-circle" size={22} color="#78716C" />
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View className="flex-row">
-                <TextInput
-                  className="bg-white border border-stone-300 p-3 rounded-lg flex-1 mr-2 text-base text-[#1C1917]"
-                  placeholder="Enter code"
-                  placeholderTextColor="#A8A29E"
-                  autoCapitalize="characters"
-                  value={promoCode}
-                  onChangeText={setPromoCode}
-                />
-                <TouchableOpacity
-                  onPress={handleApplyPromo}
-                  disabled={applyingPromo || !promoCode.trim()}
-                  className={`px-5 rounded-lg items-center justify-center ${
-                    applyingPromo || !promoCode.trim() ? 'bg-stone-300' : 'bg-[#1C1917]'
-                  }`}
-                >
-                  {applyingPromo ? (
-                    <ActivityIndicator size="small" color="#F4ECE1" />
-                  ) : (
-                    <Text className={`font-inter-bold ${!promoCode.trim() ? 'text-stone-500' : 'text-[#F4ECE1]'}`}>Apply</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        )}
-        {/* Registered users already picked this at signup (editable from
-            Edit Profile) -- re-asking at checkout every time is friction for
-            a decision they already made. Guests have no profile to default
-            from, so it's asked here instead. */}
-        {items.length > 0 && isAnonymous && (
-          <NotifyPreferenceToggle
-            notifyEmail={notifyEmail}
-            notifySms={notifySms}
-            onChangeEmail={setNotifyEmail}
-            onChangeSms={setNotifySms}
-          />
-        )}
-
-        {/* A committed clock time beats an open-ended "~15-20 min" estimate
-            -- uncertain waits invite repeated app-checking and in-person
-            "is it ready yet" queue pressure that an exact time avoids. A
-            dropdown rather than a row of chips, since getPickupSlots now
-            offers every 15-minute slot up to closing (e.g. ordering at noon
-            can still pick 8pm), not just the next couple hours. */}
-        {items.length > 0 && (
-          <View className="my-4 p-4 bg-white rounded-2xl border border-stone-200 shadow-sm">
-            <Text className="text-lg font-inter-bold mb-3 text-[#1C1917]">
-              {orderType === 'delivery' ? 'When should it arrive?' : 'When would you like it?'}
-            </Text>
+            </View>
             <TouchableOpacity
               onPress={() => setTimePickerVisible(true)}
-              className="flex-row items-center justify-between bg-[#FAF6F0] border border-stone-300 rounded-xl px-4 py-3.5"
+              className="bg-[#FAF6F0] px-3 py-1.5 rounded-xl border border-stone-200"
             >
-              <Text className="font-inter-bold text-[#1C1917]">
-                {selectedSlot
-                  ? selectedSlot.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-                  : `ASAP (~${estimateReadyMinutes(orderType, itemCount)} min)`}
-              </Text>
-              <Ionicons name="chevron-down" size={18} color="#78716C" />
+              <Text className="text-xs font-inter-bold text-[#A61C14]">Change</Text>
             </TouchableOpacity>
           </View>
-        )}
+          {/* Full address, never truncated to one line -- a cut-off unit
+              number is exactly the kind of thing that sends an order to the
+              wrong door. */}
+          {orderType === 'delivery' && (
+            <View className="mt-2.5 pt-2.5 border-t border-stone-100">
+              <Text className="text-[11px] font-inter-bold uppercase tracking-wider text-stone-500 mb-0.5">
+                Delivering To
+              </Text>
+              <Text className="text-sm font-inter-semibold text-[#1C1917]">
+                {deliveryAddress || 'Address required'}
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
 
-        {items.length > 0 && locationId && (
-          <CartUpsellTray items={items} locationId={locationId} cartTotal={cartTotal} />
+      <ScrollView
+        className="flex-1 px-4"
+        contentContainerStyle={{ paddingBottom: keyboardHeight + 20 }}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
+      >
+        {items.length === 0 ? (
+          <View className="items-center justify-center py-20">
+            <View className="w-16 h-16 rounded-full bg-stone-200/60 items-center justify-center mb-3">
+              <Ionicons name="bag-handle-outline" size={30} color="#78716C" />
+            </View>
+            <Text className="text-lg font-inter-bold text-[#1C1917]">Your cart is empty</Text>
+            <Text className="text-sm text-stone-500 mt-1 mb-6">Looks like you haven't added any paninos yet.</Text>
+            <TouchableOpacity
+              onPress={goBack}
+              className="bg-[#A61C14] px-6 py-3 rounded-xl active:bg-[#85140E]"
+            >
+              <Text className="text-[#F4ECE1] font-inter-bold text-base">Browse Menu</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            {items.map(item => (
+              <View key={item.cartItemId} className="bg-white p-4 rounded-2xl border border-stone-200 mb-3 shadow-sm">
+                <View className="flex-row justify-between items-start">
+                  <View className="flex-1 pr-3">
+                    <View className="flex-row items-center flex-wrap mb-1">
+                      <Text className="text-base font-inter-bold text-[#1C1917]">
+                        {item.quantity}x {item.name}
+                      </Text>
+                      {item.promoCode && (
+                        <View className="bg-[#A61C14] rounded-full px-2 py-0.5 ml-2">
+                          <Text className="text-[#F4ECE1] text-[10px] font-inter-bold">FREE</Text>
+                        </View>
+                      )}
+                    </View>
+                    {item.modifiers.length > 0 && (
+                      <View className="flex-row flex-wrap mt-1">
+                        {item.modifiers.map(mod => (
+                          <View
+                            key={mod.optionId}
+                            className="bg-[#FAF6F0] border border-stone-200 rounded-md px-2 py-0.5 mr-1.5 mb-1.5"
+                          >
+                            <Text className="text-stone-600 text-xs font-inter-medium">
+                              + {mod.name}{!item.promoCode && mod.price > 0 ? ` ($${mod.price.toFixed(2)})` : ''}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                    {item.specialInstructions && (
+                      <Text className="text-stone-400 text-xs italic mt-0.5">
+                        "{item.specialInstructions}"
+                      </Text>
+                    )}
+                  </View>
+                  <Text className="text-base font-inter-bold text-[#1C1917]">
+                    ${item.totalPrice.toFixed(2)}
+                  </Text>
+                </View>
+                <View className="flex-row justify-between items-center mt-3 pt-2.5 border-t border-stone-100">
+                  <TouchableOpacity
+                    onPress={() => removeItem(item.cartItemId)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Text className="text-stone-400 font-inter-medium text-xs">Remove</Text>
+                  </TouchableOpacity>
+                  <Text className="text-xs font-inter-semibold text-stone-500">Qty: {item.quantity}</Text>
+                </View>
+              </View>
+            ))}
+
+            {locationId && (
+              <CartUpsellTray items={items} locationId={locationId} cartTotal={cartTotal} />
+            )}
+
+            {/* Collapsible promo/reward code -- an always-open text box was
+                one more thing to visually parse for the vast majority of
+                carts that never use a code at all. */}
+            <View className="my-2 p-3.5 bg-white rounded-2xl border border-stone-200 shadow-sm">
+              {activePromoCode ? (
+                <View className="flex-row items-center justify-between">
+                  <View className="flex-row items-center flex-1 mr-2">
+                    <Ionicons name="pricetag" size={16} color="#A61C14" />
+                    <Text className="text-[#1C1917] font-inter-bold text-sm ml-2" numberOfLines={1}>
+                      Code {activePromoCode} applied
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => {
+                      if (appliedPromo) setAppliedPromo(null);
+                      else removeItemsByPromoCode(activePromoCode);
+                    }}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="close-circle" size={20} color="#78716C" />
+                  </TouchableOpacity>
+                </View>
+              ) : !promoInputOpen ? (
+                <TouchableOpacity
+                  onPress={() => setPromoInputOpen(true)}
+                  className="flex-row items-center justify-between"
+                >
+                  <View className="flex-row items-center">
+                    <Ionicons name="pricetag-outline" size={16} color="#A61C14" />
+                    <Text className="text-sm font-inter-semibold text-stone-700 ml-2">
+                      Add Promo or Reward Code
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-down" size={16} color="#A8A29E" />
+                </TouchableOpacity>
+              ) : (
+                <View>
+                  <View className="flex-row items-center justify-between mb-2">
+                    <Text className="text-xs font-inter-bold text-stone-500 uppercase">Promo Code</Text>
+                    <TouchableOpacity onPress={() => setPromoInputOpen(false)}>
+                      <Text className="text-xs text-stone-400 font-inter-medium">Cancel</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <View className="flex-row">
+                    <TextInput
+                      className="bg-[#FAF6F0] border border-stone-300 px-3 py-2 rounded-xl flex-1 mr-2 text-sm text-[#1C1917]"
+                      placeholder="Enter promo code"
+                      placeholderTextColor="#A8A29E"
+                      autoCapitalize="characters"
+                      value={promoCode}
+                      onChangeText={setPromoCode}
+                    />
+                    <TouchableOpacity
+                      onPress={handleApplyPromo}
+                      disabled={applyingPromo || !promoCode.trim()}
+                      className={`px-4 rounded-xl items-center justify-center ${
+                        applyingPromo || !promoCode.trim() ? 'bg-stone-300' : 'bg-[#1C1917]'
+                      }`}
+                    >
+                      {applyingPromo ? (
+                        <ActivityIndicator size="small" color="#F4ECE1" />
+                      ) : (
+                        <Text className={`text-xs font-inter-bold ${!promoCode.trim() ? 'text-stone-500' : 'text-[#F4ECE1]'}`}>Apply</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+            </View>
+
+            {isAnonymous && (
+              <View className="my-2 p-4 bg-white rounded-2xl border border-stone-200 shadow-sm">
+                <View className="flex-row items-center justify-between mb-3">
+                  <Text className="text-base font-inter-bold text-[#1C1917]">Contact & Pickup Info</Text>
+                  <View className="bg-stone-100 px-2 py-0.5 rounded-full">
+                    <Text className="text-[10px] font-inter-bold text-stone-500">GUEST CHECKOUT</Text>
+                  </View>
+                </View>
+
+                <View className="flex-row justify-between mb-2.5">
+                  <TextInput
+                    className="bg-[#FAF6F0] border border-stone-300 px-3 py-2.5 rounded-xl flex-1 mr-1.5 text-sm text-[#1C1917]"
+                    placeholder="First Name"
+                    placeholderTextColor="#A8A29E"
+                    value={guestFirstName}
+                    onChangeText={setGuestFirstName}
+                  />
+                  <TextInput
+                    className="bg-[#FAF6F0] border border-stone-300 px-3 py-2.5 rounded-xl flex-1 ml-1.5 text-sm text-[#1C1917]"
+                    placeholder="Last Name"
+                    placeholderTextColor="#A8A29E"
+                    value={guestLastName}
+                    onChangeText={setGuestLastName}
+                  />
+                </View>
+
+                <View className="flex-row mb-2.5">
+                  <TouchableOpacity
+                    onPress={() => setCountryPickerVisible(true)}
+                    className="flex-row items-center bg-[#FAF6F0] border border-stone-300 rounded-xl px-2.5 mr-2"
+                  >
+                    <Text className="text-sm mr-1">{guestCountry.flag}</Text>
+                    <Text className="text-xs font-inter-semibold text-[#1C1917] mr-1">+{guestCountry.dialCode}</Text>
+                    <Ionicons name="chevron-down" size={12} color="#A8A29E" />
+                  </TouchableOpacity>
+                  <TextInput
+                    className="bg-[#FAF6F0] border border-stone-300 px-3 py-2.5 rounded-xl flex-1 text-sm text-[#1C1917]"
+                    placeholder="Phone Number"
+                    placeholderTextColor="#A8A29E"
+                    keyboardType="phone-pad"
+                    value={formatPhoneNumber(guestPhone, guestCountry)}
+                    onChangeText={(text) => setGuestPhone(text.replace(/[^0-9]/g, ''))}
+                  />
+                </View>
+
+                <TextInput
+                  className="bg-[#FAF6F0] border border-stone-300 px-3 py-2.5 rounded-xl text-sm text-[#1C1917]"
+                  placeholder="Email address"
+                  placeholderTextColor="#A8A29E"
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  value={guestEmail}
+                  onChangeText={setGuestEmail}
+                />
+
+                {emailVerified ? (
+                  <View className="flex-row items-center mt-2.5 px-1">
+                    <Ionicons name="checkmark-circle" size={16} color="#16a34a" />
+                    <Text className="text-green-700 font-inter-semibold text-xs ml-1.5">Email verified</Text>
+                  </View>
+                ) : otpSent ? (
+                  <View className="mt-2.5 bg-stone-50 p-3 rounded-xl border border-stone-200">
+                    <Text className="text-stone-600 text-xs mb-2">
+                      Enter the 6-digit code we emailed to {guestEmail.trim()}.
+                    </Text>
+                    <View className="flex-row items-center">
+                      <TextInput
+                        className="bg-white border border-stone-300 px-3 py-2 rounded-lg text-sm text-[#1C1917] flex-1 mr-2 tracking-widest text-center font-inter-bold"
+                        placeholder="000000"
+                        placeholderTextColor="#A8A29E"
+                        keyboardType="number-pad"
+                        maxLength={6}
+                        value={otpCode}
+                        onChangeText={setOtpCode}
+                      />
+                      <TouchableOpacity
+                        onPress={handleVerifyCode}
+                        disabled={verifyingOtp || otpCode.trim().length !== 6}
+                        className={`py-2 px-4 rounded-lg items-center ${
+                          verifyingOtp || otpCode.trim().length !== 6 ? 'bg-stone-300' : 'bg-[#1C1917]'
+                        }`}
+                      >
+                        {verifyingOtp ? (
+                          <ActivityIndicator size="small" color="#F4ECE1" />
+                        ) : (
+                          <Text className="text-[#F4ECE1] font-inter-bold text-xs">Verify</Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                    <TouchableOpacity onPress={handleSendCode} disabled={sendingOtp} className="mt-2 self-start">
+                      <Text className="text-[#A61C14] font-inter-semibold text-xs">Resend Code</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    onPress={handleSendCode}
+                    disabled={sendingOtp}
+                    className="bg-[#1C1917] py-2.5 rounded-xl items-center mt-2.5"
+                  >
+                    {sendingOtp ? (
+                      <ActivityIndicator size="small" color="#F4ECE1" />
+                    ) : (
+                      <Text className="text-[#F4ECE1] font-inter-bold text-xs">Verify Email to Continue</Text>
+                    )}
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+
+            {/* Registered users already picked this at signup (editable from
+                Edit Profile) -- re-asking at checkout every time is friction
+                for a decision they already made. Guests have no profile to
+                default from, so it's asked here instead. */}
+            {isAnonymous && (
+              <NotifyPreferenceToggle
+                notifyEmail={notifyEmail}
+                notifySms={notifySms}
+                onChangeEmail={setNotifyEmail}
+                onChangeSms={setNotifySms}
+              />
+            )}
+          </>
         )}
       </ScrollView>
 
       {items.length > 0 && (
-        <View className="p-4 border-t border-stone-200 bg-[#FAF6F0]">
-          <View className="flex-row justify-between mb-2">
-            <Text className="text-lg text-[#78716C]">Order Type</Text>
-            <Text className="text-lg font-inter-bold uppercase text-[#1C1917]">{orderType}</Text>
-          </View>
-          <View className="flex-row justify-between mb-2">
-            <Text className="text-lg text-[#78716C]">{orderType === 'delivery' ? 'Arriving' : 'Ready'}</Text>
-            <Text className="text-lg font-inter-bold text-[#1C1917]">
-              {selectedSlot
-                ? selectedSlot.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-                : `ASAP (~${estimateReadyMinutes(orderType, itemCount)} min)`}
-            </Text>
-          </View>
-          {orderType === 'delivery' && (
-            <View className="mb-4">
-              <Text className="text-sm text-[#78716C]">Delivering to:</Text>
-              <Text className="text-md font-inter-bold text-[#1C1917]" numberOfLines={2}>{deliveryAddress}</Text>
-            </View>
-          )}
-          <View className="flex-row justify-between mb-1">
-            <Text className="text-base text-[#78716C]">Subtotal</Text>
-            <Text className="text-base text-[#1C1917]">${cartTotal.toFixed(2)}</Text>
+        <View className="px-5 pt-3 pb-8 border-t border-stone-200 bg-white shadow-lg">
+          <View className="flex-row justify-between items-center mb-1">
+            <Text className="text-xs font-inter-medium text-stone-500">Subtotal</Text>
+            <Text className="text-xs font-inter-semibold text-[#1C1917]">${cartTotal.toFixed(2)}</Text>
           </View>
           {discountAmount > 0 && (
-            <View className="flex-row justify-between mb-1">
-              <Text className="text-base text-green-700">Discount ({appliedPromo?.code})</Text>
-              <Text className="text-base text-green-700">-${discountAmount.toFixed(2)}</Text>
+            <View className="flex-row justify-between items-center mb-1">
+              <Text className="text-xs font-inter-medium text-green-700">Discount ({appliedPromo?.code})</Text>
+              <Text className="text-xs font-inter-bold text-green-700">-${discountAmount.toFixed(2)}</Text>
             </View>
           )}
-          <View className="flex-row justify-between mb-2">
-            <Text className="text-base text-[#78716C]">Tax</Text>
-            <Text className="text-base text-[#1C1917]">${taxAmount.toFixed(2)}</Text>
+          <View className="flex-row justify-between items-center mb-3">
+            <Text className="text-xs font-inter-medium text-stone-500">Tax</Text>
+            <Text className="text-xs font-inter-semibold text-[#1C1917]">${taxAmount.toFixed(2)}</Text>
           </View>
-          <View className="flex-row justify-between mb-6 pt-2 border-t border-stone-200">
-            <Text className="text-2xl font-inter-bold text-[#1C1917]">Total</Text>
-            <Text className="text-2xl font-inter-bold text-[#A61C14]">
-              ${grandTotal.toFixed(2)}
-            </Text>
-          </View>
+
           <TouchableOpacity
-            className={`p-4 rounded-xl items-center shadow-md ${
+            className={`py-4 px-5 rounded-2xl items-center shadow-sm flex-row justify-between ${
               isAnonymous && !emailVerified ? 'bg-stone-300' : 'bg-[#A61C14] active:bg-[#85140E]'
             }`}
             onPress={handleCheckout}
             disabled={isSubmitting || (isAnonymous && !emailVerified)}
           >
             {isSubmitting ? (
-              <ActivityIndicator color="#F4ECE1" />
+              <View className="flex-1 items-center">
+                <ActivityIndicator color="#F4ECE1" />
+              </View>
+            ) : isAnonymous && !emailVerified ? (
+              <View className="flex-1 items-center">
+                <Text className="text-stone-500 font-inter-bold text-base">Verify Email Above to Continue</Text>
+              </View>
             ) : (
-              <Text className={`text-xl font-inter-bold ${isAnonymous && !emailVerified ? 'text-stone-500' : 'text-[#F4ECE1]'}`}>
-                {isAnonymous && !emailVerified ? 'Verify Email to Continue' : 'Place Order'}
-              </Text>
+              <>
+                <Text className="text-[#F4ECE1] font-inter-bold text-base">Place Order</Text>
+                <View className="flex-row items-center">
+                  <Text className="text-[#F4ECE1] font-inter-bold text-lg mr-1.5">${grandTotal.toFixed(2)}</Text>
+                  <Ionicons name="arrow-forward" size={18} color="#F4ECE1" />
+                </View>
+              </>
             )}
           </TouchableOpacity>
         </View>

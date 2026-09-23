@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { View, Text, TouchableOpacity, Image, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
+import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../lib/supabase';
 import { useCartStore, CartItem } from '../store/cartStore';
@@ -148,21 +149,25 @@ export default function CartUpsellTray({
               return (
                 <View
                   key={upsellItem.id}
-                  className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden mr-3"
+                  className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden mr-3 flex-col justify-between"
                   style={{ width: 128 }}
                 >
-                  {upsellItem.image_url ? (
-                    <Image source={{ uri: upsellItem.image_url }} className="w-full h-20 bg-stone-200" resizeMode="cover" />
-                  ) : (
-                    <View className="w-full h-20 bg-[#FAF6F0] items-center justify-center" />
-                  )}
+                  <View>
+                    {upsellItem.image_url ? (
+                      <Image source={{ uri: upsellItem.image_url }} className="w-full h-20 bg-stone-200" resizeMode="cover" />
+                    ) : (
+                      <View className="w-full h-20 bg-[#FAF6F0] items-center justify-center" />
+                    )}
+                    <View className="px-2.5 pt-2.5">
+                      <Text className="text-[#1C1917] font-inter-semibold text-xs" numberOfLines={2}>
+                        {upsellItem.name}
+                      </Text>
+                      <Text className="text-[#A61C14] font-inter-bold text-xs mt-1">
+                        +${upsellItem.base_price.toFixed(2)}
+                      </Text>
+                    </View>
+                  </View>
                   <View className="p-2.5">
-                    <Text className="text-[#1C1917] font-inter-semibold text-xs" numberOfLines={2}>
-                      {upsellItem.name}
-                    </Text>
-                    <Text className="text-[#A61C14] font-inter-bold text-xs mt-1 mb-2">
-                      +${upsellItem.base_price.toFixed(2)}
-                    </Text>
                     {upsellItem.hasModifiers ? (
                       <TouchableOpacity
                         onPress={() =>
@@ -180,17 +185,18 @@ export default function CartUpsellTray({
                             locationId
                           )
                         }
-                        className="bg-[#A61C14] rounded-lg py-1.5 items-center active:bg-[#85140E]"
+                        className="bg-[#A61C14] rounded-lg py-1.5 flex-row items-center justify-center active:bg-[#85140E]"
                       >
-                        <Text className="text-[#F4ECE1] font-inter-bold text-xs">Add</Text>
+                        <Ionicons name="add" size={14} color="#F4ECE1" />
+                        <Text className="text-[#F4ECE1] font-inter-bold text-xs ml-0.5">Add</Text>
                       </TouchableOpacity>
                     ) : (
-                      <View className="flex-row items-center justify-between bg-stone-100 rounded-lg px-1 py-1 border border-stone-200">
+                      <View className="flex-row items-center justify-between bg-stone-100 rounded-lg p-1 border border-stone-200">
                         <TouchableOpacity
                           onPress={() => decrementSimpleItem(upsellItem.id)}
                           className="bg-white w-6 h-6 rounded-md items-center justify-center shadow-sm"
                         >
-                          <Text className="font-inter-bold text-[#1C1917] text-xs">-</Text>
+                          <Ionicons name="remove" size={12} color="#1C1917" />
                         </TouchableOpacity>
                         <Text className="font-inter-bold text-[#1C1917] text-xs">{qty}</Text>
                         <TouchableOpacity
@@ -202,7 +208,7 @@ export default function CartUpsellTray({
                           }
                           className="bg-white w-6 h-6 rounded-md items-center justify-center shadow-sm"
                         >
-                          <Text className="font-inter-bold text-[#1C1917] text-xs">+</Text>
+                          <Ionicons name="add" size={12} color="#1C1917" />
                         </TouchableOpacity>
                       </View>
                     )}
