@@ -18,7 +18,7 @@ export default function ItemDetailScreen() {
   // any modifiers picked below, free. Nothing is "applied" anywhere else
   // until Add to Cart actually runs (see handleAddToCart), so backing out of
   // this screen without finishing leaves no stray applied state behind.
-  const { id: itemId, promoCode, promoTitle } = useLocalSearchParams<{ id: string; promoCode?: string; promoTitle?: string }>();
+  const { id: itemId, promoCode, promoTitle, returnTo } = useLocalSearchParams<{ id: string; promoCode?: string; promoTitle?: string; returnTo?: string }>();
   const router = useRouter();
   const addItem = useCartStore(state => state.addItem);
 
@@ -265,8 +265,15 @@ export default function ItemDetailScreen() {
   // Drilling in is now Category Grid -> Category Items -> here (see
   // menu/[id].tsx's redesign), so both the back button and the
   // post-add-to-cart redirect should return to that category's item list,
-  // not skip past it to the top-level category grid.
+  // not skip past it to the top-level category grid. The one exception is
+  // arriving here from the cart's upsell tray (CartUpsellTray) -- that
+  // customer was never browsing the category grid, so send them back to
+  // the cart instead of dropping them somewhere they never were.
   const goBackToCategory = useCallback(() => {
+    if (returnTo === 'cart') {
+      router.replace('/(main)/cart');
+      return;
+    }
     if (!data) return;
     if (data.category_id) {
       router.replace({
@@ -280,7 +287,7 @@ export default function ItemDetailScreen() {
     } else {
       router.replace(`/(main)/menu/${data.location_id}`);
     }
-  }, [data]);
+  }, [data, returnTo]);
   useBackHandler(goBackToCategory);
 
   const handleAddToCart = () => {

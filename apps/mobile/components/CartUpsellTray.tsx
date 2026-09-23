@@ -1,11 +1,12 @@
 import { useMemo } from 'react';
 import { View, Text, TouchableOpacity, Image, ScrollView } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../lib/supabase';
 import { useCartStore, CartItem } from '../store/cartStore';
 
-type UpsellItem = { id: string; name: string; base_price: number; image_url: string | null };
+type UpsellItem = { id: string; name: string; base_price: number; image_url: string | null; hasModifiers: boolean };
 
 // Curated by name rather than by category (Extras also holds non-sauce
 // add-ons like Side Grilled Chicken; Sides also holds salads) -- same
@@ -32,6 +33,7 @@ export default function CartUpsellTray({
   locationId: string;
   cartTotal: number;
 }) {
+  const router = useRouter();
   const cartItems = useCartStore((state) => state.items);
   const incrementSimpleItemRaw = useCartStore((state) => state.incrementSimpleItem);
   const decrementSimpleItemRaw = useCartStore((state) => state.decrementSimpleItem);
@@ -65,12 +67,30 @@ export default function CartUpsellTray({
         .in('category_id', (categories || []).map((c) => c.id));
       if (itemsError) throw itemsError;
 
+      // Greek Fries/Philly Fries/Pulled Pork Fries have real topping
+      // modifier groups; a plain one-tap add would silently skip them
+      // instead of letting the customer pick toppings. Flagging which
+      // items actually have any group lets the render below send those to
+      // the same item-detail customization screen every other modifier-
+      // bearing item already uses, instead of building a second picker UI
+      // just for this tray.
+      const itemIds = (menuItems || []).map((m: any) => m.id);
+      const { data: groupRows, error: groupsError } = await supabase
+        .from('modifier_groups')
+        .select('menu_item_id')
+        .in('menu_item_id', itemIds);
+      if (groupsError) throw groupsError;
+      const itemIdsWithModifiers = new Set((groupRows || []).map((g: any) => g.menu_item_id));
+
       return {
         categoryNameByItemId: Object.fromEntries(
           (menuItems || []).map((m: any) => [m.id, categoryNameById[m.category_id]])
         ) as Record<string, string>,
         itemsByName: Object.fromEntries(
-          (menuItems || []).map((m: any) => [normalize(m.name), m])
+          (menuItems || []).map((m: any) => [
+            normalize(m.name),
+            { ...m, hasModifiers: itemIdsWithModifiers.has(m.id) },
+          ])
         ) as Record<string, UpsellItem>,
       };
     },
@@ -91,19 +111,23 @@ export default function CartUpsellTray({
     const hasSandwich = items.some((i) => SANDWICH_CATEGORY_NAMES.includes(catalog.categoryNameByItemId[i.menuItemId]));
     const hasDrink = items.some((i) => catalog.categoryNameByItemId[i.menuItemId] === 'Drinks');
     const hasMealSide = hasByPattern(MEAL_PATTERNS);
-    const hasSauce = hasByPattern(DUNK_IT_PATTERNS);
-    const hasDessert = hasByPattern(SWEET_FINISH_PATTERNS);
 
     const result: Bucket[] = [];
-    if (hasSandwich && !hasSauce) {
-      const dips = findAvailable(DUNK_IT_PATTERNS);
-      if (dips.length > 0) result.push({ key: 'dunk', title: 'Dunk It', items: dips });
-    }
     if (!hasMealSide && !hasDrink) {
       const meal = findAvailable(MEAL_PATTERNS).slice(0, 3);
       if (meal.length > 0) result.push({ key: 'meal', title: 'Make It a Meal', items: meal });
     }
-    if (cartTotal > 20 && !hasDessert) {
+    // Dunk It and Sweet Finish stay put once triggered, rather than
+    // vanishing the moment their item lands in the cart -- otherwise the
+    // only way to adjust quantity or add a second flavor is to scroll up
+    // and use the cart line's Remove link and start over. Make It a Meal
+    // is left as before (hides once satisfied) since the user only asked
+    // for the "stays visible" treatment on these two.
+    if (hasSandwich) {
+      const dips = findAvailable(DUNK_IT_PATTERNS);
+      if (dips.length > 0) result.push({ key: 'dunk', title: 'Dunk It', items: dips });
+    }
+    if (cartTotal > 20) {
       const sweets = findAvailable(SWEET_FINISH_PATTERNS);
       if (sweets.length > 0) result.push({ key: 'sweet', title: 'Sweet Finish', items: sweets });
     }
@@ -139,7 +163,16 @@ export default function CartUpsellTray({
                     <Text className="text-[#A61C14] font-inter-bold text-xs mt-1 mb-2">
                       +${upsellItem.base_price.toFixed(2)}
                     </Text>
-                    {qty === 0 ? (
+                    {upsellItem.hasModifiers ? (
+                      <TouchableOpacity
+                        onPress={() =>
+                          router.push({ pathname: `/(main)/item/${upsellItem.id}`, params: { returnTo: 'cart' } })
+                        }
+                        className="bg-[#A61C14] rounded-lg py-1.5 items-center active:bg-[#85140E]"
+                      >
+                        <Text className="text-[#F4ECE1] font-inter-bold text-xs">Customize</Text>
+                      </TouchableOpacity>
+                    ) : qty === 0 ? (
                       <TouchableOpacity
                         onPress={() =>
                           incrementSimpleItem(
