@@ -8,5 +8,5 @@
 -- to actually show up in the app, and to stay reliable going forward,
 -- display order needs to be real, queryable data instead of an implicit
 -- side effect of row storage.
-ALTER TABLE public.modifier_groups ADD COLUMN sort_order INTEGER DEFAULT 0;
-ALTER TABLE public.modifier_options ADD COLUMN sort_order INTEGER DEFAULT 0;
+ALTER TABLE public.modifier_groups ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0;
+ALTER TABLE public.modifier_options ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0;
