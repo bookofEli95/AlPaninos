@@ -2,11 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, TextInput, FlatList, TouchableOpacity, Alert, ActivityIndicator, StyleSheet } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import * as Haptics from 'expo-haptics';
 import { supabase } from '../../../lib/supabase';
 import { useBackHandler } from '../../../hooks/useBackHandler';
 import { Ionicons } from '@expo/vector-icons';
 import SkeletonBox from '../../../components/Skeleton';
 import { getEtaDisplay } from '../../../lib/orderTiming';
+import { reorderFromOrder } from '../../../lib/reorder';
 
 const DELIVERY_STEPS = [
   { key: 'received', label: 'Received' },
@@ -17,7 +19,7 @@ const DELIVERY_STEPS = [
 
 const PICKUP_STEPS = [
   { key: 'received', label: 'Received' },
-  { key: 'preparing', label: 'Preparing' },
+  { key: 'preparing', label: 'In the Press' },
   { key: 'ready', label: 'Ready for Pickup' },
   { key: 'completed', label: 'Picked Up' },
 ];
@@ -30,11 +32,12 @@ export default function OrderDetailScreen() {
   const [ratingValue, setRatingValue] = useState(0);
   const [ratingComment, setRatingComment] = useState('');
   const [submittingRating, setSubmittingRating] = useState(false);
+  const [reordering, setReordering] = useState(false);
   const [now, setNow] = useState(Date.now());
 
   const goBackToOrders = useCallback(() => {
     router.replace('/(main)/orders');
-  }, []);
+  }, [router]);
   useBackHandler(goBackToOrders);
 
   const { data: order, isLoading, error: orderError } = useQuery({
@@ -44,6 +47,7 @@ export default function OrderDetailScreen() {
         .from('orders')
         .select(`
           *,
+          locations ( name ),
           order_items (
             id,
             quantity,
@@ -92,11 +96,35 @@ export default function OrderDetailScreen() {
         comment: ratingComment.trim() || null,
       });
       if (error) throw error;
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       queryClient.invalidateQueries({ queryKey: ['orderRating', id] });
     } catch (e: any) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
       Alert.alert("Couldn't submit rating", e.message);
     } finally {
       setSubmittingRating(false);
+    }
+  };
+
+  // Same shared helper the Orders list's Reorder button uses (lib/reorder.ts)
+  // -- it skips discontinued items and re-charges full price for anything
+  // the original order got free through a wheel prize/PaninoPoints reward.
+  const handleReorder = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    setReordering(true);
+    try {
+      const { skippedCount } = await reorderFromOrder(id);
+      if (skippedCount > 0) {
+        Alert.alert(
+          'Some items unavailable',
+          `${skippedCount} item(s) from this order are no longer available and were left out.`
+        );
+      }
+      router.push('/(main)/cart');
+    } catch (e: any) {
+      Alert.alert("Couldn't reorder", e.message);
+    } finally {
+      setReordering(false);
     }
   };
 
@@ -145,34 +173,30 @@ export default function OrderDetailScreen() {
     return (
       <View className="flex-1 bg-[#FAF6F0] pt-16 px-4">
         <SkeletonBox width={140} height={26} style={{ marginBottom: 24 }} />
-        <SkeletonBox height={140} borderRadius={16} style={{ marginBottom: 24 }} />
-        <SkeletonBox height={90} borderRadius={12} style={{ marginBottom: 24 }} />
-        <SkeletonBox width={80} height={22} style={{ marginBottom: 16 }} />
+        <SkeletonBox height={140} borderRadius={24} style={{ marginBottom: 20 }} />
+        <SkeletonBox height={110} borderRadius={24} style={{ marginBottom: 20 }} />
         {[1, 2].map(i => (
-          <SkeletonBox key={i} height={50} style={{ marginBottom: 16 }} />
+          <SkeletonBox key={i} height={60} borderRadius={16} style={{ marginBottom: 12 }} />
         ))}
       </View>
     );
   }
 
-  if (orderError) {
+  if (orderError || !order) {
     return (
-      <View className="flex-1 bg-[#FAF6F0] justify-center items-center p-4">
-        <Text className="text-[#A61C14] font-inter-bold text-lg mb-2">Couldn't load this order</Text>
-        <Text className="text-[#78716C] text-center mb-4">{(orderError as Error).message}</Text>
-        <TouchableOpacity onPress={goBackToOrders}>
-          <Text className="text-[#A61C14] font-inter-bold">Go Back</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  if (!order) {
-    return (
-      <View className="flex-1 bg-[#FAF6F0] justify-center items-center p-4">
-        <Text className="text-[#78716C] text-lg mb-4">Order not found.</Text>
-        <TouchableOpacity onPress={goBackToOrders}>
-          <Text className="text-[#A61C14] font-inter-bold">Go Back</Text>
+      <View className="flex-1 bg-[#FAF6F0] justify-center items-center p-6">
+        <Ionicons name="alert-circle-outline" size={40} color="#A61C14" />
+        <Text className="text-[#A61C14] font-inter-bold text-lg mt-3 mb-1">
+          {orderError ? "Couldn't load this order" : 'Order not found'}
+        </Text>
+        <Text className="text-[#78716C] text-center mb-6">
+          {orderError ? (orderError as Error).message : 'Please check your past orders list.'}
+        </Text>
+        <TouchableOpacity
+          onPress={goBackToOrders}
+          className="bg-[#A61C14] px-6 py-3 rounded-xl active:bg-[#85140E]"
+        >
+          <Text className="text-[#F4ECE1] font-inter-bold">Return to Orders</Text>
         </TouchableOpacity>
       </View>
     );
@@ -182,126 +206,205 @@ export default function OrderDetailScreen() {
   const currentStepIndex = steps.findIndex((s) => s.key === order.status);
   const isCancelled = order.status === 'cancelled';
   const isCompleted = order.status === 'completed';
+  const isReadyForPickup = order.order_type === 'pickup' && order.status === 'ready';
+  // Every step is flex-1, so step centers sit at (i + 0.5) / n of the row --
+  // the connector track runs between the first and last centers, and its
+  // filled part stops at the current step's center.
+  const halfStepPct = 100 / (2 * steps.length);
+  const fillPct = Math.max(0, currentStepIndex) * (100 / steps.length);
 
   return (
-    <View className="flex-1 bg-[#FAF6F0] pt-16 px-4">
-      <View className="flex-row items-center mb-6">
+    <View className="flex-1 bg-[#FAF6F0] pt-14">
+      <View className="flex-row items-center px-4 mb-3">
         <TouchableOpacity
           onPress={goBackToOrders}
-          className="flex-row items-center py-4 pr-8 -ml-2 mr-2"
+          className="flex-row items-center py-2 pr-3 -ml-2"
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons name="chevron-back" size={28} color="#A61C14" />
+          <Ionicons name="chevron-back" size={26} color="#A61C14" />
+          <Text className="text-[#A61C14] font-inter-bold text-lg">Orders</Text>
         </TouchableOpacity>
-        <Text className="text-2xl font-display-bold text-[#1C1917]">Order Tracking</Text>
-      </View>
-
-      {etaText && (
-        <View className="bg-white border border-stone-200 rounded-2xl p-4 mb-6 flex-row items-center shadow-sm">
-          <Ionicons name="time-outline" size={22} color="#A61C14" />
-          <Text className="text-[#1C1917] font-inter-bold text-base ml-3">{etaText}</Text>
-        </View>
-      )}
-
-      {/* Progress Tracker */}
-      <View className="bg-white p-5 rounded-2xl border border-stone-200 shadow-sm mb-6">
-        <Text className="text-xs font-inter-bold text-[#78716C] uppercase tracking-wider mb-4">
-          Order Status: {order.order_type?.toUpperCase()}
-        </Text>
-
-        {isCancelled ? (
-          <View className="bg-[#FBE9E7] p-4 rounded-xl border border-[#F0B4AC] flex-row items-center">
-            <Ionicons name="alert-circle" size={24} color="#A61C14" />
-            <Text className="text-[#A61C14] font-inter-bold ml-2 text-base">This order was cancelled.</Text>
-          </View>
-        ) : (
-          <View className="flex-row justify-between items-center relative">
-            {steps.map((step, idx) => {
-              const isPassed = currentStepIndex >= idx;
-              const isCurrent = currentStepIndex === idx;
-
-              return (
-                <View key={step.key} className="items-center flex-1">
-                  <View
-                    style={[
-                      styles.stepIndicator,
-                      isPassed ? styles.stepPassed : styles.stepFuture,
-                      isCurrent && styles.stepCurrentHighlight
-                    ]}
-                  >
-                    {isPassed ? (
-                      <Ionicons name="checkmark" size={16} color="#F4ECE1" />
-                    ) : (
-                      <Text className="text-[#78716C] font-inter-bold text-xs">{idx + 1}</Text>
-                    )}
-                  </View>
-                  <Text
-                    className={`text-xs text-center mt-2 ${isCurrent ? 'font-inter-bold text-[#A61C14]' : isPassed ? 'text-[#1C1917] font-inter-medium' : 'text-[#78716C]'}`}
-                  >
-                    {step.label}
-                  </Text>
-                </View>
-              );
-            })}
-          </View>
-        )}
-      </View>
-
-      {/* Order Info */}
-      <View className="bg-white p-4 rounded-2xl border border-stone-200 shadow-sm mb-6">
-        <Text className="text-[#78716C] mb-1">Order ID: {order.id}</Text>
-        <Text className="text-[#78716C] mb-1">
-          Date: {new Date(order.created_at).toLocaleString()}
-        </Text>
-        {order.delivery_address && (
-          <Text className="text-[#78716C] mb-1">
-            Destination: {order.delivery_address}
-          </Text>
-        )}
-        {order.subtotal_amount != null && order.tax_amount != null && (
-          <View className="mt-2 pt-2 border-t border-stone-100">
-            <View className="flex-row justify-between mb-1">
-              <Text className="text-[#78716C]">Subtotal</Text>
-              <Text className="text-[#1C1917]">${Number(order.subtotal_amount).toFixed(2)}</Text>
-            </View>
-            {order.discount_amount > 0 && (
-              <View className="flex-row justify-between mb-1">
-                <Text className="text-green-700">Discount{order.promo_code ? ` (${order.promo_code})` : ''}</Text>
-                <Text className="text-green-700">-${Number(order.discount_amount).toFixed(2)}</Text>
-              </View>
-            )}
-            <View className="flex-row justify-between">
-              <Text className="text-[#78716C]">Tax</Text>
-              <Text className="text-[#1C1917]">${Number(order.tax_amount).toFixed(2)}</Text>
-            </View>
-          </View>
-        )}
-        <Text className="text-xl font-inter-bold mt-2 text-[#A61C14]">
-          Total: ${Number(order.total_amount).toFixed(2)}
+        <Text className="text-2xl font-display-bold text-[#1C1917] ml-1 flex-1" numberOfLines={1}>
+          {isCompleted || isCancelled ? 'Order Details' : 'Live Tracker'}
         </Text>
       </View>
-
-      <Text className="text-xl font-inter-bold mb-4 text-[#1C1917]">Items</Text>
 
       <FlatList
         data={order.order_items}
         keyExtractor={(item) => item.id}
         keyboardShouldPersistTaps="handled"
-        renderItem={({ item }) => (
-          <View className="border-b border-stone-200 py-4">
-            <View className="flex-row justify-between mb-1">
-              <Text className="font-inter-bold text-lg text-[#1C1917]">
-                {item.quantity}x {item.menu_items?.name || 'Item'}
-              </Text>
-              <Text className="font-inter-bold text-[#A61C14]">${Number(item.total_price).toFixed(2)}</Text>
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }}
+        ListHeaderComponent={
+          <>
+            {isReadyForPickup ? (
+              <View className="bg-emerald-600 rounded-3xl p-4 mb-4 shadow-sm flex-row items-center">
+                <View className="w-11 h-11 rounded-full bg-white/20 items-center justify-center mr-3">
+                  <Ionicons name="bag-check" size={22} color="#F4ECE1" />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-[#F4ECE1] font-inter-bold text-lg">Your order is ready!</Text>
+                  <Text className="text-[#F4ECE1] opacity-90 text-sm">
+                    Pick it up at the front counter{order.locations?.name ? ` at ${order.locations.name}` : ''}.
+                  </Text>
+                </View>
+              </View>
+            ) : etaText ? (
+              <View className="bg-white border border-stone-200 rounded-3xl p-4 mb-4 flex-row items-center shadow-sm">
+                <View className="w-11 h-11 rounded-2xl bg-[#FAF6F0] border border-stone-200 items-center justify-center mr-3">
+                  <Ionicons name="time-outline" size={20} color="#A61C14" />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-xs font-inter-bold uppercase tracking-wider text-[#78716C]">
+                    Estimated Time
+                  </Text>
+                  <Text className="text-base font-inter-bold text-[#1C1917]">{etaText}</Text>
+                </View>
+              </View>
+            ) : null}
+
+            {/* Progress Tracker */}
+            <View className="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm mb-4">
+              <View className="flex-row justify-between items-center mb-4">
+                <Text className="text-xs font-inter-bold text-[#78716C] uppercase tracking-wider">
+                  Order Status: {order.order_type?.toUpperCase()}
+                </Text>
+                <Text className="text-xs font-inter-semibold text-[#78716C]">#{order.id.slice(0, 8)}</Text>
+              </View>
+
+              {isCancelled ? (
+                <View className="bg-[#FBE9E7] p-4 rounded-2xl border border-[#F0B4AC] flex-row items-center">
+                  <Ionicons name="alert-circle" size={24} color="#A61C14" />
+                  <Text className="text-[#A61C14] font-inter-bold ml-2 text-base">This order was cancelled.</Text>
+                </View>
+              ) : (
+                <View style={styles.stepperRow}>
+                  {/* Rendered before the steps so the circles paint over it */}
+                  <View style={[styles.track, { left: `${halfStepPct}%`, right: `${halfStepPct}%` }]} />
+                  {fillPct > 0 && (
+                    <View style={[styles.track, styles.trackFill, { left: `${halfStepPct}%`, width: `${fillPct}%` }]} />
+                  )}
+                  {steps.map((step, idx) => {
+                    const isPassed = currentStepIndex >= idx;
+                    const isCurrent = currentStepIndex === idx;
+
+                    return (
+                      <View key={step.key} className="items-center flex-1 px-0.5">
+                        <View
+                          style={[
+                            styles.stepIndicator,
+                            isPassed ? styles.stepPassed : styles.stepFuture,
+                            isCurrent && styles.stepCurrentHighlight
+                          ]}
+                        >
+                          {isPassed ? (
+                            <Ionicons name="checkmark" size={16} color="#F4ECE1" />
+                          ) : (
+                            <Text className="text-[#78716C] font-inter-bold text-xs">{idx + 1}</Text>
+                          )}
+                        </View>
+                        <Text
+                          className={`text-xs text-center mt-2 ${isCurrent ? 'font-inter-bold text-[#A61C14]' : isPassed ? 'text-[#1C1917] font-inter-medium' : 'text-[#78716C]'}`}
+                          numberOfLines={2}
+                        >
+                          {step.label}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
             </View>
 
-            {item.order_item_modifiers && item.order_item_modifiers.map((mod: any, index: number) => (
-              <Text key={index} className="text-[#78716C] ml-2 mt-1">
-                + {mod.modifier_options?.name} {mod.price_adjustment > 0 ? `($${Number(mod.price_adjustment).toFixed(2)})` : ''}
+            {/* Order Info */}
+            <View className="bg-white p-4 rounded-3xl border border-stone-200 shadow-sm mb-4">
+              <View className="flex-row justify-between items-center pb-2.5 border-b border-stone-100">
+                <Text className="text-[#78716C]">Placed</Text>
+                <Text className="text-[#1C1917] font-inter-semibold">
+                  {new Date(order.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })} at{' '}
+                  {new Date(order.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                </Text>
+              </View>
+
+              {order.delivery_address && (
+                <View className="py-2.5 border-b border-stone-100">
+                  <Text className="text-[#78716C] mb-0.5">Delivery Address</Text>
+                  <Text className="text-[#1C1917] font-inter-semibold">{order.delivery_address}</Text>
+                </View>
+              )}
+
+              {order.subtotal_amount != null && order.tax_amount != null && (
+                <View className="pt-2.5">
+                  <View className="flex-row justify-between mb-1">
+                    <Text className="text-[#78716C]">Subtotal</Text>
+                    <Text className="text-[#1C1917]">${Number(order.subtotal_amount).toFixed(2)}</Text>
+                  </View>
+                  {order.discount_amount > 0 && (
+                    <View className="flex-row justify-between mb-1">
+                      <Text className="text-green-700">Discount{order.promo_code ? ` (${order.promo_code})` : ''}</Text>
+                      <Text className="text-green-700 font-inter-bold">-${Number(order.discount_amount).toFixed(2)}</Text>
+                    </View>
+                  )}
+                  <View className="flex-row justify-between">
+                    <Text className="text-[#78716C]">Tax</Text>
+                    <Text className="text-[#1C1917]">${Number(order.tax_amount).toFixed(2)}</Text>
+                  </View>
+                </View>
+              )}
+
+              <View className="flex-row justify-between items-center pt-2.5 mt-2.5 border-t border-stone-100">
+                <Text className="text-base font-inter-bold text-[#1C1917]">Total</Text>
+                <Text className="text-xl font-inter-bold text-[#A61C14]">${Number(order.total_amount).toFixed(2)}</Text>
+              </View>
+            </View>
+
+            {isCompleted && (
+              <TouchableOpacity
+                onPress={handleReorder}
+                disabled={reordering}
+                className="bg-[#A61C14] py-3.5 px-4 rounded-2xl flex-row items-center justify-center shadow-sm mb-4 active:bg-[#85140E]"
+              >
+                {reordering ? (
+                  <ActivityIndicator color="#F4ECE1" size="small" />
+                ) : (
+                  <>
+                    <Ionicons name="repeat" size={18} color="#F4ECE1" />
+                    <Text className="text-[#F4ECE1] font-inter-bold text-base ml-2">Order This Again</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
+
+            <Text className="text-xl font-inter-bold mb-3 text-[#1C1917] px-1">
+              Items ({order.order_items?.length || 0})
+            </Text>
+          </>
+        }
+        renderItem={({ item }) => (
+          <View className="bg-white p-4 rounded-2xl border border-stone-200 mb-2.5">
+            <View className="flex-row justify-between items-start">
+              <Text className="font-inter-bold text-base text-[#1C1917] flex-1 mr-2">
+                {item.quantity}x {item.menu_items?.name || 'Item'}
               </Text>
-            ))}
+              <Text className="font-inter-bold text-base text-[#A61C14]">${Number(item.total_price).toFixed(2)}</Text>
+            </View>
+
+            {item.order_item_modifiers?.length > 0 && (
+              <View className="flex-row flex-wrap mt-2">
+                {item.order_item_modifiers.map((mod: any, index: number) => (
+                  <View
+                    key={index}
+                    className="bg-[#FAF6F0] border border-stone-200 rounded-lg px-2 py-0.5 mr-1.5 mb-1.5"
+                  >
+                    <Text className="text-stone-600 text-sm">
+                      + {mod.modifier_options?.name}{mod.price_adjustment > 0 ? ` ($${Number(mod.price_adjustment).toFixed(2)})` : ''}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
             {item.special_instructions && (
-              <Text className="text-[#78716C] ml-2 mt-1 italic">
+              <Text className="text-[#78716C] mt-1.5 italic">
                 Note: {item.special_instructions}
               </Text>
             )}
@@ -309,7 +412,7 @@ export default function OrderDetailScreen() {
         )}
         ListFooterComponent={
           isCompleted ? (
-            <View className="mt-4 mb-8 bg-white border border-stone-200 rounded-2xl p-5 shadow-sm">
+            <View className="mt-2 bg-white border border-stone-200 rounded-3xl p-5 shadow-sm">
               {rating ? (
                 <>
                   <Text className="text-lg font-inter-bold text-[#1C1917] mb-2">Your Rating</Text>
@@ -335,7 +438,10 @@ export default function OrderDetailScreen() {
                     {[1, 2, 3, 4, 5].map((n) => (
                       <TouchableOpacity
                         key={n}
-                        onPress={() => setRatingValue(n)}
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                          setRatingValue(n);
+                        }}
                         hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
                       >
                         <Ionicons
@@ -348,12 +454,13 @@ export default function OrderDetailScreen() {
                     ))}
                   </View>
                   <TextInput
-                    className="bg-[#FAF6F0] border border-stone-300 rounded-xl p-3 text-base text-[#1C1917] mb-3"
-                    placeholder="Add a comment (optional)"
+                    className="bg-[#FAF6F0] border border-stone-300 rounded-2xl p-3 text-base text-[#1C1917] mb-3 min-h-[72px]"
+                    placeholder="Tell us what you liked (or what we can improve)"
                     placeholderTextColor="#A8A29E"
                     value={ratingComment}
                     onChangeText={setRatingComment}
                     multiline
+                    textAlignVertical="top"
                   />
                   <TouchableOpacity
                     onPress={handleSubmitRating}
@@ -381,6 +488,22 @@ export default function OrderDetailScreen() {
 }
 
 const styles = StyleSheet.create({
+  // flex-start (not center) so a two-line label like "Ready for Pickup"
+  // can't push its circle down out of line with the connector track.
+  stepperRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  track: {
+    position: 'absolute',
+    top: 14,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#E7E5E4',
+  },
+  trackFill: {
+    backgroundColor: '#A61C14',
+  },
   stepIndicator: {
     width: 32,
     height: 32,
