@@ -1,5 +1,13 @@
 import { useEffect, useState, useMemo } from 'react';
-import { View, Text, TouchableOpacity, FlatList, StyleSheet, Image, ActivityIndicator, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  FlatList,
+  Image,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -13,17 +21,18 @@ import { reorderUsualItem } from '../../lib/reorder';
 import { distanceKm } from '../../lib/geo';
 import { isOpenNow, getTodayHoursLabel } from '../../lib/hours';
 
-export default function Home() {
+export default function HomeScreen() {
   const router = useRouter();
-  const { session, setSession } = useAuthStore();
+  const { session } = useAuthStore();
   const isAnonymous = session?.user?.is_anonymous ?? false;
-  const { deliveryAddress, setDeliveryAddress, setOrderType } = useCartStore();
-  const setLocationId = useLocationStore(state => state.setLocationId);
+  const { deliveryAddress, setDeliveryAddress, orderType, setOrderType } = useCartStore();
+  const setLocationId = useLocationStore((state) => state.setLocationId);
+
   const [addingUsual, setAddingUsual] = useState(false);
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [locatingUser, setLocatingUser] = useState(false);
-  const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
 
+  // Load profile default address for registered users
   useEffect(() => {
     const loadProfile = async () => {
       if (session?.user?.id) {
@@ -32,11 +41,7 @@ export default function Home() {
           .select('address')
           .eq('id', session.user.id)
           .single();
-        if (error) {
-          console.warn('Failed to load saved address:', error.message);
-          return;
-        }
-        if (data?.address && !deliveryAddress) {
+        if (!error && data?.address && !deliveryAddress) {
           setDeliveryAddress(data.address);
         }
       }
@@ -50,12 +55,13 @@ export default function Home() {
       const { data, error } = await supabase.from('locations').select('*').order('name');
       if (error) throw error;
       return data;
-    }
+    },
   });
 
-  // Only exists once a customer has actually ordered the same item 2+ times
-  // (see get_usual_item()) -- not shown for guests, whose order history
-  // isn't something worth building a habit-forming shortcut around.
+  // Reorder Shortcut ("Your Usual") -- only exists once a customer has
+  // actually ordered the same item 2+ times (see get_usual_item()), not
+  // shown for guests, whose order history isn't something worth building a
+  // habit-forming shortcut around.
   const { data: usualItem } = useQuery({
     queryKey: ['usualItem', session?.user?.id],
     queryFn: async () => {
@@ -70,7 +76,9 @@ export default function Home() {
     if (!usualItem) return;
     setAddingUsual(true);
     try {
-      const { locationId: itemLocationId, skipped } = await reorderUsualItem(usualItem.menu_item_id);
+      const { locationId: itemLocationId, skipped } = await reorderUsualItem(
+        usualItem.menu_item_id
+      );
       if (skipped) {
         Alert.alert('No Longer Available', `${usualItem.name} isn't available right now.`);
         return;
@@ -78,26 +86,15 @@ export default function Home() {
       setLocationId(itemLocationId);
       router.push('/(main)/cart');
     } catch (e: any) {
-      Alert.alert("Couldn't add", e.message);
+      Alert.alert("Couldn't add regular item", e.message);
     } finally {
       setAddingUsual(false);
     }
   };
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut().catch(console.warn);
-    setSession(null);
-    router.replace('/(auth)/login');
-  };
-
-  const handleChooseOrderType = (type: 'pickup' | 'delivery') => {
-    if (!selectedLocationId) {
-      Alert.alert('Select a Location', 'Please choose a location first.');
-      return;
-    }
-    setOrderType(type);
-    setLocationId(selectedLocationId);
-    router.replace(`/(main)/menu/${selectedLocationId}`);
+  const handleStartOrder = (locId: string) => {
+    setLocationId(locId);
+    router.replace(`/(main)/menu/${locId}`);
   };
 
   const handleUseMyLocation = async () => {
@@ -105,13 +102,13 @@ export default function Home() {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Location Permission Needed', 'Enable location access to find the nearest store.');
+        Alert.alert('Permission Needed', 'Enable location access to calculate distance to shops.');
         return;
       }
       const position = await Location.getCurrentPositionAsync({});
       setUserCoords({ lat: position.coords.latitude, lng: position.coords.longitude });
     } catch (e: any) {
-      Alert.alert("Couldn't get your location", e.message);
+      Alert.alert("Couldn't get location", e.message);
     } finally {
       setLocatingUser(false);
     }
@@ -139,154 +136,187 @@ export default function Home() {
   }, [locations, userCoords]);
 
   return (
-    <View className="flex-1 bg-[#FAF6F0] px-4 pt-16">
-      {/* Header aligned to pt-16 mb-6 */}
-      <View style={styles.headerContainer}>
-        <Text className="text-3xl font-display-bold text-[#1C1917]">Select a Location</Text>
+    <View className="flex-1 bg-[#FAF6F0] pt-14 px-4">
+      {/* Top Header */}
+      <View className="flex-row items-center justify-between mb-4">
+        <View>
+          <Text className="text-2xl font-display-bold text-[#1C1917]">Al Paninos</Text>
+          <Text className="text-xs text-stone-500 font-inter-medium">
+            Artisan Sandwiches & Italian Street Eats
+          </Text>
+        </View>
+
         <TouchableOpacity
-          onPress={handleSignOut}
-          hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
-          activeOpacity={0.6}
-          style={styles.signOutButton}
+          onPress={handleUseMyLocation}
+          disabled={locatingUser}
+          className="bg-white border border-stone-200 px-3 py-1.5 rounded-full flex-row items-center shadow-xs"
         >
-          <Text className="text-[#A61C14] font-inter-bold text-base">Sign Out</Text>
+          {locatingUser ? (
+            <ActivityIndicator size="small" color="#A61C14" />
+          ) : (
+            <Ionicons name="navigate-outline" size={14} color="#A61C14" />
+          )}
+          <Text className="text-[#A61C14] font-inter-bold text-xs ml-1">
+            {userCoords ? 'Updated' : 'Nearby'}
+          </Text>
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity
-        onPress={handleUseMyLocation}
-        disabled={locatingUser}
-        className="flex-row items-center self-start bg-white border border-stone-300 rounded-full px-4 py-2 mb-4"
-      >
-        {locatingUser ? (
-          <ActivityIndicator size="small" color="#A61C14" />
-        ) : (
-          <Ionicons name="locate" size={16} color="#A61C14" />
-        )}
-        <Text className="text-[#A61C14] font-inter-bold text-sm ml-2">
-          {userCoords ? 'Update My Location' : 'Use My Location'}
-        </Text>
-      </TouchableOpacity>
+      {/* Top Fulfillment Segmented Selector */}
+      <View className="bg-stone-200/80 p-1 rounded-2xl flex-row mb-4">
+        <TouchableOpacity
+          onPress={() => setOrderType('pickup')}
+          className={`flex-1 py-2.5 rounded-xl flex-row items-center justify-center ${
+            orderType === 'pickup' ? 'bg-white shadow-xs' : ''
+          }`}
+        >
+          <Ionicons
+            name="bag-handle-outline"
+            size={16}
+            color={orderType === 'pickup' ? '#A61C14' : '#78716C'}
+          />
+          <Text
+            className={`font-inter-bold text-xs ml-1.5 ${
+              orderType === 'pickup' ? 'text-[#1C1917]' : 'text-stone-500'
+            }`}
+          >
+            Pickup
+          </Text>
+        </TouchableOpacity>
 
+        <TouchableOpacity
+          onPress={() => setOrderType('delivery')}
+          className={`flex-1 py-2.5 rounded-xl flex-row items-center justify-center ${
+            orderType === 'delivery' ? 'bg-white shadow-xs' : ''
+          }`}
+        >
+          <Ionicons
+            name="bicycle-outline"
+            size={16}
+            color={orderType === 'delivery' ? '#A61C14' : '#78716C'}
+          />
+          <Text
+            className={`font-inter-bold text-xs ml-1.5 ${
+              orderType === 'delivery' ? 'text-[#1C1917]' : 'text-stone-500'
+            }`}
+          >
+            Delivery
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* 1-Tap Repeat Order Card ("Your Usual") */}
       {usualItem && (
         <TouchableOpacity
           onPress={handleOrderUsual}
           disabled={addingUsual}
-          className="bg-white rounded-2xl border border-stone-200 shadow-sm p-4 mb-4 flex-row items-center"
+          activeOpacity={0.85}
+          className="bg-white rounded-2xl border border-stone-200 shadow-xs p-3.5 mb-4 flex-row items-center"
         >
           {usualItem.image_url ? (
-            <Image source={{ uri: usualItem.image_url }} className="w-16 h-16 rounded-xl mr-4" resizeMode="cover" />
+            <Image
+              source={{ uri: usualItem.image_url }}
+              className="w-14 h-14 rounded-xl mr-3 bg-stone-100"
+              resizeMode="cover"
+            />
           ) : (
-            <View className="w-16 h-16 rounded-xl bg-[#FAF6F0] items-center justify-center mr-4">
-              <Ionicons name="restaurant" size={24} color="#A61C14" />
+            <View className="w-14 h-14 rounded-xl bg-[#FAF6F0] items-center justify-center mr-3">
+              <Ionicons name="restaurant" size={22} color="#A61C14" />
             </View>
           )}
           <View className="flex-1 mr-2">
-            <Text className="text-xs font-inter-bold uppercase text-[#A61C14] tracking-wider mb-1">Your Usual</Text>
-            <Text className="text-lg font-inter-bold text-[#1C1917]" numberOfLines={1}>{usualItem.name}</Text>
-            <Text className="text-[#78716C] text-sm">Ordered {usualItem.times_ordered}+ times</Text>
+            <Text className="text-[10px] font-inter-bold uppercase tracking-wider text-[#A61C14]">
+              Reorder Your Usual
+            </Text>
+            <Text className="text-base font-inter-bold text-[#1C1917]" numberOfLines={1}>
+              {usualItem.name}
+            </Text>
+            <Text className="text-stone-400 text-xs">
+              Ordered {usualItem.times_ordered} times
+            </Text>
           </View>
-          <View className="bg-[#A61C14] px-4 py-2.5 rounded-xl items-center justify-center" style={{ minWidth: 64 }}>
+          <View className="bg-[#A61C14] px-3.5 py-2 rounded-xl items-center justify-center">
             {addingUsual ? (
               <ActivityIndicator color="#F4ECE1" size="small" />
             ) : (
-              <Text className="text-[#F4ECE1] font-inter-bold text-sm">Add</Text>
+              <Text className="text-[#F4ECE1] font-inter-bold text-xs">Reorder</Text>
             )}
           </View>
         </TouchableOpacity>
       )}
 
-      {isLoading ? (
-        <View>
-          {[1, 2].map(i => (
-            <SkeletonBox key={i} height={92} borderRadius={16} style={{ marginBottom: 16 }} />
-          ))}
-        </View>
-      ) : locationsError ? (
-        <View className="mt-10 items-center px-6">
-          <Text className="text-[#A61C14] font-inter-bold text-lg mb-2">Couldn't load locations</Text>
-          <Text className="text-[#78716C] text-center">{(locationsError as Error).message}</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={sortedLocations}
-          keyboardShouldPersistTaps="handled"
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => {
-            const isSelected = selectedLocationId === item.id;
-            return (
-              <TouchableOpacity
-                onPress={() => setSelectedLocationId(item.id)}
-                className={`bg-white p-6 rounded-2xl mb-4 border shadow-sm ${
-                  isSelected ? 'border-[#A61C14]' : 'border-stone-200'
-                }`}
-              >
-                <View className="flex-row justify-between items-start">
-                  <Text className="text-xl font-inter-bold text-[#1C1917] flex-1 mr-2">{item.name}</Text>
-                  {item.distanceKm != null && (
-                    <Text className="text-[#A61C14] font-inter-bold text-sm">{item.distanceKm.toFixed(1)} km</Text>
-                  )}
-                </View>
-                <Text className="text-[#78716C] mt-1">{item.address}</Text>
-                <View className="flex-row items-center mt-2">
-                  <View
-                    className={`px-2 py-0.5 rounded-full mr-2 ${isOpenNow(item.hours) ? 'bg-emerald-100' : 'bg-stone-200'}`}
-                  >
-                    <Text className={`text-xs font-inter-bold ${isOpenNow(item.hours) ? 'text-emerald-800' : 'text-stone-600'}`}>
-                      {isOpenNow(item.hours) ? 'Open Now' : 'Closed'}
-                    </Text>
-                  </View>
-                  <Text className="text-[#78716C] text-sm">{getTodayHoursLabel(item.hours)}</Text>
-                </View>
-                {isSelected && (
-                  <View className="flex-row items-center mt-3">
-                    <Ionicons name="checkmark-circle" size={16} color="#A61C14" />
-                    <Text className="text-[#A61C14] font-inter-bold text-sm ml-1">Selected</Text>
-                  </View>
+      {/* Locations List */}
+      <FlatList
+        data={sortedLocations}
+        keyExtractor={(item) => item.id}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 24 }}
+        renderItem={({ item }) => {
+          const open = isOpenNow(item.hours);
+
+          return (
+            <View className="bg-white p-4 rounded-2xl mb-3 border border-stone-200 shadow-xs">
+              <View className="flex-row justify-between items-start mb-1">
+                <Text className="text-lg font-inter-bold text-[#1C1917] flex-1 mr-2">
+                  {item.name}
+                </Text>
+                {item.distanceKm != null && (
+                  <Text className="text-[#A61C14] font-inter-bold text-xs">
+                    {item.distanceKm.toFixed(1)} km away
+                  </Text>
                 )}
-              </TouchableOpacity>
-            );
-          }}
-          ListFooterComponent={
-            sortedLocations.length > 0 ? (
-              <View className="mt-2 mb-8">
-                <Text className="text-lg font-inter-bold text-[#1C1917] mb-3">How would you like to order?</Text>
-                <View className="flex-row">
-                  <TouchableOpacity
-                    onPress={() => handleChooseOrderType('pickup')}
-                    className="flex-1 bg-white border border-stone-300 rounded-2xl p-5 items-center mr-2"
-                  >
-                    <Ionicons name="storefront-outline" size={28} color="#A61C14" />
-                    <Text className="text-[#1C1917] font-inter-bold text-base mt-2">Pickup</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => handleChooseOrderType('delivery')}
-                    className="flex-1 bg-white border border-stone-300 rounded-2xl p-5 items-center ml-2"
-                  >
-                    <Ionicons name="car-outline" size={28} color="#A61C14" />
-                    <Text className="text-[#1C1917] font-inter-bold text-base mt-2">Delivery</Text>
-                  </TouchableOpacity>
-                </View>
               </View>
-            ) : null
-          }
-        />
-      )}
+
+              <Text className="text-stone-500 text-xs mb-2.5">{item.address}</Text>
+
+              <View className="flex-row items-center justify-between pt-2 border-t border-stone-100">
+                <View className="flex-row items-center">
+                  <View
+                    className={`w-2 h-2 rounded-full mr-1.5 ${
+                      open ? 'bg-emerald-500' : 'bg-stone-300'
+                    }`}
+                  />
+                  <Text
+                    className={`text-xs font-inter-semibold ${
+                      open ? 'text-emerald-700' : 'text-stone-500'
+                    }`}
+                  >
+                    {open ? 'Open' : 'Closed'} • {getTodayHoursLabel(item.hours)}
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  onPress={() => handleStartOrder(item.id)}
+                  className="bg-[#A61C14] px-4 py-2 rounded-xl flex-row items-center active:bg-[#85140E]"
+                >
+                  <Text className="text-[#F4ECE1] font-inter-bold text-xs mr-1">
+                    {orderType === 'delivery' ? 'Deliver Here' : 'Order Pickup'}
+                  </Text>
+                  <Ionicons name="arrow-forward" size={12} color="#F4ECE1" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          );
+        }}
+        ListEmptyComponent={
+          isLoading ? (
+            <View>
+              {[1, 2].map((i) => (
+                <SkeletonBox key={i} height={110} borderRadius={16} style={{ marginBottom: 12 }} />
+              ))}
+            </View>
+          ) : locationsError ? (
+            <View className="mt-8 items-center px-6">
+              <Text className="text-[#A61C14] font-inter-bold text-base mb-1">
+                Locations unavailable
+              </Text>
+              <Text className="text-stone-500 text-center text-xs">
+                {(locationsError as Error).message}
+              </Text>
+            </View>
+          ) : null
+        }
+      />
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  headerContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24, // Matches Tailwind mb-6 (24px)
-    zIndex: 10,
-  },
-  signOutButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-  },
-});
