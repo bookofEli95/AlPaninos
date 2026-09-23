@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView, Alert } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -72,6 +72,9 @@ export default function ProfileScreen() {
       if (!session?.user?.id) return;
       queryClient.invalidateQueries({ queryKey: ['profile', session.user.id] });
       queryClient.invalidateQueries({ queryKey: ['wheelPromo', session.user.id] });
+      // Checkout doesn't invalidate orderCount, so without this the count
+      // stays stale after placing a new order.
+      queryClient.invalidateQueries({ queryKey: ['orderCount', session.user.id] });
     }, [session?.user?.id, queryClient])
   );
 
@@ -173,10 +176,19 @@ export default function ProfileScreen() {
     enabled: !isAnonymous && !!session?.user?.id
   });
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut().catch(console.warn);
-    setSession(null);
-    router.replace('/(auth)/login');
+  const handleSignOut = () => {
+    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign Out',
+        style: 'destructive',
+        onPress: async () => {
+          await supabase.auth.signOut().catch(console.warn);
+          setSession(null);
+          router.replace('/(auth)/login');
+        },
+      },
+    ]);
   };
 
   const initials = profile
@@ -196,7 +208,7 @@ export default function ProfileScreen() {
       <ScrollView ref={scrollViewRef} className="flex-1" showsVerticalScrollIndicator={false}>
         {/* Hero */}
         <View className="bg-[#A61C14] pt-16 pb-8 px-6 items-center rounded-b-[32px]">
-          <View className="w-22 h-22 rounded-full bg-[#F4ECE1] items-center justify-center mb-3 border-4 border-[#85140E]">
+          <View className="w-[88px] h-[88px] rounded-full bg-[#F4ECE1] items-center justify-center mb-3 border-4 border-[#85140E]">
             <Text className="text-2xl font-inter-extrabold text-[#A61C14]">{initials}</Text>
           </View>
           <Text className="text-2xl font-display-bold text-[#F4ECE1] tracking-tight">

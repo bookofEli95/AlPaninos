@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Tabs, useRouter, useSegments } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/authStore';
 import { useLocationStore } from '../../store/locationStore';
 import { useCartStore } from '../../store/cartStore';
@@ -13,6 +14,11 @@ export default function MainLayout() {
   const isAnonymous = session?.user?.is_anonymous ?? false;
   const { locationId, isLoaded, loadSavedLocation } = useLocationStore();
   const items = useCartStore((state) => state.items);
+  // A fixed tab bar height ignores the phone's bottom safe area (the iPhone
+  // home indicator, Android's navigation bar) -- the labels end up squeezed
+  // into / drawn under it. Adding the inset keeps 60px of real tab space.
+  const insets = useSafeAreaInsets();
+  const tabBarHeight = 60 + insets.bottom;
 
   useEffect(() => {
     if (!isLoaded) loadSavedLocation();
@@ -32,14 +38,20 @@ export default function MainLayout() {
           tabBarStyle: {
             backgroundColor: '#FAF6F0',
             borderTopColor: '#E7E5E4',
-            height: 60,
-            paddingBottom: 8,
+            height: tabBarHeight,
+            paddingBottom: 8 + insets.bottom,
             paddingTop: 6,
           },
+          // Every tab's padding comes out of a ~75px-wide slot on a phone;
+          // dropping it gives labels the full width before they'd truncate.
+          tabBarItemStyle: { paddingHorizontal: 0 },
           tabBarLabelStyle: {
             fontFamily: 'Inter_600SemiBold',
             fontSize: 11,
           },
+          // Labels are single-line, so a phone set to large text would cut
+          // them off ("Prof…"). The icons carry the meaning at any size.
+          tabBarAllowFontScaling: false,
           headerShown: false,
         }}
       >
@@ -120,7 +132,7 @@ export default function MainLayout() {
       </Tabs>
 
       {itemCount > 0 && !isInsideCart && (
-        <View className="absolute bottom-20 left-4 right-4 z-50">
+        <View className="absolute left-4 right-4 z-50" style={{ bottom: tabBarHeight + 20 }}>
           <TouchableOpacity
             onPress={() => router.push('/(main)/cart')}
             className="bg-[#A61C14] py-3.5 px-4 rounded-2xl flex-row items-center justify-between shadow-lg active:bg-[#85140E]"

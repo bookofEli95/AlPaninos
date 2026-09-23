@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
   },
   segmentLabel: {
     color: '#F4ECE1',
-    fontFamily: 'Fredoka_600SemiBold',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
     fontSize: LABEL_FONT_SIZE,
     textAlign: 'center',
     lineHeight: LABEL_LINE_HEIGHT,
