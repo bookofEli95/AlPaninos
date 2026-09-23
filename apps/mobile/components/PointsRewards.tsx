@@ -48,7 +48,7 @@ export default function PointsRewards({
   };
 
   return (
-    <View className="bg-white rounded-2xl border border-stone-200 shadow-sm p-5 mb-4">
+    <View className="bg-white rounded-3xl border border-stone-200 shadow-sm p-5 mb-4">
       <View className="flex-row items-center justify-between mb-4">
         <Text className="text-lg font-inter-bold text-[#1C1917]">PaninoPoints</Text>
         <Text className="text-[#A61C14] font-inter-extrabold text-lg">{points}</Text>

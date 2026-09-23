@@ -280,7 +280,7 @@ export default function ProfileScreen() {
               (main)/spin-wheel.tsx) -- points-only wins show up in the stat
               tile below instead, since there's no code to redeem. */}
           {profile?.wheel_prize_code && wheelPromo && (
-            <View className="bg-white rounded-2xl border border-[#A61C14] shadow-sm p-5 mb-4">
+            <View className="bg-white rounded-3xl border border-[#A61C14] shadow-sm p-5 mb-4">
               <Text className="text-xs font-inter-bold text-[#A61C14] uppercase tracking-wider mb-1">
                 Your Welcome Prize
               </Text>
@@ -330,49 +330,56 @@ export default function ProfileScreen() {
             />
           )}
 
-          {/* Orders stat */}
-          <TouchableOpacity
-            onPress={() => router.push('/(main)/orders')}
-            className="bg-white rounded-2xl border border-stone-200 shadow-sm p-5 flex-row items-center mb-4"
-          >
-            <View className="w-12 h-12 rounded-full bg-[#FAF6F0] items-center justify-center mr-4">
-              <Ionicons name="receipt" size={22} color="#A61C14" />
-            </View>
-            <View className="flex-1">
-              <Text className="text-2xl font-inter-extrabold text-[#1C1917]">{orderCount ?? '—'}</Text>
-              <Text className="text-[#78716C] text-sm">Orders placed</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#A8A29E" />
-          </TouchableOpacity>
+          {/* Account card -- orders, phone and address as one list, each row
+              led by a rounded icon tile. Text sizes and the large order
+              count are deliberately kept at their previous sizes. */}
+          <View className="bg-white rounded-3xl border border-stone-200 shadow-sm mb-6 overflow-hidden">
+            <TouchableOpacity
+              onPress={() => router.push('/(main)/orders')}
+              className={`flex-row items-center p-4 active:bg-stone-50 ${profile ? 'border-b border-stone-100' : ''}`}
+            >
+              <View className="w-11 h-11 rounded-2xl bg-[#FAF6F0] border border-stone-200 items-center justify-center mr-3">
+                <Ionicons name="receipt-outline" size={20} color="#A61C14" />
+              </View>
+              <View className="flex-1">
+                <Text className="text-2xl font-inter-extrabold text-[#1C1917]">{orderCount ?? '—'}</Text>
+                <Text className="text-[#78716C] text-sm">Orders placed</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#A8A29E" />
+            </TouchableOpacity>
 
-          {/* Contact info */}
-          {profile && (
-            <View className="bg-white rounded-2xl border border-stone-200 shadow-sm mb-6 overflow-hidden">
-              <View className="flex-row items-center p-4 border-b border-stone-100">
-                <Ionicons name="call-outline" size={20} color="#A61C14" style={{ width: 28 }} />
-                <View>
-                  <Text className="text-xs text-[#78716C] uppercase font-inter-bold tracking-wider">Phone</Text>
-                  <Text className="text-base font-inter-semibold text-[#1C1917]">
-                    {profile.phone
-                      ? (() => {
-                          const { country, digits } = parsePhone(profile.phone);
-                          return `+${country.dialCode} ${formatPhoneNumber(digits, country)}`;
-                        })()
-                      : 'Not provided'}
-                  </Text>
+            {profile && (
+              <>
+                <View className="flex-row items-center p-4 border-b border-stone-100">
+                  <View className="w-11 h-11 rounded-2xl bg-[#FAF6F0] border border-stone-200 items-center justify-center mr-3">
+                    <Ionicons name="call-outline" size={20} color="#A61C14" />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-xs text-[#78716C] uppercase font-inter-bold tracking-wider">Phone</Text>
+                    <Text className="text-base font-inter-semibold text-[#1C1917]">
+                      {profile.phone
+                        ? (() => {
+                            const { country, digits } = parsePhone(profile.phone);
+                            return `+${country.dialCode} ${formatPhoneNumber(digits, country)}`;
+                          })()
+                        : 'Not provided'}
+                    </Text>
+                  </View>
                 </View>
-              </View>
-              <View className="flex-row items-center p-4">
-                <Ionicons name="location-outline" size={20} color="#A61C14" style={{ width: 28 }} />
-                <View>
-                  <Text className="text-xs text-[#78716C] uppercase font-inter-bold tracking-wider">Address</Text>
-                  <Text className="text-base font-inter-semibold text-[#1C1917]">
-                    {profile.address || 'No default address saved'}
-                  </Text>
+                <View className="flex-row items-center p-4">
+                  <View className="w-11 h-11 rounded-2xl bg-[#FAF6F0] border border-stone-200 items-center justify-center mr-3">
+                    <Ionicons name="location-outline" size={20} color="#A61C14" />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-xs text-[#78716C] uppercase font-inter-bold tracking-wider">Address</Text>
+                    <Text className="text-base font-inter-semibold text-[#1C1917]">
+                      {profile.address || 'No default address saved'}
+                    </Text>
+                  </View>
                 </View>
-              </View>
-            </View>
-          )}
+              </>
+            )}
+          </View>
 
           <TouchableOpacity
             onPress={handleSignOut}
