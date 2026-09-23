@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, FlatList } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -16,16 +16,19 @@ export default function MenuCategoryScreen() {
     locationId: string;
   }>();
   const router = useRouter();
-  const cartItems = useCartStore(state => state.items);
-  const cartQuantity = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+  const cartItems = useCartStore((state) => state.items);
+  const cartQuantity = useMemo(() => cartItems.reduce((sum, item) => sum + item.quantity, 0), [cartItems]);
 
   const goBackToGrid = useCallback(() => {
-    router.replace(`/(main)/menu/${locationId}`);
-  }, [locationId]);
+    router.replace(locationId ? `/(main)/menu/${locationId}` : '/(main)');
+  }, [locationId, router]);
   useBackHandler(goBackToGrid);
 
   const isSimpleCategory = categoryName === 'Extras' || categoryName === 'Drinks';
 
+  // Ordered by name -- there's no real per-item sort_order column (unlike
+  // modifier_groups/modifier_options, which got one for the modifier
+  // reordering work), so this doesn't attempt to order by one.
   const { data: items, isLoading, error } = useQuery({
     queryKey: ['menuCategoryItems', categoryId],
     queryFn: async () => {
@@ -33,7 +36,8 @@ export default function MenuCategoryScreen() {
         .from('menu_items')
         .select('*')
         .eq('category_id', categoryId)
-        .eq('is_available', true);
+        .eq('is_available', true)
+        .order('name', { ascending: true });
       if (error) throw error;
       return data;
     },
@@ -41,32 +45,43 @@ export default function MenuCategoryScreen() {
   });
 
   return (
-    <View className="flex-1 bg-[#FAF6F0] pt-12">
+    <View className="flex-1 bg-[#FAF6F0] pt-14">
       <View className="flex-row items-center justify-between px-4 mb-4">
         <View className="flex-row items-center flex-1 mr-2">
           <TouchableOpacity
             onPress={goBackToGrid}
-            className="flex-row items-center py-2 pr-4 -ml-2"
+            className="flex-row items-center py-2 pr-3 -ml-2"
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Ionicons name="chevron-back" size={28} color="#A61C14" />
+            <Ionicons name="chevron-back" size={26} color="#A61C14" />
+            <Text className="text-[#A61C14] font-inter-bold text-lg">Menu</Text>
           </TouchableOpacity>
-          <Text className="text-2xl font-display-bold text-[#1C1917] flex-1" numberOfLines={1}>
-            {categoryName}
-          </Text>
+          <View className="flex-1 ml-1">
+            <Text className="text-2xl font-display-bold text-[#1C1917]" numberOfLines={1}>
+              {categoryName}
+            </Text>
+            {!!items?.length && !isLoading && (
+              <Text className="text-xs text-stone-500 font-inter-medium">
+                {items.length} {items.length === 1 ? 'item' : 'items'} • Made fresh
+              </Text>
+            )}
+          </View>
         </View>
 
         <TouchableOpacity
           onPress={() => router.push('/(main)/cart')}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          className="bg-white border border-stone-300 rounded-full p-3"
+          className="bg-white border border-stone-200 rounded-full p-2.5 shadow-xs relative"
         >
-          <Ionicons name="cart-outline" size={20} color="#A61C14" />
+          <Ionicons name="bag-handle-outline" size={20} color="#1C1917" />
           {cartQuantity > 0 && (
             <View
-              className="absolute bg-[#A61C14] rounded-full items-center justify-center"
-              style={{ top: -4, right: -4, minWidth: 18, height: 18, paddingHorizontal: 3 }}
+              className="absolute -top-1 -right-1 bg-[#A61C14] rounded-full items-center justify-center border-2 border-white"
+              style={{ minWidth: 18, height: 18, paddingHorizontal: 3 }}
             >
-              <Text className="text-[#F4ECE1] font-inter-bold" style={{ fontSize: 11 }}>{cartQuantity}</Text>
+              <Text className="text-[#F4ECE1] font-inter-bold text-[10px] leading-3">
+                {cartQuantity}
+              </Text>
             </View>
           )}
         </TouchableOpacity>
@@ -74,16 +89,23 @@ export default function MenuCategoryScreen() {
 
       {isLoading ? (
         <View className="flex-row flex-wrap px-2">
-          {[1, 2, 3, 4].map(i => (
+          {[1, 2, 3, 4].map((i) => (
             <View key={i} className="w-1/2 p-2">
-              <SkeletonBox height={180} borderRadius={16} />
+              <SkeletonBox height={190} borderRadius={20} />
             </View>
           ))}
         </View>
       ) : error ? (
-        <View className="mt-10 items-center px-6">
-          <Text className="text-[#A61C14] font-inter-bold text-lg mb-2">Couldn't load items</Text>
-          <Text className="text-[#78716C] text-center">{(error as Error).message}</Text>
+        <View className="mt-12 items-center px-6">
+          <Ionicons name="alert-circle-outline" size={32} color="#A61C14" />
+          <Text className="text-[#A61C14] font-inter-bold text-base mt-2 mb-1">Couldn't load items</Text>
+          <Text className="text-stone-500 text-center text-xs mb-4">{(error as Error).message}</Text>
+          <TouchableOpacity
+            onPress={goBackToGrid}
+            className="bg-white border border-stone-300 px-4 py-2 rounded-xl"
+          >
+            <Text className="text-[#1C1917] font-inter-bold text-xs">Return to Menu</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <FlatList
@@ -91,10 +113,11 @@ export default function MenuCategoryScreen() {
           numColumns={2}
           keyExtractor={(item) => item.id}
           className="flex-1 px-2"
-          contentContainerStyle={{ paddingBottom: cartItems.length > 0 ? 110 : 20 }}
+          contentContainerStyle={{ paddingBottom: cartItems.length > 0 ? 100 : 28 }}
+          showsVerticalScrollIndicator={false}
           renderItem={({ item }) => <MenuItemGridTile item={item} isSimpleCategory={isSimpleCategory} />}
           ListEmptyComponent={
-            <Text className="text-center text-[#78716C] mt-10 text-base w-full">No items in this category.</Text>
+            <Text className="text-center text-stone-500 mt-10 text-base w-full">No items in this category.</Text>
           }
         />
       )}
