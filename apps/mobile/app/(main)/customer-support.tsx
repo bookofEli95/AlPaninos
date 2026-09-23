@@ -6,7 +6,8 @@ import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { useBackHandler } from '../../hooks/useBackHandler';
 
-const SUPPORT_PHONE = '(519) 555-0123';
+const SUPPORT_PHONE = '(548) 866-0420';
+const SUPPORT_PHONE_DIAL = '+15488660420';
 
 // Optional one-tap topic, saved alongside the message (customer_feedback.
 // topic) so staff can sort feedback -- a "Missing Item" can be acted on
@@ -69,7 +70,7 @@ export default function CustomerSupportScreen() {
 
       <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" showsVerticalScrollIndicator={false}>
         <TouchableOpacity
-          onPress={() => Linking.openURL(`tel:${SUPPORT_PHONE.replace(/[^0-9+]/g, '')}`)}
+          onPress={() => Linking.openURL(`tel:${SUPPORT_PHONE_DIAL}`)}
           className="bg-white rounded-2xl border border-stone-200 shadow-sm p-4 flex-row items-center mb-5"
         >
           <View className="w-11 h-11 rounded-full bg-[#FAF6F0] items-center justify-center mr-3 border border-stone-200">

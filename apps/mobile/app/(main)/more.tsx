@@ -15,6 +15,11 @@ const MENU_ITEMS = [
   { label: 'Legal', icon: 'document-text-outline', route: '/(main)/legal' },
 ];
 
+// A plain https link rather than the instagram:// scheme -- both iOS and
+// Android hand instagram.com links to the Instagram app when it's installed
+// (and open the browser when it isn't), with no extra app config needed.
+const INSTAGRAM_URL = 'https://www.instagram.com/al_paninos/';
+
 // Apple Maps on iOS, Google Maps everywhere else -- each phone's own default
 // maps app, opened straight into directions to the store.
 function openDirections(address: string) {
@@ -105,6 +110,20 @@ export default function MoreScreen() {
             <View className="h-3" />
           </>
         )}
+
+        <TouchableOpacity
+          onPress={() => Linking.openURL(INSTAGRAM_URL).catch(() => Alert.alert("Couldn't open Instagram", 'Please try again.'))}
+          className="bg-white rounded-2xl border border-stone-200 shadow-sm p-4 flex-row items-center mb-4 active:bg-stone-50"
+        >
+          <View className="w-11 h-11 rounded-2xl bg-[#FAF6F0] border border-stone-200 items-center justify-center mr-3">
+            <Ionicons name="logo-instagram" size={22} color="#A61C14" />
+          </View>
+          <View className="flex-1">
+            <Text className="text-sm font-inter-bold text-[#1C1917]">Follow us on Instagram</Text>
+            <Text className="text-xs text-[#78716C]">@al_paninos</Text>
+          </View>
+          <Ionicons name="open-outline" size={18} color="#A8A29E" />
+        </TouchableOpacity>
 
         <View className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
           {MENU_ITEMS.map((item, index) => (
