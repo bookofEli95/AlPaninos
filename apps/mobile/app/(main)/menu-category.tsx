@@ -17,7 +17,6 @@ export default function MenuCategoryScreen() {
   }>();
   const router = useRouter();
   const cartItems = useCartStore(state => state.items);
-  const cartTotal = cartItems.reduce((sum, item) => sum + item.totalPrice, 0);
   const cartQuantity = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
   const goBackToGrid = useCallback(() => {
@@ -98,21 +97,6 @@ export default function MenuCategoryScreen() {
             <Text className="text-center text-[#78716C] mt-10 text-base w-full">No items in this category.</Text>
           }
         />
-      )}
-
-      {cartItems.length > 0 && (
-        <View className="absolute bottom-8 left-4 right-4">
-          <TouchableOpacity
-            className="bg-[#A61C14] rounded-2xl p-4 flex-row justify-between items-center shadow-lg active:bg-[#85140E]"
-            onPress={() => router.push('/(main)/cart')}
-          >
-            <View className="bg-[#85140E] rounded-full w-8 h-8 items-center justify-center">
-              <Text className="text-[#F4ECE1] font-inter-bold">{cartQuantity}</Text>
-            </View>
-            <Text className="text-[#F4ECE1] font-display text-lg">View Cart</Text>
-            <Text className="text-[#F4ECE1] font-display text-lg">${cartTotal.toFixed(2)}</Text>
-          </TouchableOpacity>
-        </View>
       )}
     </View>
   );
