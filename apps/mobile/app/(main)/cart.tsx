@@ -13,6 +13,7 @@ import { computeEligibleDiscount, hasUserRedeemedCode, resolvePromoCategoryId } 
 import NotifyPreferenceToggle from '../../components/NotifyPreferenceToggle';
 import CountryPickerSheet from '../../components/CountryPickerSheet';
 import TimeSlotPickerSheet from '../../components/TimeSlotPickerSheet';
+import CartUpsellTray from '../../components/CartUpsellTray';
 import { isValidEmail } from '../../lib/passwordStrength';
 import { estimateReadyMinutes, getPickupSlots } from '../../lib/orderTiming';
 import { WeekHours } from '../../lib/hours';
@@ -748,6 +749,10 @@ export default function CartScreen() {
               <Ionicons name="chevron-down" size={18} color="#78716C" />
             </TouchableOpacity>
           </View>
+        )}
+
+        {items.length > 0 && locationId && (
+          <CartUpsellTray items={items} locationId={locationId} cartTotal={cartTotal} />
         )}
       </ScrollView>
 
