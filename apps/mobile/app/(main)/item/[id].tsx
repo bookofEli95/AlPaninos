@@ -18,6 +18,7 @@ import { useBackHandler } from '../../../hooks/useBackHandler';
 import SkeletonBox from '../../../components/Skeleton';
 import ItemAddOns from '../../../components/ItemAddOns';
 import { optionsConflict } from '../../../lib/modifierConflicts';
+import { shadowSm } from '../../../lib/shadows';
 
 const QUICK_INSTRUCTIONS = [
   'Cut in half',
@@ -512,8 +513,9 @@ export default function ItemDetailScreen() {
                       onPress={() => handleToggleOption(group.id, option.id, group.max_selections)}
                       activeOpacity={0.8}
                       className={`flex-row justify-between items-center p-3.5 rounded-2xl border ${
-                        isSelected ? 'bg-white border-[#A61C14] shadow-sm' : 'bg-white/70 border-stone-200'
+                        isSelected ? 'bg-white border-[#A61C14]' : 'bg-white/70 border-stone-200'
                       }`}
+                      style={isSelected ? shadowSm : undefined}
                     >
                       <View className="flex-row items-center flex-1 mr-2">
                         <View

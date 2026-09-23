@@ -20,6 +20,7 @@ import { useLocationStore } from '../../store/locationStore';
 import { reorderUsualItem } from '../../lib/reorder';
 import { distanceKm } from '../../lib/geo';
 import { isOpenNow, getTodayHoursLabel } from '../../lib/hours';
+import { shadowSm } from '../../lib/shadows';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -167,8 +168,9 @@ export default function HomeScreen() {
         <TouchableOpacity
           onPress={() => setOrderType('pickup')}
           className={`flex-1 py-2.5 rounded-xl flex-row items-center justify-center ${
-            orderType === 'pickup' ? 'bg-white shadow-sm' : ''
+            orderType === 'pickup' ? 'bg-white' : ''
           }`}
+          style={orderType === 'pickup' ? shadowSm : undefined}
         >
           <Ionicons
             name="bag-handle-outline"
@@ -187,8 +189,9 @@ export default function HomeScreen() {
         <TouchableOpacity
           onPress={() => setOrderType('delivery')}
           className={`flex-1 py-2.5 rounded-xl flex-row items-center justify-center ${
-            orderType === 'delivery' ? 'bg-white shadow-sm' : ''
+            orderType === 'delivery' ? 'bg-white' : ''
           }`}
+          style={orderType === 'delivery' ? shadowSm : undefined}
         >
           <Ionicons
             name="bicycle-outline"
