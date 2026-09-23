@@ -33,7 +33,6 @@ export default function HomeScreen() {
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [locatingUser, setLocatingUser] = useState(false);
 
-  // Load profile default address for registered users
   useEffect(() => {
     const loadProfile = async () => {
       if (session?.user?.id) {
@@ -48,7 +47,7 @@ export default function HomeScreen() {
       }
     };
     loadProfile();
-  }, [session]);
+  }, [session, deliveryAddress, setDeliveryAddress]);
 
   const { data: locations, isLoading, error: locationsError } = useQuery({
     queryKey: ['locations'],
@@ -59,10 +58,6 @@ export default function HomeScreen() {
     },
   });
 
-  // Reorder Shortcut ("Your Usual") -- only exists once a customer has
-  // actually ordered the same item 2+ times (see get_usual_item()), not
-  // shown for guests, whose order history isn't something worth building a
-  // habit-forming shortcut around.
   const { data: usualItem } = useQuery({
     queryKey: ['usualItem', session?.user?.id],
     queryFn: async () => {
@@ -115,8 +110,6 @@ export default function HomeScreen() {
     }
   };
 
-  // Locations without lat/lng set (the owner hasn't filled them in via
-  // Studio yet) sort to the end rather than being treated as "0km away".
   const sortedLocations = useMemo(() => {
     if (!locations) return [];
     if (!userCoords) return locations;
@@ -141,7 +134,7 @@ export default function HomeScreen() {
       {/* Top Header */}
       <View className="flex-row items-center justify-between mb-4">
         <View>
-          <Text className="text-2xl font-display-bold text-[#1C1917]">Al Paninos</Text>
+          <Text className="text-2xl font-display-bold text-[#1C1917] tracking-tight">Al Paninos</Text>
           <Text className="text-xs text-stone-500 font-inter-medium">
             Artisan Sandwiches & Italian Street Eats
           </Text>
@@ -208,7 +201,7 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* 1-Tap Repeat Order Card ("Your Usual") */}
+      {/* 1-Tap Repeat Order Card */}
       {usualItem && (
         <TouchableOpacity
           onPress={handleOrderUsual}

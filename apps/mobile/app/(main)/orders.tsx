@@ -23,10 +23,6 @@ export default function OrdersScreen() {
   const queryClient = useQueryClient();
   const [reorderingId, setReorderingId] = useState<string | null>(null);
 
-  // Tab screens stay mounted when you switch away, so a newly placed order
-  // wouldn't otherwise show up here until the realtime listener below
-  // catches it. This is a backstop for that -- refetch every time this tab
-  // is actually looked at, not just when it first mounts.
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       queryClient.invalidateQueries({ queryKey: ['orders', session?.user?.id] });
@@ -46,7 +42,7 @@ export default function OrdersScreen() {
       }
       router.push('/(main)/cart');
     } catch (e: any) {
-      Alert.alert('Couldn\'t reorder', e.message);
+      Alert.alert("Couldn't reorder", e.message);
     } finally {
       setReorderingId(null);
     }
@@ -95,7 +91,7 @@ export default function OrdersScreen() {
   if (isLoading) {
     return (
       <View className="flex-1 bg-[#FAF6F0] pt-16 px-4">
-        <SkeletonBox width={160} height={30} style={{ marginBottom: 24 }} />
+        <SkeletonBox width={160} height={26} style={{ marginBottom: 20 }} />
         {[1, 2, 3].map(i => (
           <View key={i} className="bg-white p-5 rounded-2xl mb-4 border border-stone-200">
             <View className="flex-row justify-between items-center mb-3">
@@ -115,46 +111,44 @@ export default function OrdersScreen() {
   if (error) {
     return (
       <View className="flex-1 bg-[#FAF6F0] justify-center items-center px-6">
-        <Text className="text-[#A61C14] font-inter-bold text-lg mb-2">Couldn't load your orders</Text>
-        <Text className="text-[#78716C] text-center">{(error as Error).message}</Text>
+        <Text className="text-[#A61C14] font-inter-bold text-base mb-2">Couldn't load your orders</Text>
+        <Text className="text-[#78716C] text-center text-xs">{(error as Error).message}</Text>
       </View>
     );
   }
 
   return (
     <View className="flex-1 bg-[#FAF6F0] pt-16 px-4">
-      <Text
-        className="text-5xl font-display-bold text-[#1C1917] mb-6"
-        numberOfLines={1}
-        adjustsFontSizeToFit
-      >
+      <Text className="text-2xl font-display-bold text-[#1C1917] tracking-tight mb-4">
         Your Orders
       </Text>
       
       <FlatList
         data={orders}
         keyExtractor={(item) => item.id}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 24 }}
         renderItem={({ item }) => {
           const badge = STATUS_CONFIG[item.status] || { bg: 'bg-stone-100', text: 'text-stone-800' };
 
           return (
             <TouchableOpacity
               onPress={() => router.push(`/(main)/order/${item.id}`)}
-              className="bg-white p-6 rounded-2xl mb-5 border border-stone-200 shadow-sm"
+              className="bg-white p-5 rounded-2xl mb-4 border border-stone-200 shadow-sm"
             >
               <View className="flex-row justify-between items-center mb-2">
-                <Text className="font-inter-bold text-lg text-[#1C1917]">Order #{item.id.slice(0, 8)}</Text>
+                <Text className="font-inter-bold text-base text-[#1C1917]">Order #{item.id.slice(0, 8)}</Text>
                 {item.status && (
-                  <View className={`${badge.bg} px-3 py-1 rounded-full`}>
+                  <View className={`${badge.bg} px-2.5 py-0.5 rounded-full`}>
                     <Text className={`${badge.text} font-inter-semibold capitalize text-xs`}>{item.status}</Text>
                   </View>
                 )}
               </View>
-              <View className="flex-row justify-between items-center mt-2 mb-4">
-                <Text className="text-[#78716C]">
+              <View className="flex-row justify-between items-center mt-1 mb-3">
+                <Text className="text-[#78716C] text-xs">
                   {new Date(item.created_at).toLocaleDateString()}
                 </Text>
-                <Text className="font-inter-bold text-lg text-[#A61C14]">${Number(item.total_amount).toFixed(2)}</Text>
+                <Text className="font-inter-bold text-base text-[#A61C14]">${Number(item.total_amount).toFixed(2)}</Text>
               </View>
               <TouchableOpacity
                 onPress={(e) => {
@@ -162,19 +156,19 @@ export default function OrdersScreen() {
                   handleReorder(item.id);
                 }}
                 disabled={reorderingId === item.id}
-                className="bg-[#1C1917] py-3.5 rounded-xl items-center active:opacity-90 mt-2"
+                className="bg-[#1C1917] py-2.5 rounded-xl items-center active:opacity-90"
               >
                 {reorderingId === item.id ? (
                   <ActivityIndicator size="small" color="#F4ECE1" />
                 ) : (
-                  <Text className="text-[#F4ECE1] font-inter-bold text-sm">Reorder</Text>
+                  <Text className="text-[#F4ECE1] font-inter-bold text-xs">Reorder</Text>
                 )}
               </TouchableOpacity>
             </TouchableOpacity>
           );
         }}
         ListEmptyComponent={
-          <Text className="text-center text-[#78716C] mt-10 text-base">No past orders found.</Text>
+          <Text className="text-center text-[#78716C] mt-10 text-sm font-inter-medium">No past orders found.</Text>
         }
       />
     </View>

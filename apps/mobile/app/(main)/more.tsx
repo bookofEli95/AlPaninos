@@ -15,7 +15,7 @@ export default function MoreScreen() {
 
   return (
     <View className="flex-1 bg-[#FAF6F0] pt-16 px-4">
-      <Text className="text-5xl font-display-bold text-[#1C1917] mb-6">More</Text>
+      <Text className="text-2xl font-display-bold text-[#1C1917] tracking-tight mb-4">More</Text>
       <ScrollView showsVerticalScrollIndicator={false}>
         <View className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
           {MENU_ITEMS.map((item, index) => (
@@ -28,7 +28,7 @@ export default function MoreScreen() {
             >
               <View className="flex-row items-center">
                 <Ionicons name={item.icon as any} size={20} color="#A61C14" style={{ width: 28 }} />
-                <Text className="text-base font-inter-semibold text-[#1C1917]">{item.label}</Text>
+                <Text className="text-sm font-inter-semibold text-[#1C1917]">{item.label}</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color="#A8A29E" />
             </TouchableOpacity>

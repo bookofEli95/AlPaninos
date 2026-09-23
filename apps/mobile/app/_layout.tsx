@@ -12,10 +12,10 @@ import {
   Inter_800ExtraBold,
 } from "@expo-google-fonts/inter";
 import {
-  Fredoka_500Medium,
-  Fredoka_600SemiBold,
-  Fredoka_700Bold,
-} from "@expo-google-fonts/fredoka";
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+  PlusJakartaSans_800ExtraBold,
+} from "@expo-google-fonts/plus-jakarta-sans";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -32,11 +32,6 @@ import { registerForPushNotificationsAsync, savePushToken } from "../lib/pushNot
 SplashScreen.preventAutoHideAsync().catch(() => {});
 const queryClient = new QueryClient();
 
-// Known-benign dev-only noise, not app bugs -- both are internal timing
-// quirks (Metro's dev socket reconnecting, expo-router's own initial-URL
-// resolution racing the root component's mount) that never appear outside
-// Expo Go's live-development mode. Matched by substring so real warnings
-// with different text still show up normally.
 LogBox.ignoreLogs([
   'Cannot connect to Expo CLI',
   "Can't perform a React state update on a component that hasn't mounted yet",
@@ -50,21 +45,17 @@ export default function Layout() {
   const [splashComplete, setSplashComplete] = useState(false);
   const navigationAttempted = useRef(false);
 
-  // Gates the splash screen below alongside auth/route readiness -- without
-  // this, the first frame after the splash would flash in the system font
-  // for a moment before swapping to Inter/Fredoka once they finish loading.
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
     Inter_600SemiBold,
     Inter_700Bold,
     Inter_800ExtraBold,
-    Fredoka_500Medium,
-    Fredoka_600SemiBold,
-    Fredoka_700Bold,
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
+    PlusJakartaSans_800ExtraBold,
   });
 
-  // Reanimated shared values
   const logoScale = useSharedValue(2.4);
   const logoOpacity = useSharedValue(0);
   const ringScale = useSharedValue(0.6);
@@ -74,7 +65,6 @@ export default function Layout() {
   const curtainTop = useSharedValue(0);
   const curtainBottom = useSharedValue(0);
 
-  // 1. Entrance: Stamp Slam, Shockwave, and Shake
   useEffect(() => {
     logoOpacity.value = withTiming(1, { duration: 100 });
 
@@ -114,10 +104,6 @@ export default function Layout() {
     });
   }, []);
 
-  // 2. Auth Session Bootstrap -- wrapped in try/catch so a transient failure
-  // (e.g. a network blip on a cold start) still marks the app initialized
-  // instead of leaving the navigation guard below waiting forever and
-  // stranding the user on the splash screen with no way in.
   useEffect(() => {
     let isMounted = true;
 
@@ -145,8 +131,6 @@ export default function Layout() {
     };
   }, []);
 
-  // 2b. Push registration -- runs for guests too, since their sessions
-  // persist the same way a registered user's does (see orders.tsx).
   useEffect(() => {
     if (!session?.user?.id) return;
     (async () => {
@@ -155,13 +139,11 @@ export default function Layout() {
     })();
   }, [session?.user?.id]);
 
-  // 3. Navigation Guard (Blocks until initial route group is resolved)
   useEffect(() => {
     const rootSegment = segments[0];
     const inAuthGroup = rootSegment === '(auth)';
     const inMainGroup = rootSegment === '(main)';
 
-    // Do nothing until auth is loaded AND Expo Router has resolved the initial route
     if (!isInitialized || (!inAuthGroup && !inMainGroup)) return;
 
     if (!session && !inAuthGroup) {
@@ -169,26 +151,11 @@ export default function Layout() {
       router.replace('/(auth)/login');
     } else if (session && inAuthGroup) {
       navigationAttempted.current = true;
-      // The remembered location (see locationStore) is saved per-device, not
-      // per-account -- a guest session on a device that previously had a
-      // registered user (or an earlier guest session) pick a location would
-      // otherwise skip straight to that remembered menu instead of letting
-      // this guest choose fresh. Guests always land on location selection.
       const isAnonymous = session.user?.is_anonymous ?? false;
       if (isAnonymous) {
-        // (main)/_layout.tsx also calls loadSavedLocation() itself on mount
-        // -- marking it already loaded (with nothing) here stops that from
-        // re-populating the stale device-level value right after this.
         useLocationStore.setState({ locationId: null, isLoaded: true });
         router.replace('/(main)');
       } else {
-        // A registered user's very first login after confirming their
-        // email should land on the welcome spin wheel (see
-        // (main)/spin-wheel.tsx) instead of the usual menu/location flow --
-        // has_spun_wheel is flipped permanently by claim_wheel_prize() the
-        // moment they spin, so this only ever fires once per account.
-        // Fails open (skips the wheel) if the profile lookup errors, so a
-        // flaky read can never block someone from getting into the app.
         (async () => {
           let showWheel = false;
           try {
@@ -213,7 +180,6 @@ export default function Layout() {
     }
   }, [session, isInitialized, segments]);
 
-  // 4. Splash Screen Curtain Exit
   useEffect(() => {
     const rootSegment = segments[0];
     const isRouteReady = rootSegment === '(auth)' || rootSegment === '(main)';

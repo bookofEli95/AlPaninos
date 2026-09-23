@@ -26,9 +26,6 @@ export default function MenuCategoryScreen() {
 
   const isSimpleCategory = categoryName === 'Extras' || categoryName === 'Drinks';
 
-  // Ordered by name -- there's no real per-item sort_order column (unlike
-  // modifier_groups/modifier_options, which got one for the modifier
-  // reordering work), so this doesn't attempt to order by one.
   const { data: items, isLoading, error } = useQuery({
     queryKey: ['menuCategoryItems', categoryId],
     queryFn: async () => {
@@ -54,10 +51,10 @@ export default function MenuCategoryScreen() {
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             <Ionicons name="chevron-back" size={26} color="#A61C14" />
-            <Text className="text-[#A61C14] font-inter-bold text-lg">Menu</Text>
+            <Text className="text-[#A61C14] font-inter-bold text-base">Menu</Text>
           </TouchableOpacity>
           <View className="flex-1 ml-1">
-            <Text className="text-2xl font-display-bold text-[#1C1917]" numberOfLines={1}>
+            <Text className="text-2xl font-display-bold text-[#1C1917] tracking-tight" numberOfLines={1}>
               {categoryName}
             </Text>
             {!!items?.length && !isLoading && (
@@ -117,7 +114,7 @@ export default function MenuCategoryScreen() {
           showsVerticalScrollIndicator={false}
           renderItem={({ item }) => <MenuItemGridTile item={item} isSimpleCategory={isSimpleCategory} />}
           ListEmptyComponent={
-            <Text className="text-center text-stone-500 mt-10 text-base w-full">No items in this category.</Text>
+            <Text className="text-center text-stone-500 mt-10 text-sm font-inter-medium w-full">No items in this category.</Text>
           }
         />
       )}

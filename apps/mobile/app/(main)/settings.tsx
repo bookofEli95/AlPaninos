@@ -16,7 +16,7 @@ export default function SettingsScreen() {
 
   const goBackToMore = useCallback(() => {
     router.replace('/(main)/more');
-  }, []);
+  }, [router]);
   useBackHandler(goBackToMore);
 
   useEffect(() => {
@@ -49,11 +49,11 @@ export default function SettingsScreen() {
   return (
     <View className="flex-1 bg-[#FAF6F0] pt-16 px-4">
       <View className="flex-row items-center mb-6">
-        <TouchableOpacity onPress={goBackToMore} className="flex-row items-center py-4 pr-8 -ml-2">
-          <Ionicons name="chevron-back" size={28} color="#A61C14" />
-          <Text className="text-[#A61C14] font-inter-bold text-xl">Back</Text>
+        <TouchableOpacity onPress={goBackToMore} className="flex-row items-center py-2 pr-4 -ml-2">
+          <Ionicons name="chevron-back" size={26} color="#A61C14" />
+          <Text className="text-[#A61C14] font-inter-bold text-base">Back</Text>
         </TouchableOpacity>
-        <Text className="text-2xl font-display-bold text-[#1C1917] ml-2">Settings</Text>
+        <Text className="text-2xl font-display-bold text-[#1C1917] tracking-tight ml-2">Settings</Text>
       </View>
 
       {loading ? (
@@ -61,8 +61,8 @@ export default function SettingsScreen() {
       ) : (
         <View className="bg-white rounded-2xl border border-stone-200 shadow-sm p-4 flex-row items-center justify-between">
           <View className="flex-1 mr-4">
-            <Text className="text-base font-inter-semibold text-[#1C1917]">Push Notifications</Text>
-            <Text className="text-[#78716C] text-sm mt-1">Get notified when your order status changes.</Text>
+            <Text className="text-sm font-inter-semibold text-[#1C1917]">Push Notifications</Text>
+            <Text className="text-[#78716C] text-xs mt-1">Get notified when your order status changes.</Text>
           </View>
           <Switch
             value={pushEnabled}

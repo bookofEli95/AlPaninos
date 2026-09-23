@@ -86,11 +86,6 @@ export default function MenuScreen() {
 
   const isSimpleCategoryName = (name?: string) => name === 'Extras' || name === 'Drinks';
 
-  // Rows of 2 for the category grid below -- a plain flexed layout (not a
-  // FlatList) so each row/tile can be told to fill an equal share of
-  // whatever vertical space is actually available, instead of sizing itself
-  // to fixed/intrinsic content height. With exactly 6 categories that means
-  // 3 full-height rows spanning from the search bar down to the tab bar.
   const categoryRows = useMemo(() => {
     const cats = menuData?.categories || [];
     const rows: (typeof cats)[] = [];
@@ -103,7 +98,7 @@ export default function MenuScreen() {
   if (isLoading) {
     return (
       <View className="flex-1 bg-[#FAF6F0] pt-12 px-4">
-        <SkeletonBox width={140} height={44} style={{ marginBottom: 32 }} />
+        <SkeletonBox width={140} height={32} style={{ marginBottom: 24 }} />
         <View className="flex-1 -mx-2">
           {[0, 1, 2].map(row => (
             <View key={row} className="flex-1 flex-row">
@@ -129,21 +124,21 @@ export default function MenuScreen() {
   return (
     <View className="flex-1 bg-[#FAF6F0] pt-12">
       {/* Header */}
-      <View className="flex-row items-center justify-between px-4 mb-6">
-        <Text className="text-5xl font-display-bold text-[#1C1917]">Menu</Text>
+      <View className="flex-row items-center justify-between px-4 mb-4">
+        <Text className="text-2xl font-display-bold text-[#1C1917] tracking-tight">Menu</Text>
 
         <View className="flex-row items-center">
           <TouchableOpacity
             onPress={() => setOrderTypeModalVisible(true)}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            className="flex-row items-center bg-white border border-stone-300 rounded-full px-5 py-4 mr-3"
+            className="flex-row items-center bg-white border border-stone-300 rounded-full px-4 py-2.5 mr-2.5 shadow-sm"
           >
             <Ionicons
               name={orderType === 'pickup' ? 'storefront-outline' : 'car-outline'}
-              size={22}
+              size={18}
               color="#A61C14"
             />
-            <Text className="text-[#1C1917] font-inter-semibold text-base ml-2" numberOfLines={1} style={{ maxWidth: 120 }}>
+            <Text className="text-[#1C1917] font-inter-semibold text-sm ml-2" numberOfLines={1} style={{ maxWidth: 120 }}>
               {orderType === 'pickup' ? 'Pickup' : (deliveryAddress || 'Delivery')}
             </Text>
           </TouchableOpacity>
@@ -151,15 +146,15 @@ export default function MenuScreen() {
           <TouchableOpacity
             onPress={() => router.push('/(main)/cart')}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            className="bg-white border border-stone-300 rounded-full p-4"
+            className="bg-white border border-stone-300 rounded-full p-2.5 shadow-sm relative"
           >
-            <Ionicons name="cart-outline" size={26} color="#A61C14" />
+            <Ionicons name="cart-outline" size={22} color="#A61C14" />
             {cartQuantity > 0 && (
               <View
-                className="absolute bg-[#A61C14] rounded-full items-center justify-center"
-                style={{ top: -6, right: -6, minWidth: 22, height: 22, paddingHorizontal: 4 }}
+                className="absolute bg-[#A61C14] rounded-full items-center justify-center border-2 border-white"
+                style={{ top: -4, right: -4, minWidth: 20, height: 20, paddingHorizontal: 4 }}
               >
-                <Text className="text-[#F4ECE1] font-inter-bold" style={{ fontSize: 12 }}>{cartQuantity}</Text>
+                <Text className="text-[#F4ECE1] font-inter-bold text-[11px] leading-3">{cartQuantity}</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -169,22 +164,22 @@ export default function MenuScreen() {
       {activePromotions && activePromotions.length > 0 && (
         <TouchableOpacity
           onPress={() => router.push('/(main)/deals')}
-          className="flex-row items-center justify-between bg-[#A61C14] mx-4 mb-4 px-4 py-3 rounded-xl"
+          className="flex-row items-center justify-between bg-[#A61C14] mx-4 mb-4 px-4 py-3 rounded-xl shadow-sm"
         >
           <View className="flex-row items-center flex-1 mr-2">
-            <Ionicons name="pricetag" size={18} color="#F4ECE1" />
-            <Text className="text-[#F4ECE1] font-inter-bold ml-2" numberOfLines={1}>
+            <Ionicons name="pricetag" size={16} color="#F4ECE1" />
+            <Text className="text-[#F4ECE1] font-inter-bold text-sm ml-2" numberOfLines={1}>
               Deals
             </Text>
           </View>
-          <Ionicons name="chevron-forward" size={18} color="#F4ECE1" />
+          <Ionicons name="chevron-forward" size={16} color="#F4ECE1" />
         </TouchableOpacity>
       )}
 
       {/* Search */}
       <View className="px-4 mb-4">
         <TextInput
-          className="bg-white border border-stone-300 rounded-xl px-4 py-3 text-base text-[#1C1917]"
+          className="bg-white border border-stone-300 rounded-xl px-4 py-2.5 text-sm text-[#1C1917]"
           placeholder="Search the menu..."
           placeholderTextColor="#A8A29E"
           value={searchQuery}
@@ -205,19 +200,14 @@ export default function MenuScreen() {
             <MenuItemGridTile item={item} isSimpleCategory={isSimpleCategoryName(categoryNameById.get(item.category_id))} />
           )}
           ListEmptyComponent={
-            <Text className="text-center text-[#78716C] mt-10 text-base w-full">
+            <Text className="text-center text-[#78716C] mt-10 text-sm w-full font-inter-medium">
               No items match "{searchQuery.trim()}".
             </Text>
           }
         />
       ) : categoryRows.length === 0 ? (
-        <Text className="text-center text-[#78716C] mt-10 text-base w-full">No categories yet.</Text>
+        <Text className="text-center text-[#78716C] mt-10 text-sm w-full font-inter-medium">No categories yet.</Text>
       ) : (
-        // A plain flexed grid rather than a FlatList -- with only a
-        // handful of categories, each row/tile can be told to fill an
-        // equal share of whatever vertical space is actually available
-        // (search bar down to the tab bar) instead of sizing to fixed/
-        // intrinsic content height the way a FlatList's rows normally do.
         <View
           className="flex-1 px-2"
           style={{ paddingBottom: cartItems.length > 0 ? 100 : 12 }}
@@ -240,12 +230,12 @@ export default function MenuScreen() {
                       <Image source={{ uri: cat.image_url }} className="w-full flex-1 bg-stone-200" resizeMode="cover" />
                     ) : (
                       <View className="w-full flex-1 bg-[#FAF6F0] items-center justify-center">
-                        <Ionicons name="restaurant-outline" size={44} color="#A8A29E" />
+                        <Ionicons name="restaurant-outline" size={36} color="#A8A29E" />
                       </View>
                     )}
-                    <View className="p-3">
-                      <Text className="text-[#1C1917] font-display-bold text-lg text-center tracking-wide">
-                        {cat.name.toUpperCase()}
+                    <View className="p-2.5">
+                      <Text className="text-[#1C1917] font-display-bold text-base text-center tracking-tight">
+                        {cat.name}
                       </Text>
                     </View>
                   </TouchableOpacity>
@@ -257,8 +247,7 @@ export default function MenuScreen() {
         </View>
       )}
 
-      {/* Order Type Sheet -- rendered after the floating cart button so it
-          paints on top of it (and its backdrop covers it) while open */}
+      {/* Order Type Sheet */}
       {orderTypeModalVisible && (
         <View
           style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' }}
@@ -270,7 +259,7 @@ export default function MenuScreen() {
           />
           <View style={{ marginBottom: keyboardHeight }}>
             <View className="bg-[#FAF6F0] rounded-t-3xl p-5" style={{ paddingBottom: 32 }}>
-              <Text className="text-xl font-inter-extrabold text-[#1C1917] mb-4">Order Type</Text>
+              <Text className="text-xl font-display-bold text-[#1C1917] tracking-tight mb-4">Order Type</Text>
 
               <View className="flex-row bg-[#E7E5E4] p-1 rounded-xl mb-4">
                 <TouchableOpacity
@@ -278,7 +267,7 @@ export default function MenuScreen() {
                   className={`flex-1 py-3 rounded-lg items-center ${orderType === 'pickup' ? 'bg-white' : ''}`}
                   style={orderType === 'pickup' ? styles.activeToggleShadow : undefined}
                 >
-                  <Text className={`font-inter-bold text-base ${orderType === 'pickup' ? 'text-[#A61C14]' : 'text-[#78716C]'}`}>
+                  <Text className={`font-inter-bold text-sm ${orderType === 'pickup' ? 'text-[#A61C14]' : 'text-[#78716C]'}`}>
                     Pickup
                   </Text>
                 </TouchableOpacity>
@@ -287,7 +276,7 @@ export default function MenuScreen() {
                   className={`flex-1 py-3 rounded-lg items-center ${orderType === 'delivery' ? 'bg-white' : ''}`}
                   style={orderType === 'delivery' ? styles.activeToggleShadow : undefined}
                 >
-                  <Text className={`font-inter-bold text-base ${orderType === 'delivery' ? 'text-[#A61C14]' : 'text-[#78716C]'}`}>
+                  <Text className={`font-inter-bold text-sm ${orderType === 'delivery' ? 'text-[#A61C14]' : 'text-[#78716C]'}`}>
                     Delivery
                   </Text>
                 </TouchableOpacity>
@@ -295,7 +284,7 @@ export default function MenuScreen() {
 
               {orderType === 'delivery' && (
                 <View className="mb-4">
-                  <Text className="text-[#1C1917] font-inter-bold mb-2">Delivering to:</Text>
+                  <Text className="text-[#1C1917] font-inter-bold text-sm mb-2">Delivering to:</Text>
                   <AddressAutocomplete
                     defaultAddress={deliveryAddress}
                     onAddressSelect={setDeliveryAddress}
@@ -306,9 +295,9 @@ export default function MenuScreen() {
 
               <TouchableOpacity
                 onPress={() => setOrderTypeModalVisible(false)}
-                className="bg-[#A61C14] rounded-xl py-4 items-center active:bg-[#85140E]"
+                className="bg-[#A61C14] rounded-xl py-3.5 items-center active:bg-[#85140E]"
               >
-                <Text className="text-[#F4ECE1] font-display text-lg">Done</Text>
+                <Text className="text-[#F4ECE1] font-inter-bold text-base">Done</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -319,10 +308,6 @@ export default function MenuScreen() {
 }
 
 const styles = StyleSheet.create({
-  // Applied conditionally via `style`, not `className` -- toggling shadow-*
-  // (or opacity-*/color-with-alpha) utility classes on and off is a known
-  // NativeWind bug that crashes with a bogus "no navigation context" error.
-  // See https://github.com/nativewind/nativewind/issues/1536
   activeToggleShadow: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },

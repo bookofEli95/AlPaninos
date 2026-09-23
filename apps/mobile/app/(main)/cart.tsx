@@ -29,12 +29,6 @@ export default function CartScreen() {
   const { items, locationId, removeItem, updateItemQuantity, clearCart, orderType, deliveryAddress, removeItemsByPromoCode } = useCartStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { session } = useAuthStore();
-  // Verifying email during guest checkout (below) flips the session's
-  // is_anonymous flag mid-flow, since it attaches a real email to the
-  // anonymous user -- captured once at mount so the rest of this screen
-  // keeps treating this as a guest checkout instead of switching to the
-  // registered-user path (which would look up name/phone/email from an
-  // empty profile row) partway through.
   const [isAnonymous] = useState(() => session?.user?.is_anonymous ?? false);
 
   const [guestFirstName, setGuestFirstName] = useState('');
@@ -42,10 +36,7 @@ export default function CartScreen() {
   const [guestPhone, setGuestPhone] = useState('');
   const [guestCountry, setGuestCountry] = useState<Country>(DEFAULT_COUNTRY);
   const [countryPickerVisible, setCountryPickerVisible] = useState(false);
-  // A guest's anonymous session persists across app restarts (see
-  // orders.tsx) -- if they already verified an email in a previous order
-  // this same session, Supabase already has it confirmed, so seed from
-  // that instead of making them redo the whole OTP flow every order.
+
   const [guestEmail, setGuestEmail] = useState(() => session?.user?.email ?? '');
   const [notifyEmail, setNotifyEmail] = useState(true);
   const [notifySms, setNotifySms] = useState(false);
@@ -54,59 +45,26 @@ export default function CartScreen() {
   const [otpCode, setOtpCode] = useState('');
   const [sendingOtp, setSendingOtp] = useState(false);
   const [verifyingOtp, setVerifyingOtp] = useState(false);
-  // Tracks which exact email address was verified -- if the guest edits the
-  // field afterwards it no longer matches, so they have to re-verify. The
-  // field itself always stays editable (an earlier version locked it once
-  // verified, which meant a typo'd email had no way back) -- editing it away
-  // from verifiedEmail is exactly what should flip emailVerified back to
-  // false and ask for re-verification.
   const [verifiedEmail, setVerifiedEmail] = useState<string | null>(() => session?.user?.email ?? null);
   const emailVerified = !!verifiedEmail && verifiedEmail === guestEmail.trim();
-  // null = ASAP (the default) -- a specific Date means the customer
-  // committed to a slot instead of an open-ended estimate.
+
   const [selectedSlot, setSelectedSlot] = useState<Date | null>(null);
   const [timePickerVisible, setTimePickerVisible] = useState(false);
   const [promoCode, setPromoCode] = useState('');
   const [applyingPromo, setApplyingPromo] = useState(false);
-  // Collapsed by default -- an always-open text box is one more thing to
-  // visually parse for the vast majority of carts that never use a promo
-  // code at all.
   const [promoInputOpen, setPromoInputOpen] = useState(false);
-  // Shared with the Deals screen -- applying a code there shows up applied
-  // here too, and vice versa.
   const { appliedPromo, setAppliedPromo } = usePromoStore();
-  // Category + name per menu item for this location -- fetched whenever a
-  // category-scoped promo is applied, regardless of whether it was applied
-  // here or from the Deals screen, so the discount is never stuck at $0
-  // just because this screen didn't do the fetching itself. Name is needed
-  // too since some promos (e.g. "Free Fries" off the wheel) narrow down to
-  // specific item names within a category, not the whole category.
   const [menuItemInfoMap, setMenuItemInfoMap] = useState<Record<string, { categoryId: string; name: string }>>({});
 
   const cartTotal = items.reduce((sum: number, item: CartItem) => sum + item.totalPrice, 0);
-  // Wheel-prize/PaninoPoints rewards tag their free cart line with the code
-  // that earned it (see cartStore's addFreeItem and item/[id].tsx) rather
-  // than going through appliedPromo -- gathered here so checkout marks every
-  // one of them used, not just a manually-applied coupon code.
   const rewardPromoCodes = Array.from(new Set(items.map((item) => item.promoCode).filter((c): c is string => !!c)));
-  // The Promo Code box below should read as "applied" (locked, not an
-  // editable input) whenever a reward's free item is sitting in the cart,
-  // exactly like it already does for a manually-applied appliedPromo coupon
-  // -- otherwise it's left showing a blank, editable box even though a
-  // promo genuinely is in effect.
   const activePromoCode = appliedPromo?.code ?? rewardPromoCodes[0] ?? null;
 
-  // The cart store's own `locationId` only gets set once an item is added
-  // (it's "which location these cart items belong to"), so it's null with
-  // an empty cart -- back would then fall through to the locations picker
-  // instead of returning to the menu the customer was actually browsing.
-  // useLocationStore's locationId is the currently-browsing location
-  // regardless of what's in the cart, so it's the right source for "back".
   const browsingLocationId = useLocationStore(state => state.locationId);
   const goBack = useCallback(() => {
     const backLocationId = browsingLocationId ?? locationId;
     router.replace(backLocationId ? `/(main)/menu/${backLocationId}` : '/(main)');
-  }, [browsingLocationId, locationId]);
+  }, [browsingLocationId, locationId, router]);
   useBackHandler(goBack);
 
   useEffect(() => {
@@ -120,10 +78,6 @@ export default function CartScreen() {
       if (!error && data) {
         setMenuItemInfoMap(Object.fromEntries(data.map((m: any) => [m.id, { categoryId: m.category_id, name: m.name }])));
       }
-      // A promo scoped by category NAME (e.g. wheel prizes -- see
-      // lib/promoEligibility.ts) doesn't know a concrete category_id until
-      // it's resolved against this location, which could differ from
-      // wherever the promo was originally applied from.
       if (!appliedPromo.categoryId && appliedPromo.categoryName) {
         const resolvedId = await resolvePromoCategoryId(
           { category_id: null, category_name: appliedPromo.categoryName },
@@ -148,21 +102,14 @@ export default function CartScreen() {
     );
   }, [items, appliedPromo, menuItemInfoMap]);
 
-  const discountedSubtotal = Math.max(0, cartTotal - discountAmount);
-  const taxAmount = discountedSubtotal * taxRate;
-  const grandTotal = discountedSubtotal + taxAmount;
-
-  // Tax rate and hours live per-location (tax rate can vary by province;
-  // hours feed the pickup-time slot picker below, never offering a slot
-  // past closing) -- name is shown in the fulfillment strip so "Carryout"
-  // reads as a real, specific location rather than a generic label.
-  // 13% (Ontario HST) is just the fallback while this loads. A query hook
-  // instead of a useEffect + direct call means re-opening the cart on the
-  // same location doesn't re-fetch tax rate/hours it already has cached.
   const { data: locationDetails } = useLocationDetails(locationId);
   const taxRate = locationDetails?.taxRate ?? 0.13;
   const locationName = locationDetails?.name ?? null;
   const locationHours = locationDetails?.hours ?? null;
+
+  const discountedSubtotal = Math.max(0, cartTotal - discountAmount);
+  const taxAmount = discountedSubtotal * taxRate;
+  const grandTotal = discountedSubtotal + taxAmount;
 
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
   const pickupSlots = useMemo(
@@ -170,9 +117,6 @@ export default function CartScreen() {
     [locationHours, orderType, itemCount]
   );
 
-  // The order type or item count changing invalidates whichever slot was
-  // picked (the estimate/slot list it was chosen from no longer applies) --
-  // back to ASAP rather than silently keeping a now-stale commitment.
   useEffect(() => {
     setSelectedSlot(null);
   }, [orderType, itemCount]);
@@ -260,9 +204,6 @@ export default function CartScreen() {
     };
   }, []);
 
-  // Registered users set their notification preference once, on their
-  // profile (register.tsx / edit-profile.tsx) -- fetched here purely to
-  // carry it onto the order at insert time, not shown as a checkout step.
   useEffect(() => {
     if (isAnonymous || !session?.user?.id) return;
     (async () => {
@@ -278,9 +219,6 @@ export default function CartScreen() {
     })();
   }, [session?.user?.id, isAnonymous]);
 
-  // Guests keep the same session across orders too (see orders.tsx), so
-  // rather than making a returning guest retype everything, prefill from
-  // whatever they entered on their most recent order in this session.
   useEffect(() => {
     if (!isAnonymous || !session?.user?.id) return;
     (async () => {
@@ -307,47 +245,35 @@ export default function CartScreen() {
 
   const handleSendCode = async () => {
     if (!isValidEmail(guestEmail)) {
-      hapticError();
       Alert.alert('Invalid Email', 'Please enter a valid email address first.');
       return;
     }
     setSendingOtp(true);
     try {
-      // Attaches the email to this guest's existing anonymous session and
-      // emails a 6-digit code (see the custom "email_change" template) --
-      // there's no separate password or account to create.
       const { error } = await supabase.auth.updateUser({ email: guestEmail.trim() });
       if (error) throw error;
       setOtpSent(true);
       setOtpCode('');
-      hapticSuccess();
     } catch (e: any) {
-      hapticError();
       Alert.alert("Couldn't send code", e.message);
     } finally {
       setSendingOtp(false);
     }
   };
 
-  // Takes the code directly when called from the input's auto-submit (state
-  // hasn't flushed yet at that point), otherwise reads it from state.
-  const handleVerifyCode = async (codeOverride?: string) => {
-    const code = (codeOverride ?? otpCode).trim();
-    if (code.length !== 6 || verifyingOtp) return;
+  const handleVerifyCode = async () => {
     setVerifyingOtp(true);
     try {
       const { error } = await supabase.auth.verifyOtp({
         email: guestEmail.trim(),
-        token: code,
+        token: otpCode.trim(),
         type: 'email_change',
       });
       if (error) throw error;
       setVerifiedEmail(guestEmail.trim());
       setOtpSent(false);
       setOtpCode('');
-      hapticSuccess();
     } catch (e: any) {
-      hapticError();
       Alert.alert('Invalid Code', e.message);
     } finally {
       setVerifyingOtp(false);
@@ -359,7 +285,7 @@ export default function CartScreen() {
 
     if (orderType === 'delivery' && !deliveryAddress) {
       hapticError();
-      Alert.alert('Missing Address', 'Please add a delivery address from the Pickup/Delivery option on the menu screen before checking out.');
+      Alert.alert('Missing Address', 'Please provide a delivery address before checking out.');
       return;
     }
 
@@ -410,7 +336,6 @@ export default function CartScreen() {
         customerPhone = profile.phone;
       }
 
-      // 1. Create Order
       const estimatedReadyAt = (
         selectedSlot ?? new Date(Date.now() + estimateReadyMinutes(orderType, itemCount) * 60000)
       ).toISOString();
@@ -441,7 +366,6 @@ export default function CartScreen() {
 
       if (orderError) throw orderError;
 
-      // 2. Insert Order Items and Modifiers
       for (const item of items) {
         const { data: orderItemData, error: itemError } = await (supabase as any)
           .from('order_items')
@@ -470,11 +394,6 @@ export default function CartScreen() {
         }
       }
 
-      // A personal one-time code (e.g. a wheel prize) is spent after this
-      // order -- no-ops harmlessly for a shared/storewide code, since that
-      // update only ever matches a row this account itself owns. Not
-      // critical to the order itself, so a failure here is logged rather
-      // than surfaced as a checkout failure.
       if (appliedPromo?.code) {
         const { error: promoError } = await (supabase as any).rpc('mark_promo_used', { p_code: appliedPromo.code });
         if (promoError) console.warn('Failed to mark promo code used:', promoError.message);
@@ -484,14 +403,6 @@ export default function CartScreen() {
         if (promoError) console.warn('Failed to mark reward code used:', promoError.message);
       }
 
-      // Deals and Profile are hidden tabs that stay mounted once visited
-      // (the Tabs navigator never unmounts them just from switching tabs),
-      // so their own promotions/profile queries won't refetch on their own
-      // just because the user navigates back to them -- without this, a
-      // just-redeemed welcome prize (or any single-use code) would still
-      // show as available there until something else happened to trigger a
-      // refetch. Prefix-matching the query keys catches every variant
-      // (different locationId/session) those screens use.
       queryClient.invalidateQueries({ queryKey: ['promotions'] });
       queryClient.invalidateQueries({ queryKey: ['usedPromoCodes'] });
       queryClient.invalidateQueries({ queryKey: ['profile'] });
@@ -522,9 +433,9 @@ export default function CartScreen() {
             className="flex-row items-center py-2 pr-4 -ml-2"
           >
             <Ionicons name="chevron-back" size={26} color="#A61C14" />
-            <Text className="text-[#A61C14] font-inter-bold text-lg">Back</Text>
+            <Text className="text-[#A61C14] font-inter-bold text-base">Back</Text>
           </TouchableOpacity>
-          <Text className="text-2xl font-display-bold ml-1 text-[#1C1917]">
+          <Text className="text-2xl font-display-bold ml-1 text-[#1C1917] tracking-tight">
             Cart{itemCount > 0 ? ` (${itemCount})` : ''}
           </Text>
         </View>
@@ -540,15 +451,11 @@ export default function CartScreen() {
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             className="px-2 py-1"
           >
-            <Text className="text-stone-500 font-inter-medium text-sm">Clear</Text>
+            <Text className="text-stone-500 font-inter-medium text-xs">Clear</Text>
           </TouchableOpacity>
         )}
       </View>
 
-      {/* Fulfillment strip -- folds together what used to be a separate
-          "When would you like it?" card mid-scroll plus the order-type/ready
-          rows repeated again in the bottom sheet, so this info exists in
-          exactly one place instead of two slightly different-looking ones. */}
       {items.length > 0 && (
         <View className="mx-4 mb-3 bg-white p-3.5 rounded-2xl border border-stone-200 shadow-sm">
           <View className="flex-row items-center justify-between">
@@ -574,9 +481,6 @@ export default function CartScreen() {
               <Text className="text-xs font-inter-bold text-[#A61C14]">Change</Text>
             </TouchableOpacity>
           </View>
-          {/* Full address, never truncated to one line -- a cut-off unit
-              number is exactly the kind of thing that sends an order to the
-              wrong door. */}
           {orderType === 'delivery' && (
             <View className="mt-2.5 pt-2.5 border-t border-stone-100">
               <Text className="text-[11px] font-inter-bold uppercase tracking-wider text-stone-500 mb-0.5">
@@ -666,9 +570,6 @@ export default function CartScreen() {
                   >
                     <Text className="text-stone-400 font-inter-medium text-xs">Remove</Text>
                   </TouchableOpacity>
-                  {/* A redeemed reward's free line is always exactly one item
-                      (see item/[id].tsx) -- a stepper here would let someone
-                      turn one redemption into several free sandwiches. */}
                   {item.promoCode ? (
                     <Text className="text-xs font-inter-semibold text-stone-500">Qty: {item.quantity}</Text>
                   ) : (
@@ -680,11 +581,7 @@ export default function CartScreen() {
                         }}
                         className="bg-white w-7 h-7 rounded-md items-center justify-center shadow-sm"
                       >
-                        <Ionicons
-                          name={item.quantity === 1 ? 'trash-outline' : 'remove'}
-                          size={14}
-                          color={item.quantity === 1 ? '#A61C14' : '#1C1917'}
-                        />
+                        <Ionicons name="remove" size={14} color="#1C1917" />
                       </TouchableOpacity>
                       <Text className="font-inter-bold text-[#1C1917] text-sm w-7 text-center">{item.quantity}</Text>
                       <TouchableOpacity
@@ -706,9 +603,6 @@ export default function CartScreen() {
               <CartUpsellTray items={items} locationId={locationId} cartTotal={cartTotal} />
             )}
 
-            {/* Collapsible promo/reward code -- an always-open text box was
-                one more thing to visually parse for the vast majority of
-                carts that never use a code at all. */}
             <View className="my-2 p-3.5 bg-white rounded-2xl border border-stone-200 shadow-sm">
               {activePromoCode ? (
                 <View className="flex-row items-center justify-between">
@@ -849,14 +743,10 @@ export default function CartScreen() {
                         keyboardType="number-pad"
                         maxLength={6}
                         value={otpCode}
-                        onChangeText={(text) => {
-                          const digits = text.replace(/[^0-9]/g, '');
-                          setOtpCode(digits);
-                          if (digits.length === 6) handleVerifyCode(digits);
-                        }}
+                        onChangeText={setOtpCode}
                       />
                       <TouchableOpacity
-                        onPress={() => handleVerifyCode()}
+                        onPress={handleVerifyCode}
                         disabled={verifyingOtp || otpCode.trim().length !== 6}
                         className={`py-2 px-4 rounded-lg items-center ${
                           verifyingOtp || otpCode.trim().length !== 6 ? 'bg-stone-300' : 'bg-[#1C1917]'
@@ -889,10 +779,6 @@ export default function CartScreen() {
               </View>
             )}
 
-            {/* Registered users already picked this at signup (editable from
-                Edit Profile) -- re-asking at checkout every time is friction
-                for a decision they already made. Guests have no profile to
-                default from, so it's asked here instead. */}
             {isAnonymous && (
               <NotifyPreferenceToggle
                 notifyEmail={notifyEmail}

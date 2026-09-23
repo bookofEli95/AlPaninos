@@ -16,15 +16,11 @@ export default function MainLayout() {
 
   useEffect(() => {
     if (!isLoaded) loadSavedLocation();
-  }, [isLoaded]);
+  }, [isLoaded, loadSavedLocation]);
 
   const itemCount = useMemo(() => items.reduce((sum, item) => sum + item.quantity, 0), [items]);
   const cartTotal = useMemo(() => items.reduce((sum, item) => sum + item.totalPrice, 0), [items]);
 
-  // Hidden on the cart screen itself (redundant with the checkout button
-  // right there) and on the item customization screen, which already has
-  // its own fixed "Add to Cart - $X.XX" button pinned to the bottom -- the
-  // floating bar would otherwise sit right on top of it.
   const isInsideCart = segments.includes('cart') || segments.includes('item');
 
   return (
@@ -54,10 +50,6 @@ export default function MainLayout() {
             tabBarIcon: ({ color, focused }) => (
               <Ionicons name={focused ? 'restaurant' : 'restaurant-outline'} size={22} color={color} />
             ),
-            // Always shown now, rather than disappearing from the bar
-            // entirely until a location is picked -- tapping it with no
-            // location falls back to the picker instead of the tab being
-            // invisible with no explanation.
             href: locationId ? { pathname: '/(main)/menu/[id]', params: { id: locationId } } : '/(main)',
           }}
         />
@@ -77,10 +69,6 @@ export default function MainLayout() {
             tabBarIcon: ({ color, focused }) => (
               <Ionicons name={focused ? 'receipt' : 'receipt-outline'} size={22} color={color} />
             ),
-            // Guest sessions are anonymous Supabase users, not throwaway --
-            // the session (and its orders) persists until they explicitly
-            // sign out via the Sign Out tab, so tracking works the same as
-            // for registered users.
           }}
         />
         <Tabs.Screen
@@ -111,19 +99,12 @@ export default function MainLayout() {
           }}
         />
 
-        {/* Hidden screens -- "index" (location picker) is no longer its own
-            tab, but stays reachable: '/(main)' is still the fallback route
-            used throughout the app (e.g. the auth guard in app/_layout.tsx,
-            and the Menu tab above when no location is set yet). */}
+        {/* Hidden routes */}
         <Tabs.Screen name="index" options={{ href: null }} />
         <Tabs.Screen
           name="spin-wheel"
           options={{
             href: null,
-            // Mandatory first-run screen -- the tab bar must not offer an
-            // escape hatch around it, so it's hidden entirely while this
-            // screen is focused (React Navigation restores the normal
-            // tabBarStyle automatically once the user navigates away).
             tabBarStyle: { display: 'none' },
           }}
         />
@@ -138,10 +119,6 @@ export default function MainLayout() {
         <Tabs.Screen name="legal" options={{ href: null }} />
       </Tabs>
 
-      {/* Floating cart bar -- one implementation shared across every tab
-          instead of a separate "View Cart" button duplicated per screen,
-          so it reflects the live item count/total everywhere, not just on
-          the menu. */}
       {itemCount > 0 && !isInsideCart && (
         <View className="absolute bottom-20 left-4 right-4 z-50">
           <TouchableOpacity

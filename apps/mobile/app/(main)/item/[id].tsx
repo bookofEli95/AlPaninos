@@ -29,12 +29,6 @@ const QUICK_INSTRUCTIONS = [
 ];
 
 export default function ItemDetailScreen() {
-  // promoCode/promoTitle are only present when this item was opened from a
-  // wheel-prize/PaninoPoints redemption (see deals.tsx/profile.tsx's
-  // giveFreeItem) -- their presence is what makes this whole item, including
-  // any modifiers picked below, free. Nothing is "applied" anywhere else
-  // until Add to Cart actually runs (see handleAddToCart), so backing out of
-  // this screen without finishing leaves no stray applied state behind.
   const {
     id: itemId,
     promoCode,
@@ -63,7 +57,6 @@ export default function ItemDetailScreen() {
   const { data, isLoading, error } = useQuery({
     queryKey: ['item', itemId],
     queryFn: async () => {
-      // 1. Fetch Item
       const { data: itemData, error: itemError } = await supabase
         .from('menu_items')
         .select('*, menu_categories(name)')
@@ -71,7 +64,6 @@ export default function ItemDetailScreen() {
         .single();
       if (itemError) throw itemError;
 
-      // 2. Fetch Groups
       const { data: groups, error: groupsError } = await supabase
         .from('modifier_groups')
         .select('*')
@@ -79,7 +71,6 @@ export default function ItemDetailScreen() {
         .order('sort_order');
       if (groupsError) throw groupsError;
 
-      // 3. Fetch Options (if groups exist)
       let options: any[] = [];
       if (groups && groups.length > 0) {
         const groupIds = groups.map((g) => g.id);
@@ -92,7 +83,6 @@ export default function ItemDetailScreen() {
         options = opts || [];
       }
 
-      // 4. Assemble manually
       const assembledGroups =
         groups?.map((group) => ({
           ...group,
@@ -103,21 +93,6 @@ export default function ItemDetailScreen() {
     },
   });
 
-  // This screen is a hidden tab (see (main)/_layout.tsx), so navigating away
-  // and back to it -- a different item, or the very same item to add
-  // another with different modifiers -- reuses the same mounted instance
-  // rather than remounting. Resetting only once on mount (or only when
-  // itemId changed) left a revisited item stuck showing "Added to Cart"
-  // from the last visit, so this resets on every focus instead.
-  //
-  // Pre-checking is_default options (e.g. a combo's included side/drink)
-  // happens in the same pass: a required single-select group with no
-  // staff-chosen default still gets one -- defaulting to its first option
-  // and letting the customer change it, rather than making them decide from
-  // a blank state, is the same default-bias effect (Johnson & Goldstein)
-  // that makes opt-out systems consistently outperform opt-in ones. Walked
-  // depth-first (mirroring visibleGroups below) so a default that reveals a
-  // nested group cascades a default into that group too.
   useFocusEffect(
     useCallback(() => {
       setQuantity(1);
@@ -151,11 +126,6 @@ export default function ItemDetailScreen() {
     }, [data])
   );
 
-  // A group nested under a parent_option_id only applies once that option is
-  // selected (e.g. "Greek Fries" toppings only show once "Greek Fries" is chosen).
-  // Groups are walked depth-first so a nested group always renders directly
-  // after the option that revealed it, regardless of the order the database
-  // happens to return rows in.
   const selectedOptionIds = useMemo(() => new Set(Object.values(selections).flat()), [selections]);
   const visibleGroups = useMemo(() => {
     const allGroups = data?.modifier_groups || [];
@@ -173,12 +143,6 @@ export default function ItemDetailScreen() {
     return result;
   }, [data, selectedOptionIds]);
 
-  // When an option that reveals a nested group (e.g. "Philly Fries" ->
-  // its own toppings group) gets deselected -- either directly, or by
-  // picking a different option in the same single-select group -- any
-  // selections made in that nested group (and further nested below it)
-  // need to be forgotten, or they'd silently reappear if the user picks
-  // the original option again.
   const clearDescendantSelections = (
     removedOptionIds: string[],
     selections: Record<string, string[]>
@@ -198,9 +162,6 @@ export default function ItemDetailScreen() {
     return next;
   };
 
-  // Flat lookup across every group on this item (not just the one being
-  // toggled) so conflict-checking below can catch a clash even if the
-  // conflicting option happens to live in a different group.
   const optionNameById = useMemo(() => {
     const map: Record<string, string> = {};
     (data?.modifier_groups || []).forEach((g: any) => {
@@ -222,11 +183,6 @@ export default function ItemDetailScreen() {
         return clearDescendantSelections([optionId], next);
       }
 
-      // Selecting an option (e.g. "Extra Cheese") first clears any already
-      // selected option anywhere on this item that it conflicts with (e.g.
-      // "No Cheese") -- see lib/modifierConflicts.ts. Applies to every item
-      // and every modifier group the same way, since it's keyed purely off
-      // option names, not any per-item configuration.
       const newOptionName = optionNameById[optionId];
       const conflictingIds = Object.values(prev)
         .flat()
@@ -258,12 +214,6 @@ export default function ItemDetailScreen() {
     });
   };
 
-  // Identifies the first unsatisfied required group so the CTA below can
-  // name it directly ("Select Choose Your Fries to Continue") instead of
-  // just greying out with no explanation. Falls back to is_required when
-  // min_selections is left at its column default of 0 -- a required group
-  // that was imported/configured without an explicit min_selections would
-  // otherwise silently accept zero selections.
   const missingRequiredGroup = useMemo(() => {
     return visibleGroups.find((group: any) => {
       const count = (selections[group.id] || []).length;
@@ -287,19 +237,8 @@ export default function ItemDetailScreen() {
     return total * quantity;
   }, [data, visibleGroups, selections, quantity]);
 
-  // A redeemed reward is always free, whatever modifiers get picked -- the
-  // price shown/charged is 0 rather than calculatedPrice, and quantity is
-  // locked to 1 (the quantity stepper below is hidden in that case) since a
-  // reward only ever grants one of the item.
   const finalPrice = promoCode ? 0 : calculatedPrice;
 
-  // Drilling in is now Category Grid -> Category Items -> here (see
-  // menu/[id].tsx's redesign), so both the back button and the
-  // post-add-to-cart redirect should return to that category's item list,
-  // not skip past it to the top-level category grid. The one exception is
-  // arriving here from the cart's upsell tray (CartUpsellTray) -- that
-  // customer was never browsing the category grid, so send them back to
-  // the cart instead of dropping them somewhere they never were.
   const goBackToCategory = useCallback(() => {
     if (returnTo === 'cart') {
       router.replace('/(main)/cart');
@@ -358,11 +297,6 @@ export default function ItemDetailScreen() {
     }, 600);
   };
 
-  // Treats the field as a comma-separated list of segments and toggles by
-  // exact segment match, rather than a raw substring replace -- typing
-  // "please wrap it separately" by hand and then tapping the "Wrap
-  // separately" chip would otherwise mangle the sentence instead of
-  // cleanly adding/removing a distinct preset.
   const handleToggleQuickInstruction = (text: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSpecialInstructions((prev) => {
@@ -422,7 +356,6 @@ export default function ItemDetailScreen() {
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
       >
-        {/* Navigation Top Header */}
         <View className="flex-row items-center justify-between py-2 mb-2">
           <TouchableOpacity
             onPress={goBackToCategory}
@@ -442,7 +375,6 @@ export default function ItemDetailScreen() {
           )}
         </View>
 
-        {/* Hero Item Image */}
         {data.image_url ? (
           <Image
             source={{ uri: data.image_url }}
@@ -455,16 +387,14 @@ export default function ItemDetailScreen() {
           </View>
         )}
 
-        {/* Item Title & Details */}
         <View className="mb-2">
-          <Text className="text-3xl font-display-bold text-[#1C1917] tracking-tight">{data.name}</Text>
+          <Text className="text-2xl font-display-bold text-[#1C1917] tracking-tight">{data.name}</Text>
           {data.description && (
             <Text className="text-stone-600 mt-2 text-sm leading-5">{data.description}</Text>
           )}
           <Text className="text-2xl font-inter-bold mt-2.5 text-[#A61C14]">${data.base_price.toFixed(2)}</Text>
         </View>
 
-        {/* Promo / Reward Unlocked Banner */}
         {promoCode && (
           <View className="flex-row items-center bg-[#FAF6F0] border border-[#A61C14] rounded-2xl p-3 mt-3">
             <Ionicons name="gift" size={18} color="#A61C14" />
@@ -479,7 +409,6 @@ export default function ItemDetailScreen() {
           </View>
         )}
 
-        {/* Modifier Groups */}
         {visibleGroups.map((group: any) => {
           const selectedInGroup = selections[group.id] || [];
           const minRequired = group.min_selections || (group.is_required ? 1 : 0);
@@ -556,7 +485,6 @@ export default function ItemDetailScreen() {
           );
         })}
 
-        {/* Special Instructions & Fast Preset Chips */}
         {data.menu_categories?.name !== 'Drinks' && (
           <View className="mt-6 border-t border-stone-200/80 pt-4">
             <Text className="text-base font-inter-bold text-[#1C1917] mb-1">Special Kitchen Notes</Text>
@@ -596,16 +524,12 @@ export default function ItemDetailScreen() {
           </View>
         )}
 
-        {/* Dynamic Cross-Category Add-ons */}
         <View className="mt-2 mb-6">
           <ItemAddOns locationId={data.location_id!} excludeCategoryName={data.menu_categories?.name} />
         </View>
       </ScrollView>
 
-      {/* Sticky Bottom Action Tray */}
       <View className="px-5 pt-3 pb-8 border-t border-stone-200 bg-white shadow-lg">
-        {/* A reward always grants exactly one of the item -- no stepper to
-            avoid stacking multiple free items off a single redemption. */}
         {!promoCode && (
           <View className="flex-row items-center justify-between mb-3">
             <Text className="text-sm font-inter-bold text-[#1C1917]">Quantity</Text>
