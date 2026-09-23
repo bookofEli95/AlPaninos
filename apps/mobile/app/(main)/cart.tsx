@@ -307,6 +307,7 @@ export default function CartScreen() {
 
   const handleSendCode = async () => {
     if (!isValidEmail(guestEmail)) {
+      hapticError();
       Alert.alert('Invalid Email', 'Please enter a valid email address first.');
       return;
     }
@@ -319,26 +320,34 @@ export default function CartScreen() {
       if (error) throw error;
       setOtpSent(true);
       setOtpCode('');
+      hapticSuccess();
     } catch (e: any) {
+      hapticError();
       Alert.alert("Couldn't send code", e.message);
     } finally {
       setSendingOtp(false);
     }
   };
 
-  const handleVerifyCode = async () => {
+  // Takes the code directly when called from the input's auto-submit (state
+  // hasn't flushed yet at that point), otherwise reads it from state.
+  const handleVerifyCode = async (codeOverride?: string) => {
+    const code = (codeOverride ?? otpCode).trim();
+    if (code.length !== 6 || verifyingOtp) return;
     setVerifyingOtp(true);
     try {
       const { error } = await supabase.auth.verifyOtp({
         email: guestEmail.trim(),
-        token: otpCode.trim(),
+        token: code,
         type: 'email_change',
       });
       if (error) throw error;
       setVerifiedEmail(guestEmail.trim());
       setOtpSent(false);
       setOtpCode('');
+      hapticSuccess();
     } catch (e: any) {
+      hapticError();
       Alert.alert('Invalid Code', e.message);
     } finally {
       setVerifyingOtp(false);
@@ -350,7 +359,7 @@ export default function CartScreen() {
 
     if (orderType === 'delivery' && !deliveryAddress) {
       hapticError();
-      Alert.alert('Missing Address', 'Please provide a delivery address on the Home screen before checking out.');
+      Alert.alert('Missing Address', 'Please add a delivery address from the Pickup/Delivery option on the menu screen before checking out.');
       return;
     }
 
@@ -671,7 +680,11 @@ export default function CartScreen() {
                         }}
                         className="bg-white w-7 h-7 rounded-md items-center justify-center shadow-sm"
                       >
-                        <Ionicons name="remove" size={14} color="#1C1917" />
+                        <Ionicons
+                          name={item.quantity === 1 ? 'trash-outline' : 'remove'}
+                          size={14}
+                          color={item.quantity === 1 ? '#A61C14' : '#1C1917'}
+                        />
                       </TouchableOpacity>
                       <Text className="font-inter-bold text-[#1C1917] text-sm w-7 text-center">{item.quantity}</Text>
                       <TouchableOpacity
@@ -836,10 +849,14 @@ export default function CartScreen() {
                         keyboardType="number-pad"
                         maxLength={6}
                         value={otpCode}
-                        onChangeText={setOtpCode}
+                        onChangeText={(text) => {
+                          const digits = text.replace(/[^0-9]/g, '');
+                          setOtpCode(digits);
+                          if (digits.length === 6) handleVerifyCode(digits);
+                        }}
                       />
                       <TouchableOpacity
-                        onPress={handleVerifyCode}
+                        onPress={() => handleVerifyCode()}
                         disabled={verifyingOtp || otpCode.trim().length !== 6}
                         className={`py-2 px-4 rounded-lg items-center ${
                           verifyingOtp || otpCode.trim().length !== 6 ? 'bg-stone-300' : 'bg-[#1C1917]'
