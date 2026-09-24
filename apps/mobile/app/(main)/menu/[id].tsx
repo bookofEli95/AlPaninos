@@ -47,8 +47,11 @@ export default function MenuScreen() {
   const cartItems = useCartStore(state => state.items);
   const cartQuantity = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
+  // Keyed by user too: personal promos (wheel/points prizes) are only
+  // visible to their owner, so one account's result must never be reused for
+  // another after switching accounts on the same phone.
   const { data: activePromotions } = useQuery({
-    queryKey: ['promotions', locationId],
+    queryKey: ['promotions', locationId, session?.user?.id],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('promotions')
