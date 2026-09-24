@@ -7,12 +7,19 @@ import {
   Image,
   ActivityIndicator,
   Keyboard,
-  Alert
+  Alert,
 } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, withDelay, Easing } from 'react-native-reanimated';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withDelay,
+  Easing,
+} from 'react-native-reanimated';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { supabase } from '../../lib/supabase';
 import ErrorBanner from '../../components/ErrorBanner';
 import { isValidEmail } from '../../lib/passwordStrength';
@@ -37,16 +44,22 @@ export default function Login() {
   const heroProgress = useSharedValue(0);
   const formProgress = useSharedValue(0);
 
-  const videoPlayer = useVideoPlayer(require('../../assets/videos/login-background.mp4'), (player) => {
-    player.loop = true;
-    player.muted = true;
-    player.play();
-  });
+  const videoPlayer = useVideoPlayer(
+    require('../../assets/videos/login-background.mp4'),
+    (player) => {
+      player.loop = true;
+      player.muted = true;
+      player.play();
+    }
+  );
 
   useEffect(() => {
     heroProgress.value = withTiming(1, { duration: 500, easing: Easing.out(Easing.cubic) });
-    formProgress.value = withDelay(200, withTiming(1, { duration: 500, easing: Easing.out(Easing.cubic) }));
-  }, []);
+    formProgress.value = withDelay(
+      200,
+      withTiming(1, { duration: 500, easing: Easing.out(Easing.cubic) })
+    );
+  }, [heroProgress, formProgress]);
 
   const heroStyle = useAnimatedStyle(() => ({
     opacity: heroProgress.value,
@@ -59,7 +72,9 @@ export default function Login() {
   }));
 
   useEffect(() => {
-    const showSub = Keyboard.addListener('keyboardDidShow', (e) => setKeyboardHeight(e.endCoordinates.height));
+    const showSub = Keyboard.addListener('keyboardDidShow', (e) =>
+      setKeyboardHeight(e.endCoordinates.height)
+    );
     const hideSub = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0));
     return () => {
       showSub.remove();
@@ -69,7 +84,8 @@ export default function Login() {
 
   const handleLogin = async () => {
     setErrorMessage(null);
-    if (!email.trim() || !password.trim()) {
+    if (!email.trim() || !password) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
       setErrorMessage('Please enter your email and password.');
       return;
     }
@@ -77,9 +93,17 @@ export default function Login() {
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({
       email: email.trim(),
-      password: password.trim()
+      // Sent exactly as typed -- register.tsx saves the password untrimmed,
+      // so trimming it here would lock out anyone whose password starts or
+      // ends with a space.
+      password,
     });
-    if (error) setErrorMessage(error.message);
+    if (error) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+      setErrorMessage(error.message);
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    }
     setLoading(false);
   };
 
@@ -143,7 +167,10 @@ export default function Login() {
       if (updateError) throw updateError;
 
       setForgotPasswordVisible(false);
-      Alert.alert('Password Updated', "You're all set -- you've been signed in with your new password.");
+      Alert.alert(
+        'Password Updated',
+        "You're all set -- you've been signed in with your new password."
+      );
     } catch (e: any) {
       setResetError(e.message);
     } finally {
@@ -152,10 +179,14 @@ export default function Login() {
   };
 
   const handleGuestCheckout = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     setErrorMessage(null);
     setGuestLoading(true);
     const { error } = await supabase.auth.signInAnonymously();
-    if (error) setErrorMessage(error.message);
+    if (error) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+      setErrorMessage(error.message);
+    }
     setGuestLoading(false);
   };
 
@@ -171,112 +202,162 @@ export default function Login() {
         pointerEvents="none"
       />
       <View
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.45)' }}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.50)',
+        }}
         pointerEvents="none"
       />
 
       <View className="flex-1 justify-center px-6" style={{ marginBottom: keyboardHeight }}>
-        <Animated.View style={heroStyle} className="items-center mb-5">
+        <Animated.View style={heroStyle} className="items-center mb-4">
           <Image
             source={require('../../assets/logo.jpg')}
-            className="w-36 h-36 rounded-full mb-3 shadow-md"
+            className="w-32 h-32 rounded-full mb-3 shadow-md"
             resizeMode="contain"
           />
-          <Text className="text-3xl font-display-bold text-[#F4ECE1]">Al Paninos</Text>
+          <Text className="text-3xl font-display-bold text-[#F4ECE1] tracking-tight">
+            Al Paninos
+          </Text>
         </Animated.View>
 
         <Animated.View
           style={heroStyle}
-          className="flex-row items-center self-center bg-[#A61C14] px-4 py-2 rounded-full mb-6"
+          className="flex-row items-center self-center bg-[#A61C14] px-3.5 py-1.5 rounded-full mb-5 shadow-sm"
         >
-          <Ionicons name="gift-outline" size={16} color="#F4ECE1" />
-          <Text className="text-[#F4ECE1] font-inter-bold text-sm ml-2">Earn rewards with every order</Text>
+          <Ionicons name="sparkles" size={14} color="#F4ECE1" />
+          <Text className="text-[#F4ECE1] font-inter-bold text-xs ml-1.5">
+            Earn rewards with every order
+          </Text>
         </Animated.View>
 
-      <Animated.View style={formStyle}>
-        {errorMessage && <ErrorBanner message={errorMessage} />}
-        {errorMessage && (
-          <TouchableOpacity onPress={handleOpenForgotPassword} className="self-center mb-4 -mt-2 py-1">
-            <Text className="text-[#F4ECE1] text-sm font-inter-semibold underline">Forgot your password?</Text>
-          </TouchableOpacity>
-        )}
+        <Animated.View style={formStyle}>
+          {errorMessage && <ErrorBanner message={errorMessage} />}
 
-        <View className="flex-row items-center bg-white border border-stone-300 rounded-xl mb-4 px-4">
-          <Ionicons name="mail-outline" size={20} color="#A8A29E" />
-          <TextInput
-            className="flex-1 p-4 text-base text-[#1C1917]"
-            placeholder="Email"
-            placeholderTextColor="#A8A29E"
-            autoCapitalize="none"
-            keyboardType="email-address"
-            value={email}
-            onChangeText={(text) => { setEmail(text); setErrorMessage(null); }}
-            editable={!isBusy}
-          />
-        </View>
+          <View className="flex-row items-center bg-white border border-stone-300 rounded-2xl mb-3 px-3.5 shadow-sm">
+            <Ionicons name="mail-outline" size={18} color="#A8A29E" />
+            <TextInput
+              className="flex-1 p-3.5 text-sm text-[#1C1917]"
+              placeholder="Email address"
+              placeholderTextColor="#A8A29E"
+              autoCapitalize="none"
+              keyboardType="email-address"
+              value={email}
+              onChangeText={(text) => {
+                setEmail(text);
+                setErrorMessage(null);
+              }}
+              editable={!isBusy}
+            />
+          </View>
 
-        <View className="flex-row items-center bg-white border border-stone-300 rounded-xl mb-6 px-4">
-          <Ionicons name="lock-closed-outline" size={20} color="#A8A29E" />
-          <TextInput
-            className="flex-1 p-4 text-base text-[#1C1917]"
-            placeholder="Password"
-            placeholderTextColor="#A8A29E"
-            secureTextEntry
-            value={password}
-            onChangeText={(text) => { setPassword(text); setErrorMessage(null); }}
-            editable={!isBusy}
-          />
-        </View>
+          <View className="flex-row items-center bg-white border border-stone-300 rounded-2xl mb-2 px-3.5 shadow-sm">
+            <Ionicons name="lock-closed-outline" size={18} color="#A8A29E" />
+            <TextInput
+              className="flex-1 p-3.5 text-sm text-[#1C1917]"
+              placeholder="Password"
+              placeholderTextColor="#A8A29E"
+              secureTextEntry
+              value={password}
+              onChangeText={(text) => {
+                setPassword(text);
+                setErrorMessage(null);
+              }}
+              editable={!isBusy}
+            />
+          </View>
 
-        <TouchableOpacity
-          className="bg-[#A61C14] p-4 rounded-xl mb-4 items-center shadow-md active:bg-[#85140E]"
-          onPress={handleLogin}
-          disabled={isBusy}
-        >
-          {loading ? (
-            <ActivityIndicator color="#F4ECE1" />
-          ) : (
-            <Text className="text-[#F4ECE1] text-center font-display text-lg">Sign In</Text>
-          )}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          className="bg-[#1C1917] p-4 rounded-xl mb-6 items-center active:opacity-90"
-          onPress={handleGuestCheckout}
-          disabled={isBusy}
-        >
-          {guestLoading ? (
-            <ActivityIndicator color="#F4ECE1" />
-          ) : (
-            <Text className="text-[#F4ECE1] text-center font-display text-lg">Continue as Guest</Text>
-          )}
-        </TouchableOpacity>
-
-        <Link href="/(auth)/register" asChild>
-          <TouchableOpacity disabled={isBusy} className="py-2">
-            <Text className="text-[#A61C14] text-center text-base font-inter-semibold">
-              Don't have an account? <Text className="underline font-inter-bold">Sign Up</Text>
+          {/* Always available, not only after a failed sign-in -- someone who
+              already knows they've forgotten shouldn't have to fail first. */}
+          <TouchableOpacity
+            onPress={handleOpenForgotPassword}
+            disabled={isBusy}
+            className="self-end mb-4 py-1"
+            hitSlop={{ top: 6, bottom: 6, left: 10, right: 10 }}
+          >
+            <Text className="text-[#F4ECE1] text-xs font-inter-semibold underline">
+              Forgot password?
             </Text>
           </TouchableOpacity>
-        </Link>
+
+          <TouchableOpacity
+            className="bg-[#A61C14] p-3.5 rounded-2xl mb-3 items-center shadow-md active:bg-[#85140E]"
+            onPress={handleLogin}
+            disabled={isBusy}
+          >
+            {loading ? (
+              <ActivityIndicator color="#F4ECE1" size="small" />
+            ) : (
+              <Text className="text-[#F4ECE1] text-center font-inter-bold text-base">Sign In</Text>
+            )}
+          </TouchableOpacity>
+
+          {/* Divider */}
+          <View className="flex-row items-center my-2.5">
+            <View className="flex-1 h-[1px] bg-white/20" />
+            <Text className="text-[#F4ECE1]/60 font-inter-medium text-xs px-3">or</Text>
+            <View className="flex-1 h-[1px] bg-white/20" />
+          </View>
+
+          <TouchableOpacity
+            className="bg-white/10 border border-white/20 p-3.5 rounded-2xl mb-4 items-center flex-row justify-center active:bg-white/20"
+            onPress={handleGuestCheckout}
+            disabled={isBusy}
+          >
+            {guestLoading ? (
+              <ActivityIndicator color="#F4ECE1" size="small" />
+            ) : (
+              <>
+                <Ionicons name="flash-outline" size={16} color="#F4ECE1" style={{ marginRight: 6 }} />
+                <Text className="text-[#F4ECE1] text-center font-inter-bold text-sm">
+                  Continue as Guest
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+
+          <Link href="/(auth)/register" asChild>
+            <TouchableOpacity disabled={isBusy} className="py-2">
+              <Text className="text-[#F4ECE1] text-center text-xs font-inter-medium">
+                Don't have an account?{' '}
+                <Text className="underline font-inter-bold text-[#F4ECE1]">Sign Up</Text>
+              </Text>
+            </TouchableOpacity>
+          </Link>
         </Animated.View>
       </View>
 
+      {/* Forgot Password Sheet */}
       {forgotPasswordVisible && (
-        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <View
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+          }}
+        >
           <TouchableOpacity
             style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
             activeOpacity={1}
             onPress={() => setForgotPasswordVisible(false)}
           />
-          <View className="bg-[#FAF6F0] rounded-2xl mx-4 p-6" style={{ marginTop: 100 }}>
-            <View className="flex-row justify-between items-center mb-4">
-              <Text className="text-xl font-inter-extrabold text-[#1C1917]">Reset Password</Text>
+          <View className="bg-[#FAF6F0] rounded-3xl mx-4 p-5" style={{ marginTop: 100 }}>
+            <View className="flex-row justify-between items-center mb-3">
+              <Text className="text-lg font-display-bold text-[#1C1917] tracking-tight">
+                Reset Password
+              </Text>
               <TouchableOpacity
                 onPress={() => setForgotPasswordVisible(false)}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Ionicons name="close" size={24} color="#1C1917" />
+                <Ionicons name="close" size={22} color="#1C1917" />
               </TouchableOpacity>
             </View>
 
@@ -284,11 +365,11 @@ export default function Login() {
 
             {resetStep === 'email' ? (
               <>
-                <Text className="text-[#78716C] mb-4">
-                  Enter your email and we'll send you a code to reset your password.
+                <Text className="text-stone-500 text-xs mb-3">
+                  Enter your email and we'll send you a 6-digit code to reset your password.
                 </Text>
                 <TextInput
-                  className="bg-white border border-stone-300 rounded-xl p-4 mb-4 text-base text-[#1C1917]"
+                  className="bg-white border border-stone-300 rounded-xl p-3 mb-3 text-sm text-[#1C1917]"
                   placeholder="Email"
                   placeholderTextColor="#A8A29E"
                   autoCapitalize="none"
@@ -297,24 +378,24 @@ export default function Login() {
                   onChangeText={setResetEmail}
                 />
                 <TouchableOpacity
-                  className="bg-[#A61C14] p-4 rounded-xl items-center"
+                  className="bg-[#A61C14] p-3.5 rounded-xl items-center active:bg-[#85140E]"
                   onPress={handleSendResetCode}
                   disabled={sendingReset}
                 >
                   {sendingReset ? (
-                    <ActivityIndicator color="#F4ECE1" />
+                    <ActivityIndicator color="#F4ECE1" size="small" />
                   ) : (
-                    <Text className="text-[#F4ECE1] font-display text-lg">Send Code</Text>
+                    <Text className="text-[#F4ECE1] font-inter-bold text-sm">Send Reset Code</Text>
                   )}
                 </TouchableOpacity>
               </>
             ) : (
               <>
-                <Text className="text-[#78716C] mb-4">
-                  Enter the 6-digit code sent to {resetEmail.trim()} and choose a new password.
+                <Text className="text-stone-500 text-xs mb-3">
+                  Enter the 6-digit code sent to {resetEmail.trim()} and pick a new password.
                 </Text>
                 <TextInput
-                  className="bg-white border border-stone-300 rounded-xl p-4 mb-4 text-base text-[#1C1917]"
+                  className="bg-white border border-stone-300 rounded-xl p-3 mb-2.5 text-sm text-[#1C1917]"
                   placeholder="6-digit code"
                   placeholderTextColor="#A8A29E"
                   keyboardType="number-pad"
@@ -323,26 +404,30 @@ export default function Login() {
                   onChangeText={setResetCode}
                 />
                 <TextInput
-                  className="bg-white border border-stone-300 rounded-xl p-4 mb-4 text-base text-[#1C1917]"
-                  placeholder="New password (min 6 chars)"
+                  className="bg-white border border-stone-300 rounded-xl p-3 mb-3 text-sm text-[#1C1917]"
+                  placeholder="New password (min 6 characters)"
                   placeholderTextColor="#A8A29E"
                   secureTextEntry
                   value={newPassword}
                   onChangeText={setNewPassword}
                 />
                 <TouchableOpacity
-                  className="bg-[#A61C14] p-4 rounded-xl items-center mb-3"
+                  className="bg-[#A61C14] p-3.5 rounded-xl items-center mb-2.5 active:bg-[#85140E]"
                   onPress={handleConfirmReset}
                   disabled={submittingReset}
                 >
                   {submittingReset ? (
-                    <ActivityIndicator color="#F4ECE1" />
+                    <ActivityIndicator color="#F4ECE1" size="small" />
                   ) : (
-                    <Text className="text-[#F4ECE1] font-display text-lg">Reset Password</Text>
+                    <Text className="text-[#F4ECE1] font-inter-bold text-sm">Update Password</Text>
                   )}
                 </TouchableOpacity>
-                <TouchableOpacity onPress={handleSendResetCode} disabled={sendingReset} className="py-2">
-                  <Text className="text-[#78716C] text-center text-sm font-inter-semibold">Resend code</Text>
+                <TouchableOpacity
+                  onPress={handleSendResetCode}
+                  disabled={sendingReset}
+                  className="py-1.5 items-center"
+                >
+                  <Text className="text-stone-500 text-xs font-inter-semibold">Resend Code</Text>
                 </TouchableOpacity>
               </>
             )}
