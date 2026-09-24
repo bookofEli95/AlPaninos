@@ -11,6 +11,9 @@ import { getEtaDisplay } from '../../../lib/orderTiming';
 import { reorderFromOrder } from '../../../lib/reorder';
 import { tabularNums } from '../../../lib/typography';
 import { groupRepeats } from '../../../lib/modifiers';
+import { pointsForSubtotal } from '../../../lib/points';
+import { emailInvoice, shareInvoice } from '../../../lib/invoice';
+import BoxManifest from '../../../components/BoxManifest';
 
 const DELIVERY_STEPS = [
   { key: 'received', label: 'Received' },
@@ -49,17 +52,17 @@ export default function OrderDetailScreen() {
         .from('orders')
         .select(`
           *,
-          locations ( name ),
+          locations ( * ),
           order_items (
             id,
             quantity,
             unit_price,
             total_price,
             special_instructions,
-            menu_items ( name ),
+            menu_items ( name, is_catering ),
             order_item_modifiers (
               price_adjustment,
-              modifier_options ( name )
+              modifier_options ( *, modifier_groups!group_id ( * ) )
             )
           )
         `)
@@ -71,6 +74,44 @@ export default function OrderDetailScreen() {
     },
     enabled: !!id,
   });
+
+  // Dietary tags for the box manifest -- the sandwiches picked on a board
+  // are options pointing at their own menu item.
+  const tagSourceIds = useMemo(() => {
+    const ids = new Set<string>();
+    (order?.order_items || []).forEach((item: any) =>
+      (item.order_item_modifiers || []).forEach((mod: any) => {
+        if (mod.modifier_options?.menu_item_id) ids.add(mod.modifier_options.menu_item_id);
+      })
+    );
+    return Array.from(ids).sort();
+  }, [order]);
+  const { data: tagsById } = useQuery({
+    queryKey: ['dietaryTags', tagSourceIds],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('menu_items')
+        .select('id, dietary_tags')
+        .in('id', tagSourceIds);
+      if (error) throw error;
+      return new Map<string, string[]>((data || []).map((m: any) => [m.id, m.dietary_tags || []]));
+    },
+    enabled: !!order?.is_catering && tagSourceIds.length > 0,
+  });
+
+  const [invoiceBusy, setInvoiceBusy] = useState<'email' | 'share' | null>(null);
+  const handleInvoice = async (mode: 'email' | 'share') => {
+    if (!order) return;
+    setInvoiceBusy(mode);
+    try {
+      if (mode === 'email') await emailInvoice(order);
+      else await shareInvoice(order);
+    } catch (e: any) {
+      Alert.alert("Couldn't create the invoice", e.message);
+    } finally {
+      setInvoiceBusy(null);
+    }
+  };
 
   const { data: rating } = useQuery({
     queryKey: ['orderRating', id],
@@ -257,7 +298,19 @@ export default function OrderDetailScreen() {
                     Awaiting confirmation -- we'll call you to confirm the details before we start preparing it.
                   </Text>
                 )}
+                <View className="flex-row items-center mt-2 pt-2 border-t border-stone-100">
+                  <Ionicons name="star" size={14} color="#A61C14" />
+                  <Text className="text-xs text-[#1C1917] font-inter-semibold ml-1.5 flex-1">
+                    {isCompleted ? 'Earned' : 'Earns'}{' '}
+                    {pointsForSubtotal(Number(order.subtotal_amount ?? order.total_amount)).toLocaleString()} PaninoPoints
+                    {isCompleted ? '' : ' when completed'}
+                  </Text>
+                </View>
               </View>
+            )}
+
+            {order.is_catering && !isCancelled && (
+              <BoxManifest orderItems={order.order_items || []} tagsById={tagsById ?? new Map()} />
             )}
 
             {isReadyForPickup ? (
@@ -356,6 +409,13 @@ export default function OrderDetailScreen() {
                 </View>
               )}
 
+              {!!order.po_number && (
+                <View className="flex-row justify-between items-center py-2.5 border-b border-stone-100">
+                  <Text className="text-[#78716C]">PO / Cost Centre</Text>
+                  <Text className="text-[#1C1917] font-inter-semibold">{order.po_number}</Text>
+                </View>
+              )}
+
               {order.delivery_address && (
                 <View className="py-2.5 border-b border-stone-100">
                   <Text className="text-[#78716C] mb-0.5">Delivery Address</Text>
@@ -389,6 +449,42 @@ export default function OrderDetailScreen() {
                 <Text className="text-base font-inter-bold text-[#1C1917]">Total</Text>
                 <Text className="text-xl font-inter-bold text-[#A61C14]" style={tabularNums}>${Number(order.total_amount).toFixed(2)}</Text>
               </View>
+
+              {!isCancelled && (
+                <View className="flex-row gap-2 mt-3">
+                  <TouchableOpacity
+                    onPress={() => handleInvoice('email')}
+                    disabled={!!invoiceBusy}
+                    className="flex-1 flex-row items-center justify-center bg-stone-100 py-2.5 rounded-xl active:bg-stone-200"
+                  >
+                    {invoiceBusy === 'email' ? (
+                      <ActivityIndicator size="small" color="#1C1917" />
+                    ) : (
+                      <>
+                        <Ionicons name="mail-outline" size={15} color="#1C1917" />
+                        <Text className="text-[#1C1917] font-inter-bold text-xs ml-1.5">Email Invoice</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => handleInvoice('share')}
+                    disabled={!!invoiceBusy}
+                    className="flex-1 flex-row items-center justify-center bg-stone-100 py-2.5 rounded-xl active:bg-stone-200"
+                  >
+                    {invoiceBusy === 'share' ? (
+                      <ActivityIndicator size="small" color="#1C1917" />
+                    ) : (
+                      <>
+                        <Ionicons name="document-text-outline" size={15} color="#1C1917" />
+                        <Text className="text-[#1C1917] font-inter-bold text-xs ml-1.5">Save as PDF</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              )}
+              {!isCancelled && !!order.invoice_email && (
+                <Text className="text-[11px] text-[#78716C] mt-1.5 text-center">Invoice goes to {order.invoice_email}</Text>
+              )}
             </View>
 
             {isCompleted && (

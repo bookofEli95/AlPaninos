@@ -8,6 +8,7 @@ import { useCartStore } from '../../store/cartStore';
 import { useBackHandler } from '../../hooks/useBackHandler';
 import SkeletonBox from '../../components/Skeleton';
 import MenuItemGridTile from '../../components/MenuItemGridTile';
+import CateringPlanner from '../../components/CateringPlanner';
 
 export default function MenuCategoryScreen() {
   const { categoryId, categoryName, locationId } = useLocalSearchParams<{
@@ -40,6 +41,12 @@ export default function MenuCategoryScreen() {
     },
     enabled: !!categoryId,
   });
+
+  // The catering category gets the "how many are you feeding" planner.
+  const plannerPackages = useMemo(
+    () => (items || []).filter((i: any) => i.is_catering && i.catering_role) as any[],
+    [items]
+  );
 
   return (
     <View className="flex-1 bg-[#FAF6F0] pt-14">
@@ -113,6 +120,7 @@ export default function MenuCategoryScreen() {
           contentContainerStyle={{ paddingBottom: cartItems.length > 0 ? 100 : 28 }}
           showsVerticalScrollIndicator={false}
           renderItem={({ item }) => <MenuItemGridTile item={item} isSimpleCategory={isSimpleCategory} />}
+          ListHeaderComponent={plannerPackages.length > 0 ? <CateringPlanner packages={plannerPackages} /> : null}
           ListEmptyComponent={
             <Text className="text-center text-stone-500 mt-10 text-sm font-inter-medium w-full">No items in this category.</Text>
           }

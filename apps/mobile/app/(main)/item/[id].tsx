@@ -17,8 +17,10 @@ import { useCartStore } from '../../../store/cartStore';
 import { useBackHandler } from '../../../hooks/useBackHandler';
 import SkeletonBox from '../../../components/Skeleton';
 import ItemAddOns from '../../../components/ItemAddOns';
+import DietaryTags from '../../../components/DietaryTags';
 import { CATERING_RULES_SUMMARY, servesLabel } from '../../../lib/catering';
 import { optionsConflict } from '../../../lib/modifierConflicts';
+import { DIETARY_DISCLAIMER } from '../../../lib/dietary';
 import { shadowSm } from '../../../lib/shadows';
 import { tabularNums } from '../../../lib/typography';
 
@@ -36,7 +38,11 @@ export default function ItemDetailScreen() {
     promoCode,
     promoTitle,
     returnTo,
-  } = useLocalSearchParams<{ id: string; promoCode?: string; promoTitle?: string; returnTo?: string }>();
+    qty,
+  } = useLocalSearchParams<{ id: string; promoCode?: string; promoTitle?: string; returnTo?: string; qty?: string }>();
+  // Starting quantity -- the catering planner opens a package with the
+  // number it suggested (e.g. 2 Drinks Packs).
+  const initialQuantity = Math.max(1, Number(qty) || 1);
   const router = useRouter();
   const addItem = useCartStore((state) => state.addItem);
 
@@ -85,6 +91,23 @@ export default function ItemDetailScreen() {
         options = opts || [];
       }
 
+      // A catering option that is itself a menu item (a sandwich on a
+      // board) shows that item's dietary tags. Extra, so a failure here
+      // never stops the package from loading.
+      const sourceIds = Array.from(new Set(options.map((o: any) => o.menu_item_id).filter(Boolean)));
+      if ((itemData as any).is_catering && sourceIds.length > 0) {
+        const { data: sources, error: sourcesError } = await (supabase as any)
+          .from('menu_items')
+          .select('id, dietary_tags')
+          .in('id', sourceIds);
+        if (sourcesError) {
+          console.warn('Failed to load dietary tags:', sourcesError.message);
+        } else {
+          const tagsById = new Map((sources || []).map((m: any) => [m.id, m.dietary_tags]));
+          options = options.map((o: any) => ({ ...o, dietary_tags: tagsById.get(o.menu_item_id) ?? [] }));
+        }
+      }
+
       const assembledGroups =
         groups?.map((group) => ({
           ...group,
@@ -97,7 +120,7 @@ export default function ItemDetailScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      setQuantity(1);
+      setQuantity(initialQuantity);
       setSpecialInstructions('');
       setJustAdded(false);
 
@@ -125,7 +148,7 @@ export default function ItemDetailScreen() {
 
       allGroups.filter((g: any) => !g.parent_option_id).forEach(applyDefaults);
       setSelections(defaults);
-    }, [data])
+    }, [data, initialQuantity])
   );
 
   const selectedOptionIds = useMemo(() => new Set(Object.values(selections).flat()), [selections]);
@@ -477,6 +500,10 @@ export default function ItemDetailScreen() {
                 </Text>
               </View>
 
+              {group.allow_quantity && group.modifier_options?.some((o: any) => o.dietary_tags?.length > 0) && (
+                <Text className="text-[11px] text-[#78716C] mb-2.5">{DIETARY_DISCLAIMER}</Text>
+              )}
+
               <View className="gap-2">
                 {group.modifier_options?.map((option: any) => {
                   const isSelected = selectedInGroup.includes(option.id);
@@ -492,11 +519,14 @@ export default function ItemDetailScreen() {
                         }`}
                         style={count > 0 ? shadowSm : undefined}
                       >
-                        <Text
-                          className={`text-sm flex-1 mr-2 ${count > 0 ? 'font-inter-bold text-[#1C1917]' : 'font-inter-medium text-stone-800'}`}
-                        >
-                          {option.name}
-                        </Text>
+                        <View className="flex-1 mr-2">
+                          <Text
+                            className={`text-sm ${count > 0 ? 'font-inter-bold text-[#1C1917]' : 'font-inter-medium text-stone-800'}`}
+                          >
+                            {option.name}
+                          </Text>
+                          <DietaryTags tags={option.dietary_tags} />
+                        </View>
                         <View className="flex-row items-center bg-[#FAF6F0] rounded-xl p-1 border border-stone-200">
                           <TouchableOpacity
                             onPress={() => handleChangeOptionCount(group.id, option.id, -1, group.max_selections)}

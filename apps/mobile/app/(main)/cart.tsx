@@ -31,6 +31,7 @@ import { distanceKm } from '../../lib/geo';
 import { Country, DEFAULT_COUNTRY, formatPhoneNumber, isValidPhoneForCountry, parsePhone } from '../../lib/countries';
 import { tabularNums } from '../../lib/typography';
 import { groupRepeats } from '../../lib/modifiers';
+import { pointsForSubtotal, pointsRewardLabel } from '../../lib/points';
 
 const hapticSuccess = () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
 const hapticError = () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
@@ -68,6 +69,8 @@ export default function CartScreen() {
   const { appliedPromo, setAppliedPromo } = usePromoStore();
   const [menuItemInfoMap, setMenuItemInfoMap] = useState<Record<string, { categoryId: string; name: string }>>({});
   const [cateringCompany, setCateringCompany] = useState('');
+  const [cateringPo, setCateringPo] = useState('');
+  const [invoiceEmail, setInvoiceEmail] = useState('');
   const [cateringSuite, setCateringSuite] = useState('');
   const [cateringDropoff, setCateringDropoff] = useState('');
 
@@ -173,6 +176,7 @@ export default function CartScreen() {
   const cateringDays = useMemo(() => getCateringDays(locationHours), [locationHours, isCateringOrder]);
   // After discounts, before tax.
   const cateringShortfall = isCateringOrder ? Math.max(0, CATERING_MIN_SUBTOTAL - discountedSubtotal) : 0;
+  const cateringPointsReward = pointsRewardLabel(pointsForSubtotal(cartTotal));
 
   // A regular order's slot depends on order size/type (the ASAP estimate),
   // so those changes reset it. A catering slot is a booked day and time --
@@ -491,6 +495,11 @@ export default function CartScreen() {
       Alert.alert('Verify Your Email', 'Please verify your email address before placing the order.');
       return;
     }
+    if (isCateringOrder && invoiceEmail.trim() && !isValidEmail(invoiceEmail)) {
+      hapticError();
+      Alert.alert('Invalid Invoice Email', 'Please check the email address the invoice should go to, or leave it blank.');
+      return;
+    }
     if (!notifyEmail && !notifySms) {
       hapticError();
       Alert.alert('Notification Preference', 'Choose at least one way to receive order updates.');
@@ -549,6 +558,8 @@ export default function CartScreen() {
           estimated_ready_at: estimatedReadyAt,
           is_catering: isCateringOrder,
           catering_company: isCateringOrder && cateringCompany.trim() ? cateringCompany.trim() : null,
+          po_number: isCateringOrder && cateringPo.trim() ? cateringPo.trim() : null,
+          invoice_email: isCateringOrder && invoiceEmail.trim() ? invoiceEmail.trim() : null,
           catering_notes:
             isCateringOrder && orderType === 'delivery'
               ? [
@@ -623,6 +634,8 @@ export default function CartScreen() {
       setAppliedPromo(null);
       setSelectedSlot(null);
       setCateringCompany('');
+      setCateringPo('');
+      setInvoiceEmail('');
       setCateringSuite('');
       setCateringDropoff('');
       hapticSuccess();
@@ -996,6 +1009,18 @@ export default function CartScreen() {
             {isCateringOrder && (
               <View className="my-2 p-4 bg-white rounded-2xl border border-stone-200 shadow-sm">
                 <Text className="text-base font-inter-bold text-[#1C1917] mb-3">Catering Details</Text>
+                <View className="flex-row items-center bg-[#FAF6F0] border border-stone-200 rounded-xl px-3 py-2.5 mb-2.5">
+                  <Ionicons name="star" size={16} color="#A61C14" />
+                  <View className="ml-2 flex-1">
+                    <Text className="text-xs font-inter-bold text-[#1C1917]">
+                      This order earns {pointsForSubtotal(cartTotal).toLocaleString()} PaninoPoints
+                    </Text>
+                    <Text className="text-[11px] text-[#78716C]">
+                      {isAnonymous ? 'Saved to your account when you verify your email below' : 'Added to your account once the order is completed'}
+                      {cateringPointsReward ? ` -- that's ${cateringPointsReward} for you.` : '.'}
+                    </Text>
+                  </View>
+                </View>
                 <TextInput
                   className="bg-[#FAF6F0] border border-stone-300 px-3 py-2.5 rounded-xl text-sm text-[#1C1917]"
                   placeholder="Company or event name (optional)"
@@ -1003,6 +1028,25 @@ export default function CartScreen() {
                   value={cateringCompany}
                   onChangeText={setCateringCompany}
                 />
+                <TextInput
+                  className="bg-[#FAF6F0] border border-stone-300 px-3 py-2.5 rounded-xl text-sm text-[#1C1917] mt-2.5"
+                  placeholder="PO / cost centre number (optional)"
+                  placeholderTextColor="#A8A29E"
+                  value={cateringPo}
+                  onChangeText={setCateringPo}
+                />
+                <TextInput
+                  className="bg-[#FAF6F0] border border-stone-300 px-3 py-2.5 rounded-xl text-sm text-[#1C1917] mt-2.5"
+                  placeholder="Send invoice to, e.g. accounts@company.com (optional)"
+                  placeholderTextColor="#A8A29E"
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  value={invoiceEmail}
+                  onChangeText={setInvoiceEmail}
+                />
+                <Text className="text-[11px] text-[#78716C] mt-1.5">
+                  These go on your invoice -- email or save it as a PDF from the order screen.
+                </Text>
                 {orderType === 'delivery' && (
                   <>
                     <TextInput
