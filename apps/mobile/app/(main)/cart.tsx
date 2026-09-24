@@ -160,30 +160,6 @@ export default function CartScreen() {
     : null;
   const scrollRef = useRef<ScrollView>(null);
 
-  // Adding a dip from the upsell tray adds a cart line *above* the tray,
-  // which used to shove the tray down under the customer's finger. When a
-  // tray tap changes the height of everything above it, scroll by the same
-  // amount so the tray stays put.
-  const scrollYRef = useRef(0);
-  const aboveTrayHeightRef = useRef<number | null>(null);
-  const anchorTrayRef = useRef(false);
-  const anchorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const handleTrayWillChange = useCallback(() => {
-    anchorTrayRef.current = true;
-    // Only the layout right after the tap counts (a quantity bump on a line
-    // that's already there changes nothing above).
-    if (anchorTimerRef.current) clearTimeout(anchorTimerRef.current);
-    anchorTimerRef.current = setTimeout(() => {
-      anchorTrayRef.current = false;
-    }, 600);
-  }, []);
-  const handleAboveTrayLayout = useCallback((height: number) => {
-    const previous = aboveTrayHeightRef.current;
-    aboveTrayHeightRef.current = height;
-    if (!anchorTrayRef.current || previous == null || height === previous) return;
-    anchorTrayRef.current = false;
-    scrollRef.current?.scrollTo({ y: Math.max(0, scrollYRef.current + height - previous), animated: false });
-  }, []);
   // The cart is a tab screen, so it stays mounted (and keeps its scroll
   // position) while the customer browses the menu -- start back at the top
   // every time it's opened instead.
@@ -755,10 +731,13 @@ export default function CartScreen() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
-        onScroll={(e) => {
-          scrollYRef.current = e.nativeEvent.contentOffset.y;
-        }}
-        scrollEventThrottle={16}
+        // Keeps whatever section the customer is looking at in place when
+        // something above it changes size -- e.g. adding a dip from the
+        // upsell tray adds a cart line above the tray, which otherwise
+        // shoved the tray down under their finger. Handled natively, before
+        // the frame is drawn, so there's no visible jump. At the very top
+        // it stays at the top.
+        maintainVisibleContentPosition={{ minIndexForVisible: 0, autoscrollToTopThreshold: 8 }}
       >
         {items.length === 0 ? (
           <View className="items-center justify-center py-20">
@@ -776,9 +755,10 @@ export default function CartScreen() {
           </View>
         ) : (
           <>
-            {/* Everything above the upsell tray, measured to keep the tray
-                still when a tap there adds or removes a line. */}
-            <View onLayout={(e) => handleAboveTrayLayout(e.nativeEvent.layout.height)}>
+            {/* Everything above the upsell tray in one block, so the tray
+                is the section held in place when cart lines above it are
+                added or removed (see maintainVisibleContentPosition). */}
+            <View>
             {isCateringOrder && (
               <View className="mb-3 p-4 bg-white rounded-2xl border border-[#A61C14] shadow-sm">
                 <View className="flex-row items-center mb-1">
@@ -930,12 +910,7 @@ export default function CartScreen() {
             {/* Sauce/meal/dessert upsells are for individual orders -- not
                 shown on a catering order. */}
             {locationId && !isCateringOrder && (
-              <CartUpsellTray
-                items={items}
-                locationId={locationId}
-                cartTotal={cartTotal}
-                onBeforeChange={handleTrayWillChange}
-              />
+              <CartUpsellTray items={items} locationId={locationId} cartTotal={cartTotal} />
             )}
 
             <View className="my-2 p-3.5 bg-white rounded-2xl border border-stone-200 shadow-sm">

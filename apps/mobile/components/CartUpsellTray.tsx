@@ -22,15 +22,10 @@ export default function CartUpsellTray({
   items,
   locationId,
   cartTotal,
-  onBeforeChange,
 }: {
   items: CartItem[];
   locationId: string;
   cartTotal: number;
-  // Called just before an add/remove here changes the cart, so the Cart
-  // screen can keep this tray still while cart lines above it appear or
-  // disappear.
-  onBeforeChange?: () => void;
 }) {
   const router = useRouter();
   const cartItems = useCartStore((state) => state.items);
@@ -39,12 +34,10 @@ export default function CartUpsellTray({
 
   const incrementSimpleItem: typeof incrementSimpleItemRaw = (...args) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onBeforeChange?.();
     incrementSimpleItemRaw(...args);
   };
   const decrementSimpleItem: typeof decrementSimpleItemRaw = (...args) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onBeforeChange?.();
     decrementSimpleItemRaw(...args);
   };
 

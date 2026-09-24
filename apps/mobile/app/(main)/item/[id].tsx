@@ -93,25 +93,47 @@ export default function ItemDetailScreen() {
       }
 
       // A catering option that is itself a menu item (a sandwich on a
-      // board) shows that item's dietary tags. Extra, so a failure here
-      // never stops the package from loading.
-      const sourceIds = Array.from(new Set(options.map((o: any) => o.menu_item_id).filter(Boolean)));
-      if ((itemData as any).is_catering && sourceIds.length > 0) {
-        const { data: sources, error: sourcesError } = await (supabase as any)
-          .from('menu_items')
-          .select('id, dietary_tags')
-          .in('id', sourceIds);
-        if (sourcesError) {
-          console.warn('Failed to load dietary tags:', sourcesError.message);
+      // board, a drink) shows that item's description and dietary tags --
+      // found by its link (menu_item_id) or else by name at this store.
+      // Extra, so a failure here never stops the package from loading.
+      if ((itemData as any).is_catering && options.length > 0) {
+        const linkedIds = Array.from(new Set(options.map((o: any) => o.menu_item_id).filter(Boolean)));
+        const unlinkedNames = Array.from(new Set(options.filter((o: any) => !o.menu_item_id).map((o: any) => o.name)));
+        const [byId, byName] = await Promise.all([
+          linkedIds.length
+            ? (supabase as any).from('menu_items').select('id, name, description, dietary_tags').in('id', linkedIds)
+            : Promise.resolve({ data: [], error: null }),
+          unlinkedNames.length
+            ? (supabase as any)
+                .from('menu_items')
+                .select('id, name, description, dietary_tags')
+                .eq('location_id', itemData.location_id)
+                .eq('is_catering', false)
+                .in('name', unlinkedNames)
+            : Promise.resolve({ data: [], error: null }),
+        ]);
+        if (byId.error || byName.error) {
+          console.warn('Failed to load option details:', (byId.error || byName.error).message);
         } else {
-          const tagsById = new Map((sources || []).map((m: any) => [m.id, m.dietary_tags]));
-          options = options.map((o: any) => ({ ...o, dietary_tags: tagsById.get(o.menu_item_id) ?? [] }));
+          const sourceById = new Map((byId.data || []).map((m: any) => [m.id, m]));
+          const sourceByName = new Map((byName.data || []).map((m: any) => [String(m.name).toLowerCase(), m]));
+          options = options.map((o: any) => {
+            const source: any = o.menu_item_id ? sourceById.get(o.menu_item_id) : sourceByName.get(String(o.name).toLowerCase());
+            return source
+              ? { ...o, description: source.description || null, dietary_tags: source.dietary_tags ?? [] }
+              : o;
+          });
         }
       }
 
+      // Every catering choice where more than one can be picked gets -/+
+      // steppers (4 of the same drink or sauce, 3 of one panino...), not
+      // just the groups flagged allow_quantity in the database.
       const assembledGroups =
-        groups?.map((group) => ({
+        groups?.map((group: any) => ({
           ...group,
+          allow_quantity:
+            !!group.allow_quantity || (!!(itemData as any).is_catering && (group.max_selections ?? 0) > 1),
           modifier_options: options.filter((opt) => opt.group_id === group.id),
         })) || [];
 
@@ -517,6 +539,8 @@ export default function ItemDetailScreen() {
                     ? 'Select 1'
                     : group.max_selections && minRequired === group.max_selections
                     ? `${selectedInGroup.length} of ${group.max_selections} chosen`
+                    : group.allow_quantity && group.max_selections
+                    ? `${selectedInGroup.length} chosen • up to ${group.max_selections}`
                     : group.max_selections
                     ? `Up to ${group.max_selections}`
                     : 'Optional'}
@@ -548,6 +572,16 @@ export default function ItemDetailScreen() {
                           >
                             {option.name}
                           </Text>
+                          {!promoCode && option.price_adjustment > 0 && (
+                            <Text className="text-xs font-inter-bold text-[#A61C14]">
+                              +${option.price_adjustment.toFixed(2)} each
+                            </Text>
+                          )}
+                          {!!option.description && (
+                            <Text className="text-xs text-stone-500 leading-4 mt-0.5" numberOfLines={3}>
+                              {option.description}
+                            </Text>
+                          )}
                           <DietaryTags tags={option.dietary_tags} />
                         </View>
                         <View className="flex-row items-center bg-[#FAF6F0] rounded-xl p-1 border border-stone-200">
