@@ -7,6 +7,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useLocationStore } from '../../store/locationStore';
 import { useCartStore } from '../../store/cartStore';
 import { tabularNums } from '../../lib/typography';
+import { useCartTotals } from '../../hooks/useCartTotals';
 
 export default function MainLayout() {
   const router = useRouter();
@@ -26,7 +27,9 @@ export default function MainLayout() {
   }, [isLoaded, loadSavedLocation]);
 
   const itemCount = useMemo(() => items.reduce((sum, item) => sum + item.quantity, 0), [items]);
-  const cartTotal = useMemo(() => items.reduce((sum, item) => sum + item.totalPrice, 0), [items]);
+  // Same numbers as the cart: after the applied promo, with tax -- so the
+  // total at checkout is never a surprise.
+  const { total: cartTotal } = useCartTotals();
 
   const isInsideCart = segments.includes('cart') || segments.includes('item');
 
@@ -143,7 +146,10 @@ export default function MainLayout() {
               <Text className="text-[#F4ECE1] font-inter-bold text-base">View Cart</Text>
             </View>
             <View className="flex-row items-center">
-              <Text className="text-[#F4ECE1] font-inter-bold text-base mr-1.5" style={tabularNums}>${cartTotal.toFixed(2)}</Text>
+              <View className="items-end mr-1.5">
+                <Text className="text-[#F4ECE1] font-inter-bold text-base leading-5" style={tabularNums}>${cartTotal.toFixed(2)}</Text>
+                <Text className="text-[#F4ECE1] opacity-75 text-[10px] font-inter-semibold leading-3">incl. tax</Text>
+              </View>
               <Ionicons name="arrow-forward" size={16} color="#F4ECE1" />
             </View>
           </TouchableOpacity>

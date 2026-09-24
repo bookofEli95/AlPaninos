@@ -6,13 +6,13 @@ import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../../lib/supabase';
-import { useCartStore, CartItem } from '../../store/cartStore';
+import { useCartStore } from '../../store/cartStore';
 import { useLocationStore } from '../../store/locationStore';
 import { useAuthStore } from '../../store/authStore';
 import { usePromoStore } from '../../store/promoStore';
 import { useBackHandler } from '../../hooks/useBackHandler';
 import { useLocationDetails } from '../../hooks/useLocationDetails';
-import { appliedPromoFromRow, evaluatePromo, hasCategoryScope, hasUserRedeemedCode, resolvePromoCategoryIds } from '../../lib/promoEligibility';
+import { appliedPromoFromRow, hasCategoryScope, hasUserRedeemedCode, resolvePromoCategoryIds } from '../../lib/promoEligibility';
 import NotifyPreferenceToggle from '../../components/NotifyPreferenceToggle';
 import CountryPickerSheet from '../../components/CountryPickerSheet';
 import TimeSlotPickerSheet from '../../components/TimeSlotPickerSheet';
@@ -32,6 +32,7 @@ import { Country, DEFAULT_COUNTRY, formatPhoneNumber, isValidPhoneForCountry, pa
 import { tabularNums } from '../../lib/typography';
 import { groupRepeats } from '../../lib/modifiers';
 import { pointsForSubtotal, pointsRewardLabel } from '../../lib/points';
+import { useCartTotals, fetchMenuItemInfo, menuItemInfoKey } from '../../hooks/useCartTotals';
 import { dropState, isDropOrderable } from '../../lib/drops';
 
 const hapticSuccess = () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
@@ -68,14 +69,22 @@ export default function CartScreen() {
   const [applyingPromo, setApplyingPromo] = useState(false);
   const [promoInputOpen, setPromoInputOpen] = useState(false);
   const { appliedPromo, setAppliedPromo } = usePromoStore();
-  const [menuItemInfoMap, setMenuItemInfoMap] = useState<Record<string, { categoryId: string; name: string }>>({});
   const [cateringCompany, setCateringCompany] = useState('');
   const [cateringPo, setCateringPo] = useState('');
   const [invoiceEmail, setInvoiceEmail] = useState('');
   const [cateringSuite, setCateringSuite] = useState('');
   const [cateringDropoff, setCateringDropoff] = useState('');
 
-  const cartTotal = items.reduce((sum: number, item: CartItem) => sum + item.totalPrice, 0);
+  // Subtotal, promo discount, tax and total -- shared with the floating
+  // View Cart bar so the two always agree (hooks/useCartTotals.ts).
+  const {
+    subtotal: cartTotal,
+    discount: discountAmount,
+    discountedSubtotal,
+    tax: taxAmount,
+    total: grandTotal,
+    unmetReason: promoUnmetReason,
+  } = useCartTotals();
   const rewardPromoCodes = Array.from(new Set(items.map((item) => item.promoCode).filter((c): c is string => !!c)));
   const activePromoCode = appliedPromo?.code ?? rewardPromoCodes[0] ?? null;
 
@@ -86,64 +95,10 @@ export default function CartScreen() {
   }, [browsingLocationId, locationId, router]);
   useBackHandler(goBack);
 
-  // A category-scoped promo (applied here or from Deals) has to be resolved
-  // against this cart's location before it can be priced -- categories are
-  // duplicated per location -- and needs each cart item's category/name.
-  // Re-runs if the cart's location changes under an applied promo.
-  useEffect(() => {
-    if (!appliedPromo || !locationId || !hasCategoryScope(appliedPromo)) return;
-    const needsResolve = appliedPromo.resolvedForLocationId !== locationId;
-    if (!needsResolve && Object.keys(menuItemInfoMap).length > 0) return;
-    let cancelled = false;
-    (async () => {
-      const { data, error } = await supabase
-        .from('menu_items')
-        .select('id, category_id, name')
-        .eq('location_id', locationId);
-      if (cancelled) return;
-      if (!error && data) {
-        setMenuItemInfoMap(Object.fromEntries(data.map((m: any) => [m.id, { categoryId: m.category_id, name: m.name }])));
-      }
-      if (needsResolve) {
-        const ids = await resolvePromoCategoryIds(appliedPromo, locationId);
-        if (!cancelled) setAppliedPromo({ ...appliedPromo, resolvedCategoryIds: ids, resolvedForLocationId: locationId });
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [appliedPromo?.code, appliedPromo?.resolvedForLocationId, locationId]);
-
-  // Still resolving the promo's categories for this location -- priced at
-  // $0 with no "unmet" message rather than briefly flashing a wrong one.
-  const promoPending =
-    !!appliedPromo &&
-    hasCategoryScope(appliedPromo) &&
-    (appliedPromo.resolvedForLocationId !== locationId || Object.keys(menuItemInfoMap).length === 0);
-
-  // Live, Domino's-style: every rule (minimum order, buy-2, pickup-only) is
-  // re-checked on every cart/order-type change, so the discount drops to $0
-  // with a reason when a rule stops being met and comes back once it is.
-  const promoEvaluation = useMemo(() => {
-    if (!appliedPromo || promoPending) return { discount: 0, unmetReason: null };
-    return evaluatePromo(
-      items,
-      appliedPromo,
-      hasCategoryScope(appliedPromo) ? appliedPromo.resolvedCategoryIds ?? [] : null,
-      menuItemInfoMap,
-      orderType
-    );
-  }, [items, appliedPromo, promoPending, menuItemInfoMap, orderType]);
-  const discountAmount = promoEvaluation.discount;
-
   const { data: locationDetails } = useLocationDetails(locationId);
-  const taxRate = locationDetails?.taxRate ?? 0.13;
   const locationName = locationDetails?.name ?? null;
   const locationHours = locationDetails?.hours ?? null;
 
-  const discountedSubtotal = Math.max(0, cartTotal - discountAmount);
-  const taxAmount = discountedSubtotal * taxRate;
-  const grandTotal = discountedSubtotal + taxAmount;
 
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
   const pickupSlots = useMemo(
@@ -312,14 +267,7 @@ export default function CartScreen() {
       // promo box shows its real state the moment the code is applied.
       const applied = appliedPromoFromRow(promo);
       if (locationId && hasCategoryScope(applied)) {
-        const { data: menuItems, error: miError } = await supabase
-          .from('menu_items')
-          .select('id, category_id, name')
-          .eq('location_id', locationId);
-        if (miError) throw miError;
-        setMenuItemInfoMap(
-          Object.fromEntries((menuItems || []).map((m: any) => [m.id, { categoryId: m.category_id, name: m.name }]))
-        );
+        queryClient.setQueryData(menuItemInfoKey(locationId), await fetchMenuItemInfo(locationId));
         applied.resolvedCategoryIds = await resolvePromoCategoryIds(applied, locationId);
         applied.resolvedForLocationId = locationId;
       }
@@ -960,11 +908,11 @@ export default function CartScreen() {
                       <Text className="text-[#1C1917] font-inter-bold text-sm" numberOfLines={1}>
                         Code {activePromoCode} applied
                       </Text>
-                      {!!appliedPromo && !!promoEvaluation.unmetReason && (
+                      {!!appliedPromo && !!promoUnmetReason && (
                         <View className="flex-row items-center mt-0.5">
                           <Ionicons name="lock-closed" size={11} color="#B45309" />
                           <Text className="text-amber-700 text-xs font-inter-medium ml-1 flex-1">
-                            {promoEvaluation.unmetReason}
+                            {promoUnmetReason}
                           </Text>
                         </View>
                       )}
