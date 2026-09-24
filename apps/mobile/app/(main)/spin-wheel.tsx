@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet, Dimensions, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Image,
+  StyleSheet,
+  Dimensions,
+  ActivityIndicator,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import Svg, { Path, Circle } from 'react-native-svg';
@@ -14,7 +22,6 @@ import Animated, {
   SharedValue,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { useBackHandler } from '../../hooks/useBackHandler';
@@ -43,6 +50,9 @@ const HUB_SIZE = WHEEL_SIZE * 0.24;
 const EXTRA_SPINS = 6;
 const SPIN_DURATION = 4200;
 const LIGHT_COUNT = 20;
+// Matches the GRAND PRIZE segment in lib/wheelPrizes.ts (prize_index 3 in
+// the spin_wheel migration) -- the one win that gets the bigger celebration.
+const GRAND_PRIZE_INDEX = 3;
 
 function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
   const angleRad = ((angleDeg - 90) * Math.PI) / 180;
@@ -69,14 +79,14 @@ function RimLight({ index, phase }: { index: number; phase: SharedValue<number> 
     let dist = Math.abs(head - index);
     dist = Math.min(dist, LIGHT_COUNT - dist);
     const glow = Math.max(0, 1 - dist / 2.4);
-    return { opacity: 0.28 + glow * 0.72 };
+    return { opacity: 0.25 + glow * 0.75 };
   });
   return (
     <AnimatedCircle
       cx={x}
       cy={y}
-      r={index % 2 === 0 ? 5 : 4}
-      fill={index % 2 === 0 ? '#D4A017' : '#F4ECE1'}
+      r={index % 2 === 0 ? 4.5 : 3.5}
+      fill={index % 2 === 0 ? '#E7E5E4' : '#F4ECE1'}
       animatedProps={animatedProps}
     />
   );
@@ -93,14 +103,14 @@ export default function SpinWheelScreen() {
   const [spinning, setSpinning] = useState(false);
   const [result, setResult] = useState<PrizeResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
   const [prizeImageUrl, setPrizeImageUrl] = useState<string | null>(null);
   const [imageLoading, setImageLoading] = useState(false);
+
   const rotation = useSharedValue(0);
   const lightsPhase = useSharedValue(0);
   const pulseScale = useSharedValue(1);
-  const cardScale = useSharedValue(0.7);
-  const cardOpacity = useSharedValue(0);
+  const sheetTranslateY = useSharedValue(400);
+  const sheetOpacity = useSharedValue(0);
   const tickTimeouts = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const videoPlayer = useVideoPlayer(require('../../assets/videos/wheel-background.mp4'), (player) => {
@@ -109,13 +119,7 @@ export default function SpinWheelScreen() {
     player.play();
   });
 
-  const isBigWin = result?.index === 3;
-
-  const handleCopyCode = async (code: string) => {
-    await Clipboard.setStringAsync(code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  };
+  const isBigWin = result?.index === GRAND_PRIZE_INDEX;
 
   // This screen is the mandatory first thing a new registered user sees
   // (see app/_layout.tsx's navigation guard) -- there's nothing to go back
@@ -127,18 +131,18 @@ export default function SpinWheelScreen() {
   // marquee lights don't wait for anything.
   useEffect(() => {
     lightsPhase.value = withRepeat(withTiming(1, { duration: 1400, easing: Easing.linear }), -1, false);
-  }, []);
+  }, [lightsPhase]);
 
-  // The SPIN button pulses to draw the eye while idle, and settles down
+  // The spin button pulses to draw the eye while idle, and settles down
   // once the wheel is actually moving (or the prize is showing) rather than
   // pulsing behind the disabled state.
   useEffect(() => {
     if (spinning || result) {
       pulseScale.value = withTiming(1, { duration: 200 });
     } else {
-      pulseScale.value = withRepeat(withTiming(1.06, { duration: 700, easing: Easing.inOut(Easing.ease) }), -1, true);
+      pulseScale.value = withRepeat(withTiming(1.05, { duration: 750, easing: Easing.inOut(Easing.ease) }), -1, true);
     }
-  }, [spinning, result]);
+  }, [spinning, result, pulseScale]);
 
   // A real photo of the prize (when it maps to a menu category) makes the
   // reveal feel like an actual prize instead of a text label -- see
@@ -161,16 +165,19 @@ export default function SpinWheelScreen() {
       .finally(() => setImageLoading(false));
   }, [result]);
 
-  // Bounce the win card in rather than have it just appear.
+  // The result panel slides up from the bottom rather than just appearing.
   useEffect(() => {
     if (result) {
-      cardScale.value = withTiming(1, { duration: 450, easing: Easing.out(Easing.back(1.6)) });
-      cardOpacity.value = withTiming(1, { duration: 250 });
+      sheetTranslateY.value = withTiming(0, {
+        duration: 450,
+        easing: Easing.bezier(0.16, 1, 0.3, 1),
+      });
+      sheetOpacity.value = withTiming(1, { duration: 250 });
     } else {
-      cardScale.value = 0.7;
-      cardOpacity.value = 0;
+      sheetTranslateY.value = 400;
+      sheetOpacity.value = 0;
     }
-  }, [result]);
+  }, [result, sheetTranslateY, sheetOpacity]);
 
   useEffect(() => {
     return () => {
@@ -182,9 +189,9 @@ export default function SpinWheelScreen() {
     transform: [{ rotate: `${rotation.value}deg` }],
   }));
   const pulseStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulseScale.value }] }));
-  const cardStyle = useAnimatedStyle(() => ({
-    opacity: cardOpacity.value,
-    transform: [{ scale: cardScale.value }],
+  const sheetAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: sheetOpacity.value,
+    transform: [{ translateY: sheetTranslateY.value }],
   }));
 
   const handleSpinFinished = useCallback((prize: PrizeResult) => {
@@ -263,21 +270,30 @@ export default function SpinWheelScreen() {
         pointerEvents="none"
       />
       <View
-        style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.55)' }]}
+        style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.65)' }]}
         pointerEvents="none"
       />
 
-      <Text className="text-[#F4ECE1] text-3xl font-display-bold text-center mb-2">Welcome to Al Paninos!</Text>
-      <Text className="text-[#F4ECE1] opacity-80 text-center mb-10 text-base">
-        Spin the wheel for a one-time welcome prize.
-      </Text>
+      {/* Screen Header */}
+      <View className="items-center mb-6">
+        <Text className="text-[#F4ECE1] opacity-70 font-inter-bold text-xs uppercase tracking-widest mb-1.5">
+          Welcome Perk
+        </Text>
+        <Text className="text-[#F4ECE1] text-2xl font-display-bold text-center tracking-tight">
+          Welcome to Al Paninos
+        </Text>
+        <Text className="text-[#F4ECE1] opacity-70 text-center text-xs mt-1 max-w-[260px]">
+          Spin the wheel for a one-time welcome prize.
+        </Text>
+      </View>
 
+      {/* Wheel Assembly */}
       <View style={{ width: RING_SIZE, height: RING_SIZE + 30, alignItems: 'center' }}>
         <View style={styles.pointer}>
-          <Ionicons name="caret-down" size={36} color="#D4A017" />
+          <Ionicons name="caret-down" size={34} color="#F4ECE1" />
         </View>
 
-        <View style={{ width: RING_SIZE, height: RING_SIZE, marginTop: 20 }}>
+        <View style={{ width: RING_SIZE, height: RING_SIZE, marginTop: 18 }}>
           <Svg width={RING_SIZE} height={RING_SIZE} style={StyleSheet.absoluteFill}>
             {Array.from({ length: LIGHT_COUNT }, (_, i) => (
               <RimLight key={i} index={i} phase={lightsPhase} />
@@ -286,7 +302,13 @@ export default function SpinWheelScreen() {
 
           <Animated.View
             style={[
-              { position: 'absolute', left: RING_MARGIN, top: RING_MARGIN, width: WHEEL_SIZE, height: WHEEL_SIZE },
+              {
+                position: 'absolute',
+                left: RING_MARGIN,
+                top: RING_MARGIN,
+                width: WHEEL_SIZE,
+                height: WHEEL_SIZE,
+              },
               animatedWheelStyle,
             ]}
           >
@@ -296,11 +318,11 @@ export default function SpinWheelScreen() {
                   key={seg.index}
                   d={describeSlice(R, R, R - 2, i * WHEEL_SEGMENT_ANGLE, (i + 1) * WHEEL_SEGMENT_ANGLE)}
                   fill={seg.color}
-                  stroke="#D4A017"
-                  strokeWidth={2}
+                  stroke="#1C1917"
+                  strokeWidth={1.5}
                 />
               ))}
-              <Circle cx={R} cy={R} r={R - 2} fill="none" stroke="#D4A017" strokeWidth={3} />
+              <Circle cx={R} cy={R} r={R - 2} fill="none" stroke="#F4ECE1" strokeWidth={2} />
             </Svg>
 
             {WHEEL_SEGMENTS.map((seg, i) => {
@@ -324,7 +346,18 @@ export default function SpinWheelScreen() {
               );
             })}
 
-            <View style={[styles.centerHub, { width: HUB_SIZE, height: HUB_SIZE, borderRadius: HUB_SIZE / 2, left: R - HUB_SIZE / 2, top: R - HUB_SIZE / 2 }]}>
+            <View
+              style={[
+                styles.centerHub,
+                {
+                  width: HUB_SIZE,
+                  height: HUB_SIZE,
+                  borderRadius: HUB_SIZE / 2,
+                  left: R - HUB_SIZE / 2,
+                  top: R - HUB_SIZE / 2,
+                },
+              ]}
+            >
               <Image
                 source={require('../../assets/logo.jpg')}
                 style={{ width: HUB_SIZE, height: HUB_SIZE, borderRadius: HUB_SIZE / 2 }}
@@ -336,81 +369,90 @@ export default function SpinWheelScreen() {
       </View>
 
       {errorMessage && (
-        <Text className="text-[#F4ECE1] bg-[#A61C14] px-4 py-2 rounded-lg mt-8 text-center">{errorMessage}</Text>
+        <Text className="text-[#F4ECE1] bg-[#A61C14] px-4 py-2 rounded-xl mt-6 text-center text-xs font-inter-medium">
+          {errorMessage}
+        </Text>
       )}
 
+      {/* Spin Button */}
       {!result && (
-        <Animated.View style={pulseStyle} className="mt-10">
+        <Animated.View style={pulseStyle} className="mt-8">
           <TouchableOpacity
             onPress={handleSpin}
             disabled={spinning}
-            className={`px-10 py-4 rounded-full items-center shadow-lg ${spinning ? 'bg-stone-600' : 'bg-[#A61C14] active:bg-[#85140E]'}`}
-            style={!spinning ? styles.spinGlow : undefined}
+            className={`px-12 py-3.5 rounded-full items-center shadow-lg ${
+              spinning ? 'bg-stone-700' : 'bg-[#A61C14] active:bg-[#85140E]'
+            }`}
           >
-            <Text className="text-[#F4ECE1] font-display-bold text-xl tracking-wide">
-              {spinning ? 'Spinning...' : 'SPIN'}
+            <Text className="text-[#F4ECE1] font-display-bold text-lg tracking-wider">
+              {spinning ? 'SPINNING...' : 'TAP TO SPIN'}
             </Text>
           </TouchableOpacity>
         </Animated.View>
       )}
 
+      {/* Result panel -- slides up from the bottom. No prize code shown:
+          code prizes already appear on the Rewards tab (tap to apply) and
+          on Profile ("Redeem Now"), so there's nothing to copy down here. */}
       {result && (
-        <View style={StyleSheet.absoluteFill} className="items-center justify-center bg-black/70 px-6">
-          <ConfettiBurst count={isBigWin ? 70 : 36} />
+        <View style={StyleSheet.absoluteFill} className="justify-end bg-black/60">
+          <ConfettiBurst count={isBigWin ? 70 : 24} />
 
-          <Animated.View style={cardStyle} className="w-full items-center">
-            <View className="bg-[#FAF6F0] rounded-3xl p-6 w-full items-center shadow-xl border-2 border-[#D4A017]">
-              <Text className="text-4xl mb-2">{isBigWin ? '🏆' : '🎉'}</Text>
-              <Text className="text-[#78716C] font-inter-bold uppercase tracking-wider text-xs mb-1">You Won</Text>
-              <Text className="text-2xl font-display-bold text-[#1C1917] text-center mb-4">{result.title}</Text>
-
-              {result.index >= 0 && (
-                <View className="mb-4">
-                  {imageLoading ? (
-                    <View style={{ width: 168, height: 168 }} className="rounded-full bg-stone-200 items-center justify-center">
-                      <ActivityIndicator color="#A61C14" />
-                    </View>
-                  ) : prizeImageUrl ? (
-                    <View style={{ width: 168, height: 168 }} className="rounded-full overflow-hidden border-4 border-[#D4A017] shadow-lg">
-                      <Image source={{ uri: prizeImageUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-                    </View>
-                  ) : (
-                    <View style={{ width: 168, height: 168 }} className="rounded-full bg-[#A61C14] items-center justify-center border-4 border-[#D4A017] shadow-lg">
-                      <Text style={{ fontSize: 64 }}>{result.index === 3 ? '🏆' : result.index === 6 ? '💰' : '🎁'}</Text>
-                    </View>
-                  )}
+          <Animated.View
+            style={[styles.resultSheet, sheetAnimatedStyle]}
+            className="bg-[#FAF6F0] rounded-t-[32px] p-6 pb-10 items-center shadow-2xl border-t border-stone-200"
+          >
+            {/* Prize photo */}
+            <View className="mb-3.5">
+              {imageLoading ? (
+                <View className="w-24 h-24 rounded-2xl bg-stone-200 items-center justify-center">
+                  <ActivityIndicator color="#A61C14" size="small" />
+                </View>
+              ) : prizeImageUrl ? (
+                <Image
+                  source={{ uri: prizeImageUrl }}
+                  className="w-24 h-24 rounded-2xl bg-stone-100 border border-stone-200 shadow-sm"
+                  resizeMode="cover"
+                />
+              ) : (
+                <View className="w-20 h-20 rounded-2xl bg-white border border-stone-200 items-center justify-center shadow-sm">
+                  <Ionicons name={isBigWin ? 'trophy' : 'gift'} size={32} color="#A61C14" />
                 </View>
               )}
-
-              {result.code ? (
-                <TouchableOpacity
-                  onPress={() => handleCopyCode(result.code!)}
-                  className="flex-row items-center bg-white border-2 border-dashed border-[#A61C14] rounded-xl px-6 py-3 mb-4"
-                >
-                  <Text className="text-[#A61C14] font-inter-extrabold text-xl tracking-widest mr-3">{result.code}</Text>
-                  <Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={20} color="#A61C14" />
-                </TouchableOpacity>
-              ) : (
-                <Text className="text-[#78716C] text-center mb-4">
-                  We've added it to your account -- no code needed.
-                </Text>
-              )}
-
-              {result.code && (
-                <Text className="text-[#78716C] text-center text-sm mb-6">
-                  {copied
-                    ? 'Copied! Paste it in the Promo Code box at checkout to redeem it.'
-                    : 'Tap the code to copy it. Enter it in the Promo Code box at checkout to redeem it. It never expires.'}
-                </Text>
-              )}
-
-              <TouchableOpacity
-                onPress={handleContinue}
-                className="bg-[#A61C14] px-8 py-3.5 rounded-xl items-center w-full active:bg-[#85140E]"
-              >
-                <Text className="text-[#F4ECE1] font-display text-lg">Let's Eat</Text>
-              </TouchableOpacity>
             </View>
+
+            <View className="items-center mb-5">
+              {isBigWin && (
+                <Text className="text-[#A61C14] font-inter-extrabold text-xs uppercase tracking-widest mb-1.5">
+                  🏆 Grand Prize Winner
+                </Text>
+              )}
+              <View className="bg-emerald-100 px-3 py-0.5 rounded-full mb-1.5 flex-row items-center">
+                <Ionicons name="checkmark-circle" size={13} color="#047857" />
+                <Text className="text-emerald-800 text-[11px] font-inter-bold ml-1 uppercase tracking-wider">
+                  Gift Added to Rewards
+                </Text>
+              </View>
+
+              <Text className="text-2xl font-display-bold text-[#1C1917] text-center tracking-tight">
+                {result.title}
+              </Text>
+
+              <Text className="text-stone-500 text-xs text-center mt-1 px-4 leading-4">
+                {result.code
+                  ? "It's waiting for you on the Rewards tab and on your Profile -- redeem it whenever you're ready. It never expires."
+                  : "It's already been added to your account -- no code needed."}
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              onPress={handleContinue}
+              className="bg-[#A61C14] py-3.5 rounded-2xl items-center w-full shadow-sm flex-row justify-center active:bg-[#85140E]"
+              activeOpacity={0.9}
+            >
+              <Text className="text-[#F4ECE1] font-inter-bold text-base mr-2">Start Ordering</Text>
+              <Ionicons name="arrow-forward" size={18} color="#F4ECE1" />
+            </TouchableOpacity>
           </Animated.View>
         </View>
       )}
@@ -421,11 +463,13 @@ export default function SpinWheelScreen() {
 const styles = StyleSheet.create({
   pointer: {
     position: 'absolute',
-    top: -6,
+    top: -8,
     zIndex: 10,
   },
   segmentLabel: {
     color: '#F4ECE1',
+    // SemiBold rather than Bold: each label sits in a fixed-width box inside
+    // a narrow wedge, and the heavier weight is noticeably wider.
     fontFamily: 'PlusJakartaSans_600SemiBold',
     fontSize: LABEL_FONT_SIZE,
     textAlign: 'center',
@@ -434,17 +478,13 @@ const styles = StyleSheet.create({
   centerHub: {
     position: 'absolute',
     backgroundColor: '#F4ECE1',
-    borderWidth: 3,
-    borderColor: '#D4A017',
+    borderWidth: 2,
+    borderColor: '#1C1917',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  spinGlow: {
-    shadowColor: '#D4A017',
-    shadowOpacity: 0.8,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 10,
+  resultSheet: {
+    width: '100%',
   },
 });
