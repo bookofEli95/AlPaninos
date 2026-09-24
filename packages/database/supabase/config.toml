@@ -258,6 +258,13 @@ otp_expiry = 3600
 subject = "Your AlPaninos verification code"
 content_path = "./supabase/templates/email_change_otp.html"
 
+# Sign-up confirmation (register.tsx / SignupCodeSheet) -- a typed-in code
+# verified with verifyOtp type "signup" instead of a tapped link, which
+# would land on the Site URL (there's no website behind it).
+[auth.email.template.confirmation]
+subject = "Your AlPaninos sign-up code"
+content_path = "./supabase/templates/confirm_signup_otp.html"
+
 # Forgot-password flow (login.tsx) -- same typed-in code convention as
 # above, verified via verifyOtp with type "recovery" rather than a tapped
 # reset link.

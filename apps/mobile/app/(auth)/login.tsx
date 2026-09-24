@@ -22,6 +22,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../../lib/supabase';
 import ErrorBanner from '../../components/ErrorBanner';
+import SignupCodeSheet from '../../components/SignupCodeSheet';
 import { isValidEmail } from '../../lib/passwordStrength';
 
 export default function Login() {
@@ -31,6 +32,10 @@ export default function Login() {
   const [guestLoading, setGuestLoading] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Someone who signed up but never entered their code: a fresh one is sent
+  // and they confirm right here instead of hitting a dead end.
+  const [confirmEmail, setConfirmEmail] = useState<string | null>(null);
+  const [confirmIntro, setConfirmIntro] = useState('');
 
   const [forgotPasswordVisible, setForgotPasswordVisible] = useState(false);
   const [resetStep, setResetStep] = useState<'email' | 'code'>('email');
@@ -98,6 +103,24 @@ export default function Login() {
       // ends with a space.
       password,
     });
+    if (error && ((error as any).code === 'email_not_confirmed' || /email not confirmed/i.test(error.message))) {
+      const { error: resendError } = await supabase.auth.resend({ type: 'signup', email: email.trim() });
+      setLoading(false);
+      // "Only request this after N seconds": a code went out moments ago
+      // and is still good -- let them enter that one.
+      const justSent = !!resendError && /security purposes|seconds|rate limit/i.test(resendError.message);
+      if (resendError && !justSent) {
+        setErrorMessage(`Your email isn't confirmed yet, and we couldn't send a new code: ${resendError.message}`);
+        return;
+      }
+      setConfirmIntro(
+        justSent
+          ? "Your email isn't confirmed yet -- use the code from the email we just sent."
+          : "Your email isn't confirmed yet -- we just sent you a new code."
+      );
+      setConfirmEmail(email.trim());
+      return;
+    }
     if (error) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
       setErrorMessage(error.message);
@@ -434,6 +457,13 @@ export default function Login() {
           </View>
         </View>
       )}
+
+      <SignupCodeSheet
+        visible={!!confirmEmail}
+        email={confirmEmail ?? ''}
+        onClose={() => setConfirmEmail(null)}
+        intro={confirmIntro}
+      />
     </View>
   );
 }

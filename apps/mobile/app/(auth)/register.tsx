@@ -4,7 +4,6 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  Alert,
   ScrollView,
   Image,
   ActivityIndicator,
@@ -18,6 +17,7 @@ import AddressAutocomplete from '../../components/AddressAutocomplete';
 import CountryPickerSheet from '../../components/CountryPickerSheet';
 import NotifyPreferenceToggle from '../../components/NotifyPreferenceToggle';
 import ErrorBanner from '../../components/ErrorBanner';
+import SignupCodeSheet from '../../components/SignupCodeSheet';
 import { getPasswordStrength, isValidEmail } from '../../lib/passwordStrength';
 import { Country, DEFAULT_COUNTRY, formatPhoneNumber, isValidPhoneForCountry } from '../../lib/countries';
 
@@ -36,6 +36,8 @@ export default function Register() {
   const [countryPickerVisible, setCountryPickerVisible] = useState(false);
   const [notifyEmail, setNotifyEmail] = useState(true);
   const [notifySms, setNotifySms] = useState(false);
+  // Set once the sign-up email (with its 6-digit code) has gone out.
+  const [codeSentTo, setCodeSentTo] = useState<string | null>(null);
   const router = useRouter();
 
   const strength = useMemo(() => getPasswordStrength(password), [password]);
@@ -75,7 +77,7 @@ export default function Register() {
 
     setLoading(true);
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
       password: password,
       options: {
@@ -96,12 +98,18 @@ export default function Register() {
       setErrorMessage(error.message);
       return;
     }
+    // Supabase answers "success" for an email that already has an account
+    // (so sign-up can't be used to find out who's registered) -- but sends
+    // nothing. An account with no sign-in identities is that case.
+    if (data.user && data.user.identities?.length === 0) {
+      setErrorMessage('An account with this email already exists. Sign in instead, or use Forgot Password.');
+      return;
+    }
+    // Email confirmation switched off: already signed in, and the root
+    // layout moves on by itself.
+    if (data.session) return;
 
-    Alert.alert(
-      'Verification Email Sent',
-      'Please check your inbox and verify your email address before signing in.',
-      [{ text: 'OK', onPress: () => router.replace('/(auth)/login') }]
-    );
+    setCodeSentTo(email.trim());
   };
 
   return (
@@ -276,6 +284,13 @@ export default function Register() {
           setCountryPickerVisible(false);
         }}
         keyboardHeight={keyboardHeight}
+      />
+
+      <SignupCodeSheet
+        visible={!!codeSentTo}
+        email={codeSentTo ?? ''}
+        onClose={() => setCodeSentTo(null)}
+        intro="Almost done!"
       />
     </View>
   );
