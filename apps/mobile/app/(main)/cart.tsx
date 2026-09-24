@@ -592,6 +592,20 @@ export default function CartScreen() {
       queryClient.invalidateQueries({ queryKey: ['profile'] });
       queryClient.invalidateQueries({ queryKey: ['wheelPromo'] });
 
+      // A guest's checkout details are the only name and phone their
+      // account will have -- verifying their email just made it a real
+      // (password-less) account with its own Profile tab -- so save them to
+      // the profile instead of leaving it showing blanks. Only fills empty
+      // fields, never overwrites, and isn't critical to the order itself.
+      if (isAnonymous && user?.id) {
+        const { error: profileError } = await (supabase as any)
+          .from('profiles')
+          .update({ first_name: guestFirstName.trim(), last_name: guestLastName.trim(), phone: customerPhone })
+          .eq('id', user.id)
+          .is('first_name', null);
+        if (profileError) console.warn('Failed to save guest details to profile:', profileError.message);
+      }
+
       const wasCatering = isCateringOrder;
       clearCart();
       setAppliedPromo(null);

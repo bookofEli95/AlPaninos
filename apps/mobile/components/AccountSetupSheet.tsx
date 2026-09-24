@@ -116,7 +116,8 @@ export default function AccountSetupSheet({ visible, mode, onClose, onDone, init
     const { data: userData, error: pwdError } = await supabase.auth.updateUser({
       // Exactly as typed -- sign-in sends it untrimmed too (see login.tsx).
       password,
-      data: { first_name: firstName.trim(), last_name: lastName.trim(), phone },
+      // has_password: read by lib/account.ts's needsPassword().
+      data: { first_name: firstName.trim(), last_name: lastName.trim(), phone, has_password: true },
     });
     if (pwdError) throw pwdError;
     const userId = userData.user?.id;

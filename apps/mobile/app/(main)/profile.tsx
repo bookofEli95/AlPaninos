@@ -14,6 +14,7 @@ import { EligiblePrizeItem, fetchEligiblePrizeItems, isPickAnItemPrize, itemHasM
 import { formatPhoneNumber, parsePhone } from '../../lib/countries';
 import AccountSetupSheet from '../../components/AccountSetupSheet';
 import { useProfile } from '../../hooks/useProfile';
+import { needsPassword } from '../../lib/account';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -171,9 +172,14 @@ export default function ProfileScreen() {
     ]);
   };
 
-  const initials = profile
-    ? `${profile.first_name?.[0] ?? ''}${profile.last_name?.[0] ?? ''}`.toUpperCase()
-    : (session?.user?.email?.[0] ?? '?').toUpperCase();
+  // Never "null null": fall back to the email when there's no name yet.
+  const fullName = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ');
+  const initials = (
+    fullName
+      ? `${profile?.first_name?.[0] ?? ''}${profile?.last_name?.[0] ?? ''}`
+      : session?.user?.email?.[0] ?? '?'
+  ).toUpperCase();
+  const showFinishAccount = needsPassword(session?.user);
 
   if (isAnonymous || isLoading) {
     return (
@@ -192,7 +198,7 @@ export default function ProfileScreen() {
             <Text className="text-2xl font-inter-extrabold text-[#A61C14]">{initials}</Text>
           </View>
           <Text className="text-2xl font-display-bold text-[#F4ECE1] tracking-tight">
-            {profile ? `${profile.first_name} ${profile.last_name}` : 'Welcome back'}
+            {fullName || 'Welcome!'}
           </Text>
           <Text className="text-[#F4ECE1] opacity-80 text-xs mt-0.5">{session?.user?.email}</Text>
           <TouchableOpacity
@@ -206,11 +212,9 @@ export default function ProfileScreen() {
 
         <View className="px-4 -mt-4">
           {/* A guest who verified their email at checkout stops being a
-              guest (Supabase links the email to their session) -- but has no
-              name and no password, so they couldn't sign back in after
-              signing out. Every account created through Sign Up has a first
-              name from signup, so a missing one is how to spot these. */}
-          {profile && !profile.first_name && (
+              guest but has no password, so they couldn't sign back in after
+              signing out (see lib/account.ts). */}
+          {showFinishAccount && (
             <View className="bg-white rounded-3xl border border-[#A61C14] shadow-sm p-5 mb-3">
               <View className="flex-row items-center mb-1">
                 <Ionicons name="key-outline" size={15} color="#A61C14" />
@@ -297,25 +301,31 @@ export default function ProfileScreen() {
 
           {profile && (
             <View className="bg-white rounded-2xl border border-stone-200 shadow-sm mb-4 overflow-hidden">
-              <View className="flex-row items-center p-3.5 border-b border-stone-100">
+              <View className={`flex-row items-center p-3.5 ${profile.address ? 'border-b border-stone-100' : ''}`}>
                 <Ionicons name="call-outline" size={18} color="#A61C14" style={{ width: 26 }} />
                 <View>
                   <Text className="text-[10px] text-[#78716C] uppercase font-inter-bold tracking-wider">Phone</Text>
                   <Text className="text-sm font-inter-semibold text-[#1C1917]">
-                    {(() => {
-                      const { country, digits } = parsePhone(profile.phone || '');
-                      return `+${country.dialCode} ${formatPhoneNumber(digits, country)}`;
-                    })()}
+                    {profile.phone
+                      ? (() => {
+                          const { country, digits } = parsePhone(profile.phone);
+                          return `+${country.dialCode} ${formatPhoneNumber(digits, country)}`;
+                        })()
+                      : 'Not provided'}
                   </Text>
                 </View>
               </View>
-              <View className="flex-row items-center p-3.5">
-                <Ionicons name="location-outline" size={18} color="#A61C14" style={{ width: 26 }} />
-                <View>
-                  <Text className="text-[10px] text-[#78716C] uppercase font-inter-bold tracking-wider">Address</Text>
-                  <Text className="text-sm font-inter-semibold text-[#1C1917]">{profile.address}</Text>
+              {/* Only when there is one -- a pickup-only customer (e.g. a guest
+                  who checked out for pickup) has no address to show. */}
+              {!!profile.address && (
+                <View className="flex-row items-center p-3.5">
+                  <Ionicons name="location-outline" size={18} color="#A61C14" style={{ width: 26 }} />
+                  <View className="flex-1">
+                    <Text className="text-[10px] text-[#78716C] uppercase font-inter-bold tracking-wider">Address</Text>
+                    <Text className="text-sm font-inter-semibold text-[#1C1917]">{profile.address}</Text>
+                  </View>
                 </View>
-              </View>
+              )}
             </View>
           )}
 

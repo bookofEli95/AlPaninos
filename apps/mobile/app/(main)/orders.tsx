@@ -11,6 +11,7 @@ import { useRouter, useNavigation } from 'expo-router';
 import SkeletonBox from '../../components/Skeleton';
 import AccountSetupSheet from '../../components/AccountSetupSheet';
 import { useProfile } from '../../hooks/useProfile';
+import { needsPassword } from '../../lib/account';
 import { reorderFromOrder } from '../../lib/reorder';
 import { tabularNums } from '../../lib/typography';
 
@@ -106,9 +107,8 @@ export default function OrdersScreen() {
 
   // A guest can't have orders while still a guest -- checking out verifies
   // their email, which makes it a (password-less) account. Those accounts
-  // are the ones with orders to lose: no name (every Sign Up account has
-  // one, see profile.tsx's Finish Your Account card) and no password.
-  const needsAccountSetup = !!profile && !profile.first_name && !!orders?.length;
+  // are the ones with orders to lose (see lib/account.ts).
+  const needsAccountSetup = needsPassword(session?.user) && !!orders?.length;
 
   if (isLoading) {
     return (

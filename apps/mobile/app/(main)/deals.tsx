@@ -26,6 +26,7 @@ import {
 } from '../../lib/prizeRedemption';
 import PrizeItemPicker from '../../components/PrizeItemPicker';
 import SkeletonBox from '../../components/Skeleton';
+import AccountSetupSheet from '../../components/AccountSetupSheet';
 
 const NEXT_TIER_BY_POINTS = [
   { cost: 300, title: 'a Free Beverage' },
@@ -37,6 +38,10 @@ export default function DealsScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { session } = useAuthStore();
+  // Guests can't earn or redeem PaninoPoints, so they see a join card
+  // instead of a balance (always 0) they can't do anything with.
+  const isAnonymous = session?.user?.is_anonymous ?? false;
+  const [setupVisible, setSetupVisible] = useState(false);
   const locationId = useLocationStore((state) => state.locationId);
   const { appliedPromo, setAppliedPromo } = usePromoStore();
   const items = useCartStore((state) => state.items);
@@ -203,12 +208,14 @@ export default function DealsScreen() {
           <Text className="text-2xl font-display-bold text-[#1C1917] tracking-tight ml-1">Rewards & Deals</Text>
         </View>
 
-        <View className="bg-white border border-stone-200 px-3 py-1.5 rounded-full flex-row items-center shadow-sm">
-          <Ionicons name="sparkles" size={14} color="#A61C14" />
-          <Text className="text-[#1C1917] font-inter-bold text-xs ml-1.5">
-            {currentPoints} pts
-          </Text>
-        </View>
+        {!isAnonymous && (
+          <View className="bg-white border border-stone-200 px-3 py-1.5 rounded-full flex-row items-center shadow-sm">
+            <Ionicons name="sparkles" size={14} color="#A61C14" />
+            <Text className="text-[#1C1917] font-inter-bold text-xs ml-1.5">
+              {currentPoints} pts
+            </Text>
+          </View>
+        )}
       </View>
 
       <FlatList
@@ -218,6 +225,29 @@ export default function DealsScreen() {
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <View className="mb-4">
+            {isAnonymous ? (
+              <View className="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm mb-4">
+                <View className="flex-row justify-between items-center mb-2">
+                  <View className="flex-1 mr-3">
+                    <Text className="text-xs font-inter-bold uppercase tracking-wider text-stone-500">PaninoPoints</Text>
+                    <Text className="text-lg font-inter-bold text-[#1C1917] mt-0.5">Earn free food with an account</Text>
+                  </View>
+                  <View className="w-12 h-12 rounded-2xl bg-[#FAF6F0] border border-stone-200 items-center justify-center">
+                    <Ionicons name="gift-outline" size={22} color="#A61C14" />
+                  </View>
+                </View>
+                <Text className="text-xs text-stone-600 font-inter-medium mb-3">
+                  Get 10 points for every $1 -- a free drink at 300, a side at 600, a sandwich at 1,200 -- plus a free
+                  spin on the welcome wheel. Your cart comes with you.
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setSetupVisible(true)}
+                  className="bg-[#A61C14] py-3 rounded-xl items-center active:bg-[#85140E]"
+                >
+                  <Text className="text-[#F4ECE1] font-inter-bold text-sm">Create Free Account</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
             <View className="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm mb-4">
               <View className="flex-row justify-between items-center mb-2">
                 <View>
@@ -247,6 +277,7 @@ export default function DealsScreen() {
                   : `${nextTier.cost - currentPoints} more points until ${nextTier.title}`}
               </Text>
             </View>
+            )}
 
             <Text className="text-base font-inter-bold text-[#1C1917] mb-2 px-1">
               Available Offers & Prizes
@@ -421,6 +452,19 @@ export default function DealsScreen() {
           </TouchableOpacity>
         </View>
       )}
+
+      <AccountSetupSheet
+        visible={setupVisible}
+        mode="upgrade"
+        onClose={() => setSetupVisible(false)}
+        onDone={() => {
+          setSetupVisible(false);
+          Alert.alert('Account Created!', 'Your cart is saved to your new account, and your welcome spin is waiting.', [
+            { text: 'Later', style: 'cancel' },
+            { text: 'Spin the Wheel', onPress: () => router.replace('/(main)/spin-wheel') },
+          ]);
+        }}
+      />
 
       {picker && (
         <PrizeItemPicker
