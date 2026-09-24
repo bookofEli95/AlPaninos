@@ -172,7 +172,7 @@ export default function HomeScreen() {
   const openItem = async (itemId: string, itemLocationId: string) => {
     const store = locations?.find((l: any) => l.id === itemLocationId);
     if (!(await switchStore(itemLocationId, store?.name))) return;
-    router.push(`/(main)/item/${itemId}`);
+    router.push({ pathname: `/(main)/item/${itemId}`, params: { returnTo: 'menu' } });
   };
 
   return (

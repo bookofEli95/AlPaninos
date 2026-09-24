@@ -294,6 +294,12 @@ export default function ItemDetailScreen() {
       router.replace('/(main)/cart');
       return;
     }
+    // Opened from Home (Lunch Rush / Tonight picks, a drop): back to the
+    // store's main menu rather than the category the item happens to be in.
+    if (returnTo === 'menu' && data?.location_id) {
+      router.replace(`/(main)/menu/${data.location_id}`);
+      return;
+    }
     if (!data) return;
     if (data.category_id) {
       router.replace({
