@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import * as Location from 'expo-location';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
@@ -22,6 +22,10 @@ import { distanceKm } from '../../lib/geo';
 import { isOpenNow, getTodayHoursLabel } from '../../lib/hours';
 import { shadowSm } from '../../lib/shadows';
 import { useLocations } from '../../hooks/useLocations';
+import { useProfile } from '../../hooks/useProfile';
+import { useDrops } from '../../hooks/useDrops';
+import { getDaypart } from '../../lib/daypart';
+import { dropLabel, dropState } from '../../lib/drops';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -29,6 +33,14 @@ export default function HomeScreen() {
   const isAnonymous = session?.user?.is_anonymous ?? false;
   const { deliveryAddress, setDeliveryAddress, orderType, setOrderType } = useCartStore();
   const setLocationId = useLocationStore((state) => state.setLocationId);
+  const storedLocationId = useLocationStore((state) => state.locationId);
+  const { data: profile } = useProfile();
+
+  // Re-read the clock whenever Home is shown (it's a tab and stays
+  // mounted), so the lunch/evening mode is right when coming back later.
+  const [now, setNow] = useState(() => new Date());
+  useFocusEffect(useCallback(() => setNow(new Date()), []));
+  const daypart = getDaypart(now);
 
   const [addingUsual, setAddingUsual] = useState(false);
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -123,15 +135,50 @@ export default function HomeScreen() {
       });
   }, [locations, userCoords]);
 
+  // Picks and drops are for the store the customer last ordered from, or
+  // else the nearest / first one.
+  const featuredLocation = useMemo(
+    () => sortedLocations.find((l: any) => l.id === storedLocationId) ?? sortedLocations[0] ?? null,
+    [sortedLocations, storedLocationId]
+  );
+  const featuredLocationId = featuredLocation?.id ?? null;
+
+  const { data: picks } = useQuery({
+    queryKey: ['daypartPicks', featuredLocationId, daypart.daypart],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc('get_daypart_picks', {
+        p_location_id: featuredLocationId,
+        p_daypart: daypart.daypart,
+        p_limit: 6,
+      });
+      if (error) throw error;
+      return (data || []) as { id: string; name: string; base_price: number; image_url: string | null; location_id: string }[];
+    },
+    enabled: !!featuredLocationId,
+    staleTime: 5 * 60000,
+  });
+
+  const { data: drops } = useDrops(featuredLocationId);
+  const featuredDrop = drops?.[0] ?? null;
+
+  const openItem = (itemId: string, itemLocationId: string) => {
+    setLocationId(itemLocationId);
+    router.push(`/(main)/item/${itemId}`);
+  };
+
   return (
     <View className="flex-1 bg-[#FAF6F0] pt-14 px-4">
       {/* Top Header */}
       <View className="flex-row items-center justify-between mb-4">
         <View>
           <Text className="text-2xl font-display-bold text-[#1C1917] tracking-tight">Al Paninos</Text>
-          <Text className="text-xs text-stone-500 font-inter-medium">
-            Artisan Sandwiches & Italian Street Eats
-          </Text>
+          <View className="flex-row items-center">
+            <Ionicons name={daypart.icon} size={12} color="#78716C" />
+            <Text className="text-xs text-stone-500 font-inter-medium ml-1">
+              {daypart.greeting}
+              {profile?.first_name ? `, ${profile.first_name}` : ''}
+            </Text>
+          </View>
         </View>
 
         <TouchableOpacity
@@ -241,6 +288,85 @@ export default function HomeScreen() {
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 24 }}
+        ListHeaderComponent={
+          <>
+            {featuredDrop && (
+              <TouchableOpacity
+                onPress={() => openItem(featuredDrop.id, featuredDrop.location_id)}
+                activeOpacity={0.85}
+                className="bg-[#1C1917] rounded-2xl p-3.5 mb-4 flex-row items-center"
+              >
+                {featuredDrop.image_url ? (
+                  <Image source={{ uri: featuredDrop.image_url }} className="w-12 h-12 rounded-xl mr-3 bg-stone-700" resizeMode="cover" />
+                ) : (
+                  <View className="w-12 h-12 rounded-xl mr-3 bg-[#A61C14] items-center justify-center">
+                    <Ionicons name="flame" size={22} color="#F4ECE1" />
+                  </View>
+                )}
+                <View className="flex-1 mr-2">
+                  <Text className="text-[10px] font-inter-bold uppercase tracking-wider text-[#F0B4AC]">
+                    {dropState(featuredDrop) === 'live' ? 'App-Only Drop • Live Now' : 'App-Only Drop'}
+                  </Text>
+                  <Text className="text-base font-inter-bold text-[#F4ECE1]" numberOfLines={1}>
+                    {featuredDrop.name}
+                  </Text>
+                  <Text className="text-xs text-stone-400" numberOfLines={1}>
+                    {dropLabel(featuredDrop)}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color="#F4ECE1" />
+              </TouchableOpacity>
+            )}
+
+            {!!picks?.length && (
+              <View className="mb-4">
+                <View className="flex-row items-end justify-between mb-2">
+                  <View className="flex-1 mr-2">
+                    <Text className="text-base font-inter-bold text-[#1C1917]">{daypart.title}</Text>
+                    <Text className="text-xs text-stone-500" numberOfLines={1}>
+                      {daypart.subtitle}
+                      {featuredLocation?.name ? ` • ${featuredLocation.name}` : ''}
+                    </Text>
+                  </View>
+                </View>
+                <FlatList
+                  horizontal
+                  data={picks}
+                  keyExtractor={(pick) => pick.id}
+                  showsHorizontalScrollIndicator={false}
+                  renderItem={({ item: pick }) => (
+                    <TouchableOpacity
+                      onPress={() => openItem(pick.id, pick.location_id)}
+                      activeOpacity={0.85}
+                      className="bg-white rounded-2xl border border-stone-200 mr-2.5 overflow-hidden"
+                      style={{ width: 132 }}
+                    >
+                      {pick.image_url ? (
+                        <Image source={{ uri: pick.image_url }} className="w-full h-20 bg-stone-200" resizeMode="cover" />
+                      ) : (
+                        <View className="w-full h-20 bg-[#FAF6F0] items-center justify-center">
+                          <Ionicons name="restaurant" size={22} color="#A8A29E" />
+                        </View>
+                      )}
+                      <View className="p-2.5">
+                        <Text className="text-xs font-inter-bold text-[#1C1917]" numberOfLines={1}>
+                          {pick.name}
+                        </Text>
+                        <Text className="text-xs font-inter-bold text-[#A61C14] mt-0.5">
+                          ${Number(pick.base_price).toFixed(2)}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  )}
+                />
+              </View>
+            )}
+
+            {(!!picks?.length || !!featuredDrop) && (
+              <Text className="text-base font-inter-bold text-[#1C1917] mb-2">Locations</Text>
+            )}
+          </>
+        }
         renderItem={({ item }) => {
           const open = isOpenNow(item.hours);
 

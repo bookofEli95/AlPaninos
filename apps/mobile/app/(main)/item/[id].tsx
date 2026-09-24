@@ -21,6 +21,7 @@ import DietaryTags from '../../../components/DietaryTags';
 import { CATERING_RULES_SUMMARY, servesLabel } from '../../../lib/catering';
 import { optionsConflict } from '../../../lib/modifierConflicts';
 import { DIETARY_DISCLAIMER } from '../../../lib/dietary';
+import { dropLabel, dropState } from '../../../lib/drops';
 import { shadowSm } from '../../../lib/shadows';
 import { tabularNums } from '../../../lib/typography';
 
@@ -266,7 +267,11 @@ export default function ItemDetailScreen() {
     });
   }, [visibleGroups, selections]);
 
-  const isValid = !missingRequiredGroup;
+  // A drop can only be added while it's live (the database checks again
+  // when the order is placed).
+  const drop = data ? dropState(data as any) : 'none';
+  const dropBlocked = drop === 'upcoming' || drop === 'ended';
+  const isValid = !missingRequiredGroup && !dropBlocked;
 
   const calculatedPrice = useMemo(() => {
     if (!data) return 0;
@@ -454,6 +459,18 @@ export default function ItemDetailScreen() {
           <View className="flex-row items-center bg-white border border-stone-200 rounded-2xl p-3 mt-3">
             <Ionicons name="calendar-outline" size={18} color="#A61C14" />
             <Text className="text-[#1C1917] text-xs font-inter-medium ml-2.5 flex-1">{CATERING_RULES_SUMMARY}</Text>
+          </View>
+        )}
+
+        {drop !== 'none' && (
+          <View className="flex-row items-center bg-[#1C1917] rounded-2xl p-3 mt-3">
+            <Ionicons name="flame" size={18} color="#F0B4AC" />
+            <View className="ml-2.5 flex-1">
+              <Text className="text-[#F0B4AC] font-inter-bold text-[10px] uppercase tracking-wider">
+                App-Only Drop
+              </Text>
+              <Text className="text-[#F4ECE1] font-inter-semibold text-xs">{dropLabel(data as any)}</Text>
+            </View>
           </View>
         )}
 
@@ -687,7 +704,9 @@ export default function ItemDetailScreen() {
           ) : !isValid ? (
             <View className="flex-1 items-center justify-center">
               <Text className="font-inter-bold text-sm text-stone-500">
-                Select {missingRequiredGroup?.name || 'Required Options'} to Continue
+                {dropBlocked
+                  ? dropLabel(data as any)
+                  : `Select ${missingRequiredGroup?.name || 'Required Options'} to Continue`}
               </Text>
             </View>
           ) : (

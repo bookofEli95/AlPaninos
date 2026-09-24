@@ -27,6 +27,8 @@ import {
 import PrizeItemPicker from '../../components/PrizeItemPicker';
 import SkeletonBox from '../../components/Skeleton';
 import AccountSetupSheet from '../../components/AccountSetupSheet';
+import ChallengeCard from '../../components/ChallengeCard';
+import { Challenge } from '../../lib/challenges';
 
 const NEXT_TIER_BY_POINTS = [
   { cost: 300, title: 'a Free Beverage' },
@@ -108,8 +110,19 @@ export default function DealsScreen() {
     enabled: !!session?.user?.id,
   });
 
+  const { data: challenges } = useQuery({
+    queryKey: ['challenges', session?.user?.id],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc('get_my_challenges');
+      if (error) throw error;
+      return (data || []) as Challenge[];
+    },
+    enabled: !!session?.user?.id,
+  });
+
   useFocusEffect(
     useCallback(() => {
+      queryClient.invalidateQueries({ queryKey: ['challenges', session?.user?.id] });
       queryClient.invalidateQueries({
         queryKey: ['promotions', locationId, session?.user?.id, 'all'],
       });
@@ -277,6 +290,18 @@ export default function DealsScreen() {
                   : `${nextTier.cost - currentPoints} more points until ${nextTier.title}`}
               </Text>
             </View>
+            )}
+
+            {!!challenges?.length && (
+              <View className="mb-2">
+                <Text className="text-base font-inter-bold text-[#1C1917] mb-0.5 px-1">Challenges</Text>
+                <Text className="text-xs text-stone-500 mb-2.5 px-1">
+                  Bonus points on top of your usual 10 per $1.
+                </Text>
+                {challenges.map((challenge) => (
+                  <ChallengeCard key={challenge.id} challenge={challenge} />
+                ))}
+              </View>
             )}
 
             <Text className="text-base font-inter-bold text-[#1C1917] mb-2 px-1">

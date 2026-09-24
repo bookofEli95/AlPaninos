@@ -9,6 +9,7 @@ import { useBackHandler } from '../../hooks/useBackHandler';
 import SkeletonBox from '../../components/Skeleton';
 import MenuItemGridTile from '../../components/MenuItemGridTile';
 import CateringPlanner from '../../components/CateringPlanner';
+import { isDropVisible } from '../../lib/drops';
 
 export default function MenuCategoryScreen() {
   const { categoryId, categoryName, locationId } = useLocalSearchParams<{
@@ -37,7 +38,8 @@ export default function MenuCategoryScreen() {
         .eq('is_available', true)
         .order('name', { ascending: true });
       if (error) throw error;
-      return data;
+      // Drops that have ended disappear; upcoming ones stay as a teaser.
+      return (data || []).filter((i: any) => isDropVisible(i));
     },
     enabled: !!categoryId,
   });
@@ -66,7 +68,12 @@ export default function MenuCategoryScreen() {
             </Text>
             {!!items?.length && !isLoading && (
               <Text className="text-xs text-stone-500 font-inter-medium">
-                {items.length} {items.length === 1 ? 'item' : 'items'} • {items.some((i: any) => i.is_catering) ? 'Order by 6 PM for tomorrow' : 'Made fresh'}
+                {items.length} {items.length === 1 ? 'item' : 'items'} •{' '}
+                {items.some((i: any) => i.is_catering)
+                  ? 'Order by 6 PM for tomorrow'
+                  : items.some((i: any) => i.drop_starts_at || i.drop_ends_at)
+                  ? 'App only • While they last'
+                  : 'Made fresh'}
               </Text>
             )}
           </View>

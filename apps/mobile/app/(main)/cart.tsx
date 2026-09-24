@@ -32,6 +32,7 @@ import { Country, DEFAULT_COUNTRY, formatPhoneNumber, isValidPhoneForCountry, pa
 import { tabularNums } from '../../lib/typography';
 import { groupRepeats } from '../../lib/modifiers';
 import { pointsForSubtotal, pointsRewardLabel } from '../../lib/points';
+import { dropState, isDropOrderable } from '../../lib/drops';
 
 const hapticSuccess = () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
 const hapticError = () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
@@ -511,6 +512,23 @@ export default function CartScreen() {
     try {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError) throw userError;
+
+      // A drop in the cart may have ended (or not started) since it was
+      // added. Caught here, before anything is saved -- the database would
+      // otherwise reject it halfway through saving the order.
+      const { data: dropRows, error: dropError } = await (supabase as any)
+        .from('menu_items')
+        .select('name, drop_starts_at, drop_ends_at')
+        .in('id', cartMenuItemIds);
+      if (dropError) console.warn('Drop check skipped:', dropError.message);
+      const blockedDrop = (dropRows || []).find((row: any) => !isDropOrderable(row));
+      if (blockedDrop) {
+        throw new Error(
+          dropState(blockedDrop) === 'upcoming'
+            ? `${blockedDrop.name} hasn't dropped yet. Remove it from your cart to order the rest.`
+            : `The ${blockedDrop.name} drop has ended. Remove it from your cart to order the rest.`
+        );
+      }
 
       let customerName = `${guestFirstName.trim()} ${guestLastName.trim()}`;
       let customerPhone = `+${guestCountry.dialCode}${guestPhone.trim()}`;

@@ -9,6 +9,7 @@ import { useAuthStore } from '../../../store/authStore';
 import SkeletonBox from '../../../components/Skeleton';
 import OrderTypeSheet from '../../../components/OrderTypeSheet';
 import MenuItemGridTile from '../../../components/MenuItemGridTile';
+import { dropLabel, dropState, isDropOrderable, isDropVisible } from '../../../lib/drops';
 
 export default function MenuScreen() {
   const { id: locationId } = useLocalSearchParams<{ id: string }>();
@@ -73,8 +74,29 @@ export default function MenuScreen() {
     [menuData]
   );
 
+  // The app-only Secret Mob gets its own banner too, and only while it has
+  // something to show (drops that have ended drop off).
+  const secretCategory = useMemo(
+    () => (menuData?.categories || []).find((c: any) => c.is_secret) ?? null,
+    [menuData]
+  );
+  const secretItems = useMemo(
+    () =>
+      secretCategory
+        ? (menuData?.items || []).filter((i: any) => i.category_id === secretCategory.id && isDropVisible(i))
+        : [],
+    [menuData, secretCategory]
+  );
+  const secretHighlight = useMemo(
+    () =>
+      secretItems.find((i: any) => dropState(i) === 'live') ??
+      secretItems.find((i: any) => dropState(i) === 'upcoming') ??
+      null,
+    [secretItems]
+  );
+
   const categoryRows = useMemo(() => {
-    const cats = (menuData?.categories || []).filter((c: any) => !c.is_catering);
+    const cats = (menuData?.categories || []).filter((c: any) => !c.is_catering && !c.is_secret);
     const rows: (typeof cats)[] = [];
     for (let i = 0; i < cats.length; i += 2) {
       rows.push(cats.slice(i, i + 2));
@@ -104,7 +126,7 @@ export default function MenuScreen() {
   const isSearching = searchQuery.trim().length > 0;
   const searchResults = isSearching
     ? (menuData?.items?.filter(item =>
-        item.name.toLowerCase().includes(searchQuery.trim().toLowerCase())
+        item.name.toLowerCase().includes(searchQuery.trim().toLowerCase()) && isDropOrderable(item as any)
       ) || [])
     : [];
 
@@ -185,6 +207,36 @@ export default function MenuScreen() {
             </View>
           </View>
           <Ionicons name="chevron-forward" size={16} color="#A61C14" />
+        </TouchableOpacity>
+      )}
+
+      {secretCategory && secretItems.length > 0 && (
+        <TouchableOpacity
+          onPress={() =>
+            router.push({
+              pathname: '/(main)/menu-category',
+              params: { categoryId: secretCategory.id, categoryName: secretCategory.name, locationId },
+            })
+          }
+          className="flex-row items-center justify-between bg-[#1C1917] mx-4 mb-4 px-4 py-3 rounded-xl"
+        >
+          <View className="flex-row items-center flex-1 mr-2">
+            <Ionicons name="flame" size={18} color="#F0B4AC" />
+            <View className="ml-2 flex-1">
+              <View className="flex-row items-center">
+                <Text className="text-[#F4ECE1] font-inter-bold text-sm" numberOfLines={1}>
+                  {secretCategory.name}
+                </Text>
+                <View className="bg-[#A61C14] px-1.5 py-0.5 rounded ml-2">
+                  <Text className="text-[#F4ECE1] text-[9px] font-inter-bold uppercase">App Only</Text>
+                </View>
+              </View>
+              <Text className="text-stone-400 text-xs" numberOfLines={1}>
+                {secretHighlight ? `${secretHighlight.name} • ${dropLabel(secretHighlight as any)}` : 'Creations you won\'t find on the board'}
+              </Text>
+            </View>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color="#F4ECE1" />
         </TouchableOpacity>
       )}
 

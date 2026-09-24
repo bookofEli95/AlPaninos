@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useCartStore } from '../store/cartStore';
 import { servesLabel } from '../lib/catering';
+import { DropFields, dropLabel, dropState } from '../lib/drops';
 
 type Props = {
   item: {
@@ -16,7 +17,7 @@ type Props = {
     // Catering packages only (see the catering migration).
     serves_min?: number | null;
     serves_max?: number | null;
-  };
+  } & DropFields;
   // Extras/Drinks have no modifiers to configure -- tapping adds/adjusts a
   // quantity right on the tile instead of opening the item detail screen.
   isSimpleCategory: boolean;
@@ -38,12 +39,16 @@ export default function MenuItemGridTile({ item, isSimpleCategory }: Props) {
   };
 
   const qty = cartItems.find(i => i.menuItemId === item.id && i.modifiers.length === 0)?.quantity || 0;
+  // A drop that hasn't started can be looked at but not added.
+  const drop = dropState(item);
+  const dropNote = dropLabel(item);
+  const canQuickAdd = isSimpleCategory && drop !== 'upcoming';
 
   return (
     <View className="w-1/2 p-2">
       <TouchableOpacity
-        disabled={isSimpleCategory}
-        activeOpacity={isSimpleCategory ? 1 : 0.7}
+        disabled={canQuickAdd}
+        activeOpacity={canQuickAdd ? 1 : 0.7}
         onPress={() => router.push(`/(main)/item/${item.id}`)}
         className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden"
       >
@@ -66,7 +71,19 @@ export default function MenuItemGridTile({ item, isSimpleCategory }: Props) {
             </View>
           )}
 
-          {isSimpleCategory && (
+          {!!dropNote && (
+            <View className="flex-row items-center mt-1">
+              <Ionicons name="flame" size={12} color={drop === 'live' ? '#A61C14' : '#78716C'} />
+              <Text
+                className={`text-[11px] ml-1 font-inter-semibold flex-1 ${drop === 'live' ? 'text-[#A61C14]' : 'text-[#78716C]'}`}
+                numberOfLines={1}
+              >
+                {dropNote}
+              </Text>
+            </View>
+          )}
+
+          {canQuickAdd && (
             qty === 0 ? (
               <TouchableOpacity
                 onPress={() =>
