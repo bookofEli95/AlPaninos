@@ -3,8 +3,9 @@ const readline = require('readline');
 const { createClient } = require('@supabase/supabase-js');
 
 // Asks a question in the terminal. `hidden` shows * instead of what's typed
-// or pasted (for secret keys).
-function ask(question, { hidden = false } = {}) {
+// or pasted (for secret keys); `preview: false` then only reports the
+// length (for passwords, where even a few characters shouldn't show).
+function ask(question, { hidden = false, preview = true } = {}) {
   return new Promise((resolve) => {
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout, terminal: true });
     rl.question(question, (answer) => {
@@ -13,7 +14,11 @@ function ask(question, { hidden = false } = {}) {
       const value = answer.trim().replace(/^[A-Z_]+=/, '').replace(/^["']|["']$/g, '').trim();
       if (hidden && value) {
         // Shown so a cut-off or wrong paste is easy to spot.
-        console.log(`  (got ${value.length} characters: ${value.slice(0, 11)}...${value.slice(-4)})`);
+        console.log(
+          preview
+            ? `  (got ${value.length} characters: ${value.slice(0, 11)}...${value.slice(-4)})`
+            : `  (got ${value.length} characters)`
+        );
       }
       resolve(value);
     });
