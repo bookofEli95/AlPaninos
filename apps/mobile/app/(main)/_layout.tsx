@@ -3,7 +3,6 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { Tabs, useRouter, useSegments } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuthStore } from '../../store/authStore';
 import { useLocationStore } from '../../store/locationStore';
 import { useCartStore } from '../../store/cartStore';
 import { tabularNums } from '../../lib/typography';
@@ -12,8 +11,6 @@ import { useCartTotals } from '../../hooks/useCartTotals';
 export default function MainLayout() {
   const router = useRouter();
   const segments = useSegments();
-  const { session } = useAuthStore();
-  const isAnonymous = session?.user?.is_anonymous ?? false;
   const { locationId, isLoaded, loadSavedLocation } = useLocationStore();
   const items = useCartStore((state) => state.items);
   // A fixed tab bar height ignores the phone's bottom safe area (the iPhone
@@ -99,7 +96,6 @@ export default function MainLayout() {
             tabBarIcon: ({ color, focused }) => (
               <Ionicons name={focused ? 'person' : 'person-outline'} size={22} color={color} />
             ),
-            href: isAnonymous ? null : undefined,
           }}
         />
         <Tabs.Screen

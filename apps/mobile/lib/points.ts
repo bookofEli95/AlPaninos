@@ -21,3 +21,13 @@ export function pointsRewardLabel(points: number): string | null {
   const n = Math.floor(points / tier.cost);
   return n === 1 ? tier.one : tier.many(n);
 }
+
+// The cart's "This order earns ..." nudge, from where the customer will be
+// after this order: how far to the next reward, or what they'll have
+// enough for once past the top one ("you'll have enough for 2 free
+// sandwiches").
+export function pointsProgressLabel(balanceAfter: number): string {
+  const next = [...REWARD_TIERS].reverse().find((t) => t.cost > balanceAfter);
+  if (next) return `${(next.cost - balanceAfter).toLocaleString()} more for ${next.one}`;
+  return `you'll have enough for ${pointsRewardLabel(balanceAfter)}`;
+}

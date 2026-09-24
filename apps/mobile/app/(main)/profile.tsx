@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView, Alert } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,6 +13,8 @@ import PrizeItemPicker from '../../components/PrizeItemPicker';
 import { EligiblePrizeItem, fetchEligiblePrizeItems, isPickAnItemPrize, itemHasModifiers } from '../../lib/prizeRedemption';
 import { formatPhoneNumber, parsePhone } from '../../lib/countries';
 import AccountSetupSheet from '../../components/AccountSetupSheet';
+import GuestJoinCard from '../../components/GuestJoinCard';
+import { confirmSwitchToExistingAccount, welcomeNewAccount } from '../../lib/guestSession';
 import { useProfile } from '../../hooks/useProfile';
 import { needsPassword } from '../../lib/account';
 import { useCartBarSpace } from '../../hooks/useCartBarSpace';
@@ -25,12 +27,6 @@ export default function ProfileScreen() {
   const locationId = useLocationStore(state => state.locationId);
   const isAnonymous = session?.user?.is_anonymous ?? false;
   const [setupVisible, setSetupVisible] = useState(false);
-
-  useEffect(() => {
-    if (isAnonymous) {
-      router.replace(locationId ? `/(main)/menu/${locationId}` : '/(main)');
-    }
-  }, [isAnonymous, locationId, router]);
 
   const { data: profile, isLoading } = useProfile();
 
@@ -183,7 +179,32 @@ export default function ProfileScreen() {
   ).toUpperCase();
   const showFinishAccount = needsPassword(session?.user);
 
-  if (isAnonymous || isLoading) {
+  // Guests see the Profile tab too (so the tab bar doesn't change shape the
+  // moment a guest becomes a member) -- as an invitation to join.
+  if (isAnonymous) {
+    return (
+      <View className="flex-1 bg-[#FAF6F0] pt-14 px-4">
+        <Text className="text-2xl font-display-bold text-[#1C1917] tracking-tight mb-3">Profile</Text>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: cartBarSpace + 24 }}>
+          <GuestJoinCard
+            onCreate={() => setSetupVisible(true)}
+            onSignIn={() => confirmSwitchToExistingAccount(router)}
+          />
+        </ScrollView>
+        <AccountSetupSheet
+          visible={setupVisible}
+          mode="upgrade"
+          onClose={() => setSetupVisible(false)}
+          onDone={() => {
+            setSetupVisible(false);
+            welcomeNewAccount(router);
+          }}
+        />
+      </View>
+    );
+  }
+
+  if (isLoading) {
     return (
       <View className="flex-1 bg-[#FAF6F0] justify-center items-center">
         <ActivityIndicator size="large" color="#A61C14" />

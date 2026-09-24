@@ -2,13 +2,13 @@ import { useCallback, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Alert, Linking, Platform } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
-import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { useCartStore } from '../../store/cartStore';
 import { useLocations } from '../../hooks/useLocations';
 import { isOpenNow, getTodayHoursLabel } from '../../lib/hours';
 import AccountSetupSheet from '../../components/AccountSetupSheet';
+import GuestJoinCard from '../../components/GuestJoinCard';
+import { confirmSwitchToExistingAccount, signOutToLogin as signOutToLoginScreen, welcomeNewAccount } from '../../lib/guestSession';
 import { useProfile } from '../../hooks/useProfile';
 import { needsPassword } from '../../lib/account';
 
@@ -36,15 +36,9 @@ function openDirections(address: string) {
   Linking.openURL(url).catch(() => Alert.alert("Couldn't open maps", 'Please try again.'));
 }
 
-const PERKS = [
-  { icon: 'color-wand-outline', text: 'A free spin on the welcome prize wheel' },
-  { icon: 'gift-outline', text: '10 PaninoPoints per $1 toward free drinks, sides and sandwiches' },
-  { icon: 'receipt-outline', text: 'Your order history and receipts, on any device' },
-];
-
 export default function MoreScreen() {
   const router = useRouter();
-  const { session, setSession } = useAuthStore();
+  const { session } = useAuthStore();
   const isAnonymous = session?.user?.is_anonymous ?? false;
   const { data: locations } = useLocations();
   const hasCartItems = useCartStore((state) => state.items.length > 0);
@@ -62,26 +56,7 @@ export default function MoreScreen() {
   const [setupMode, setSetupMode] = useState<'upgrade' | 'finish'>('upgrade');
   const { data: profile } = useProfile();
 
-  const signOutToLogin = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-    await supabase.auth.signOut().catch(console.warn);
-    setSession(null);
-    router.replace('/(auth)/login');
-  };
-
-  // Signing in to a different, existing account can't keep this guest
-  // session's cart -- the cart belongs to the guest's user id (see
-  // cartStore), and signing in switches to another one.
-  const handleSwitchToExistingAccount = () => {
-    Alert.alert(
-      'Sign In to Your Account',
-      'Signing in ends this guest session, and anything in your cart now will not carry over.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Continue to Sign In', style: 'destructive', onPress: signOutToLogin },
-      ]
-    );
-  };
+  const signOutToLogin = () => signOutToLoginScreen(router);
 
   // Signing out of an anonymous session is irreversible (there's no way to
   // log back into it), so it confirms first.
@@ -126,13 +101,7 @@ export default function MoreScreen() {
 
   const handleAccountCreated = () => {
     setSetupVisible(false);
-    // A new account's welcome spin -- has_spun_wheel starts false for every
-    // profile, and claim_wheel_prize() only needs the account to no longer
-    // be anonymous, which it now isn't.
-    Alert.alert('Account Created!', 'Your cart is saved to your new account, and your welcome spin is waiting.', [
-      { text: 'Later', style: 'cancel' },
-      { text: 'Spin the Wheel', onPress: () => router.replace('/(main)/spin-wheel') },
-    ]);
+    welcomeNewAccount(router);
   };
 
   return (
@@ -145,46 +114,13 @@ export default function MoreScreen() {
         contentContainerStyle={{ paddingBottom: hasCartItems ? 96 : 32 }}
       >
         {isAnonymous && (
-          <View className="bg-white rounded-3xl p-5 border border-stone-200 shadow-sm mb-4">
-            <View className="flex-row items-center mb-2">
-              <View className="w-8 h-8 rounded-full bg-[#FAF6F0] items-center justify-center mr-2.5 border border-stone-200">
-                <Ionicons name="sparkles" size={16} color="#A61C14" />
-              </View>
-              <View className="flex-1">
-                <Text className="text-[11px] font-inter-bold text-[#A61C14] uppercase tracking-wider">Guest Session</Text>
-                <Text className="text-base font-inter-bold text-[#1C1917]">Create an Account, Keep Your Cart</Text>
-              </View>
-            </View>
-
-            <Text className="text-stone-600 text-xs leading-4 mb-3">
-              It takes a minute, your cart comes with you, and you unlock:
-            </Text>
-
-            <View className="mb-3.5 gap-1.5">
-              {PERKS.map((perk) => (
-                <View key={perk.text} className="flex-row items-center">
-                  <Ionicons name={perk.icon as any} size={14} color="#A61C14" />
-                  <Text className="text-stone-600 text-xs ml-2 font-inter-medium flex-1">{perk.text}</Text>
-                </View>
-              ))}
-            </View>
-
-            <TouchableOpacity
-              onPress={() => {
-                setSetupMode('upgrade');
-                setSetupVisible(true);
-              }}
-              className="bg-[#A61C14] py-3 rounded-xl items-center shadow-sm active:bg-[#85140E] mb-2"
-            >
-              <Text className="text-[#F4ECE1] font-inter-bold text-xs">Create Free Account</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={handleSwitchToExistingAccount} className="py-1.5 items-center">
-              <Text className="text-stone-500 text-xs font-inter-semibold">
-                Already have an account? <Text className="text-[#A61C14] underline">Sign In</Text>
-              </Text>
-            </TouchableOpacity>
-          </View>
+          <GuestJoinCard
+            onCreate={() => {
+              setSetupMode('upgrade');
+              setSetupVisible(true);
+            }}
+            onSignIn={() => confirmSwitchToExistingAccount(router)}
+          />
         )}
 
         {!!locations?.length && (

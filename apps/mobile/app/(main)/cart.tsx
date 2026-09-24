@@ -31,9 +31,9 @@ import { distanceKm } from '../../lib/geo';
 import { Country, DEFAULT_COUNTRY, formatPhoneNumber, isValidPhoneForCountry, parsePhone } from '../../lib/countries';
 import { tabularNums } from '../../lib/typography';
 import { groupRepeats } from '../../lib/modifiers';
-import { pointsForSubtotal, pointsRewardLabel } from '../../lib/points';
+import { pointsForSubtotal, pointsProgressLabel } from '../../lib/points';
+import { useProfile } from '../../hooks/useProfile';
 import { useCartTotals, fetchMenuItemInfo, menuItemInfoKey } from '../../hooks/useCartTotals';
-import { dropState, isDropOrderable } from '../../lib/drops';
 
 const hapticSuccess = () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
 const hapticError = () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
@@ -132,7 +132,12 @@ export default function CartScreen() {
   const cateringDays = useMemo(() => getCateringDays(locationHours), [locationHours, isCateringOrder]);
   // After discounts, before tax.
   const cateringShortfall = isCateringOrder ? Math.max(0, CATERING_MIN_SUBTOTAL - discountedSubtotal) : 0;
-  const cateringPointsReward = pointsRewardLabel(pointsForSubtotal(cartTotal));
+  // "This order earns 180 pts -- 120 more for a free drink", from the
+  // customer's real balance (guests start at 0, and their points are kept
+  // once they verify their email at checkout).
+  const { data: profile } = useProfile();
+  const pointsEarned = pointsForSubtotal(cartTotal);
+  const pointsHint = pointsProgressLabel((profile?.panino_points ?? 0) + pointsEarned);
 
   // A regular order's slot depends on order size/type (the ASAP estimate),
   // so those changes reset it. A catering slot is a booked day and time --
@@ -373,7 +378,9 @@ export default function CartScreen() {
     }
   };
 
-  const handleCheckout = async () => {
+  // acceptedTotal: set when the customer has just agreed to a new total
+  // after prices changed (see the PRICE_CHANGED handling below).
+  const handleCheckout = async (acceptedTotal?: number) => {
     if (!locationId || items.length === 0) return;
 
     if (orderType === 'delivery' && !deliveryAddress) {
@@ -466,23 +473,6 @@ export default function CartScreen() {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError) throw userError;
 
-      // A drop in the cart may have ended (or not started) since it was
-      // added. Caught here, before anything is saved -- the database would
-      // otherwise reject it halfway through saving the order.
-      const { data: dropRows, error: dropError } = await (supabase as any)
-        .from('menu_items')
-        .select('name, drop_starts_at, drop_ends_at')
-        .in('id', cartMenuItemIds);
-      if (dropError) console.warn('Drop check skipped:', dropError.message);
-      const blockedDrop = (dropRows || []).find((row: any) => !isDropOrderable(row));
-      if (blockedDrop) {
-        throw new Error(
-          dropState(blockedDrop) === 'upcoming'
-            ? `${blockedDrop.name} hasn't dropped yet. Remove it from your cart to order the rest.`
-            : `The ${blockedDrop.name} drop has ended. Remove it from your cart to order the rest.`
-        );
-      }
-
       let customerName = `${guestFirstName.trim()} ${guestLastName.trim()}`;
       let customerPhone = `+${guestCountry.dialCode}${guestPhone.trim()}`;
 
@@ -498,88 +488,71 @@ export default function CartScreen() {
         customerPhone = profile.phone;
       }
 
-      // Only a code that actually took money off is recorded (and, for a
-      // single-use code, spent) -- applying a deal whose rules the cart
-      // never met mustn't burn the customer's one use of it for $0.
-      const promoCodeUsed = appliedPromo && discountAmount > 0 ? appliedPromo.code : null;
-
       const estimatedReadyAt = (
         selectedSlot ?? new Date(Date.now() + estimateReadyMinutes(orderType, itemCount) * 60000)
       ).toISOString();
 
-      const { data: orderData, error: orderError } = await (supabase as any)
-        .from('orders')
-        .insert({
+      // One call saves the whole order -- items, options, and spending any
+      // promo or reward codes -- or nothing at all (the place_order
+      // migration). The database works out every price itself; the total
+      // shown here is sent along so it can stop if they don't match.
+      const { data: placed, error: placeError } = await (supabase as any).rpc('place_order', {
+        p: {
           location_id: locationId,
-          user_id: user?.id,
+          order_type: orderType,
+          delivery_address: orderType === 'delivery' ? deliveryAddress : null,
+          requested_ready_at: selectedSlot ? selectedSlot.toISOString() : null,
+          estimated_ready_at: estimatedReadyAt,
           customer_name: customerName,
           customer_phone: customerPhone,
           customer_email: isAnonymous ? guestEmail.trim() : user?.email,
           notify_email: notifyEmail,
           notify_sms: notifySms,
-          subtotal_amount: cartTotal,
-          discount_amount: discountAmount,
-          requested_ready_at: selectedSlot ? selectedSlot.toISOString() : null,
-          promo_code: promoCodeUsed ?? rewardPromoCodes[0] ?? null,
-          tax_amount: taxAmount,
-          total_amount: grandTotal,
-          status: 'received',
-          order_type: orderType,
-          delivery_address: orderType === 'delivery' ? deliveryAddress : null,
-          estimated_ready_at: estimatedReadyAt,
-          is_catering: isCateringOrder,
-          catering_company: isCateringOrder && cateringCompany.trim() ? cateringCompany.trim() : null,
-          po_number: isCateringOrder && cateringPo.trim() ? cateringPo.trim() : null,
-          invoice_email: isCateringOrder && invoiceEmail.trim() ? invoiceEmail.trim() : null,
+          // Only a code that actually takes money off is sent (and so
+          // recorded, and if single-use, spent) -- applying a deal whose
+          // rules the cart doesn't meet mustn't burn it for $0. The
+          // database re-checks the rules itself.
+          promo_code: appliedPromo && discountAmount > 0 ? appliedPromo.code : null,
+          catering_company: cateringCompany.trim() || null,
+          po_number: cateringPo.trim() || null,
+          invoice_email: invoiceEmail.trim() || null,
           catering_notes:
-            isCateringOrder && orderType === 'delivery'
-              ? [
-                  cateringSuite.trim() && `Floor/Suite: ${cateringSuite.trim()}`,
-                  cateringDropoff.trim() && `Drop-off: ${cateringDropoff.trim()}`,
-                ].filter(Boolean).join('\n') || null
-              : null,
-        })
-        .select('id')
-        .single();
-
-      if (orderError) throw orderError;
-
-      for (const item of items) {
-        const { data: orderItemData, error: itemError } = await (supabase as any)
-          .from('order_items')
-          .insert({
-            order_id: orderData.id,
+            [
+              cateringSuite.trim() && `Floor/Suite: ${cateringSuite.trim()}`,
+              cateringDropoff.trim() && `Drop-off: ${cateringDropoff.trim()}`,
+            ]
+              .filter(Boolean)
+              .join('\n') || null,
+          expected_total: Math.round((acceptedTotal ?? grandTotal) * 100) / 100,
+          items: items.map((item) => ({
             menu_item_id: item.menuItemId,
             quantity: item.quantity,
-            unit_price: item.basePrice,
-            total_price: item.totalPrice,
-            special_instructions: item.specialInstructions || null
-          })
-          .select('id')
-          .single();
+            special_instructions: item.specialInstructions || null,
+            reward_code: item.promoCode ?? null,
+            option_ids: item.modifiers.map((m) => m.optionId),
+          })),
+        },
+      });
 
-        if (itemError) throw itemError;
-
-        if (item.modifiers && item.modifiers.length > 0) {
-          const modsToInsert = item.modifiers.map((mod: any) => ({
-            order_item_id: orderItemData.id,
-            modifier_option_id: mod.optionId,
-            price_adjustment: mod.price
-          }));
-
-          const { error: modError } = await (supabase as any).from('order_item_modifiers').insert(modsToInsert);
-          if (modError) throw modError;
+      if (placeError) {
+        // A price changed since these went in the cart: show the real total
+        // and let the customer decide, instead of placing it silently.
+        if (placeError.message === 'PRICE_CHANGED' && placeError.details) {
+          const newTotal = Number(placeError.details);
+          hapticError();
+          Alert.alert(
+            'Prices Updated',
+            `Some prices changed since these items went in your cart. Your total is now $${newTotal.toFixed(2)} (it was $${grandTotal.toFixed(2)}).`,
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: `Place Order ($${newTotal.toFixed(2)})`, onPress: () => handleCheckout(newTotal) },
+            ]
+          );
+          return;
         }
+        throw placeError;
       }
-
-      if (promoCodeUsed) {
-        const { error: promoError } = await (supabase as any).rpc('mark_promo_used', { p_code: promoCodeUsed });
-        if (promoError) console.warn('Failed to mark promo code used:', promoError.message);
-      }
-      for (const code of rewardPromoCodes) {
-        const { error: promoError } = await (supabase as any).rpc('mark_promo_used', { p_code: code });
-        if (promoError) console.warn('Failed to mark reward code used:', promoError.message);
-      }
+      const orderData = { id: placed.order_id as string };
 
       queryClient.invalidateQueries({ queryKey: ['promotions'] });
       queryClient.invalidateQueries({ queryKey: ['usedPromoCodes'] });
@@ -841,6 +814,19 @@ export default function CartScreen() {
                         </View>
                       )}
                     </View>
+                    {/* A regular item in a catering cart goes out with the
+                        catering order, not now -- said on the line itself
+                        so nobody expects it for lunch today. */}
+                    {isCateringOrder && !cateringItemIds?.has(item.menuItemId) && (
+                      <View className="flex-row items-center self-start bg-[#FAF6F0] border border-[#F0B4AC] rounded-md px-2 py-0.5 mb-1.5">
+                        <Ionicons name="calendar-outline" size={11} color="#A61C14" />
+                        <Text className="text-[#A61C14] text-[11px] font-inter-semibold ml-1">
+                          {selectedSlot
+                            ? `Comes with your catering ${orderType === 'delivery' ? 'delivery' : 'pickup'}, ${formatDayAndTime(selectedSlot)}`
+                            : 'Comes with your catering order'}
+                        </Text>
+                      </View>
+                    )}
                     {item.modifiers.length > 0 && (
                       <View className="flex-row flex-wrap mt-1">
                         {groupRepeats(item.modifiers, (mod) => mod.optionId).map(({ item: mod, count }) => (
@@ -993,18 +979,6 @@ export default function CartScreen() {
             {isCateringOrder && (
               <View className="my-2 p-4 bg-white rounded-2xl border border-stone-200 shadow-sm">
                 <Text className="text-base font-inter-bold text-[#1C1917] mb-3">Catering Details</Text>
-                <View className="flex-row items-center bg-[#FAF6F0] border border-stone-200 rounded-xl px-3 py-2.5 mb-2.5">
-                  <Ionicons name="star" size={16} color="#A61C14" />
-                  <View className="ml-2 flex-1">
-                    <Text className="text-xs font-inter-bold text-[#1C1917]">
-                      This order earns {pointsForSubtotal(cartTotal).toLocaleString()} PaninoPoints
-                    </Text>
-                    <Text className="text-[11px] text-[#78716C]">
-                      {isAnonymous ? 'Saved to your account when you verify your email below' : 'Added to your account once the order is completed'}
-                      {cateringPointsReward ? ` -- that's ${cateringPointsReward} for you.` : '.'}
-                    </Text>
-                  </View>
-                </View>
                 <TextInput
                   className="bg-[#FAF6F0] border border-stone-300 px-3 py-2.5 rounded-xl text-sm text-[#1C1917]"
                   placeholder="Company or event name (optional)"
@@ -1191,16 +1165,25 @@ export default function CartScreen() {
               <Text className="text-xs font-inter-bold text-green-700" style={tabularNums}>-${discountAmount.toFixed(2)}</Text>
             </View>
           )}
-          <View className="flex-row justify-between items-center mb-3">
+          <View className="flex-row justify-between items-center mb-2">
             <Text className="text-xs font-inter-medium text-stone-500">Tax</Text>
             <Text className="text-xs font-inter-semibold text-[#1C1917]" style={tabularNums}>${taxAmount.toFixed(2)}</Text>
           </View>
+          {pointsEarned > 0 && (
+            <View className="flex-row items-center bg-[#FAF6F0] rounded-lg px-2.5 py-1.5 mb-3">
+              <Ionicons name="star" size={12} color="#A61C14" />
+              <Text className="text-[11px] text-[#1C1917] ml-1.5 flex-1" numberOfLines={1}>
+                <Text className="font-inter-bold">Earns {pointsEarned.toLocaleString()} PaninoPoints</Text>
+                <Text className="text-stone-500"> • {pointsHint}</Text>
+              </Text>
+            </View>
+          )}
 
           <TouchableOpacity
             className={`py-4 px-5 rounded-2xl items-center shadow-sm flex-row justify-between ${
               checkoutBlockedLabel ? 'bg-stone-300' : 'bg-[#A61C14] active:bg-[#85140E]'
             }`}
-            onPress={shortfallBlocked ? handleShortfallPress : handleCheckout}
+            onPress={shortfallBlocked ? handleShortfallPress : () => handleCheckout()}
             disabled={isSubmitting || (!!checkoutBlockedLabel && !shortfallBlocked)}
           >
             {isSubmitting ? (
