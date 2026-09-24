@@ -11,7 +11,7 @@ import { useAuthStore } from '../../store/authStore';
 import { usePromoStore } from '../../store/promoStore';
 import { useBackHandler } from '../../hooks/useBackHandler';
 import { useLocationDetails } from '../../hooks/useLocationDetails';
-import { computeEligibleDiscount, hasUserRedeemedCode, resolvePromoCategoryId } from '../../lib/promoEligibility';
+import { appliedPromoFromRow, evaluatePromo, hasCategoryScope, hasUserRedeemedCode, resolvePromoCategoryIds } from '../../lib/promoEligibility';
 import NotifyPreferenceToggle from '../../components/NotifyPreferenceToggle';
 import CountryPickerSheet from '../../components/CountryPickerSheet';
 import TimeSlotPickerSheet from '../../components/TimeSlotPickerSheet';
@@ -68,40 +68,55 @@ export default function CartScreen() {
   }, [browsingLocationId, locationId, router]);
   useBackHandler(goBack);
 
+  // A category-scoped promo (applied here or from Deals) has to be resolved
+  // against this cart's location before it can be priced -- categories are
+  // duplicated per location -- and needs each cart item's category/name.
+  // Re-runs if the cart's location changes under an applied promo.
   useEffect(() => {
-    if (!appliedPromo || !locationId) return;
-    if (!appliedPromo.categoryId && !appliedPromo.categoryName) return;
+    if (!appliedPromo || !locationId || !hasCategoryScope(appliedPromo)) return;
+    const needsResolve = appliedPromo.resolvedForLocationId !== locationId;
+    if (!needsResolve && Object.keys(menuItemInfoMap).length > 0) return;
+    let cancelled = false;
     (async () => {
       const { data, error } = await supabase
         .from('menu_items')
         .select('id, category_id, name')
         .eq('location_id', locationId);
+      if (cancelled) return;
       if (!error && data) {
         setMenuItemInfoMap(Object.fromEntries(data.map((m: any) => [m.id, { categoryId: m.category_id, name: m.name }])));
       }
-      if (!appliedPromo.categoryId && appliedPromo.categoryName) {
-        const resolvedId = await resolvePromoCategoryId(
-          { category_id: null, category_name: appliedPromo.categoryName },
-          locationId
-        );
-        if (resolvedId) setAppliedPromo({ ...appliedPromo, categoryId: resolvedId });
+      if (needsResolve) {
+        const ids = await resolvePromoCategoryIds(appliedPromo, locationId);
+        if (!cancelled) setAppliedPromo({ ...appliedPromo, resolvedCategoryIds: ids, resolvedForLocationId: locationId });
       }
     })();
-  }, [appliedPromo?.categoryId, appliedPromo?.categoryName, locationId]);
+    return () => {
+      cancelled = true;
+    };
+  }, [appliedPromo?.code, appliedPromo?.resolvedForLocationId, locationId]);
 
-  const discountAmount = useMemo(() => {
-    if (!appliedPromo) return 0;
-    return computeEligibleDiscount(
+  // Still resolving the promo's categories for this location -- priced at
+  // $0 with no "unmet" message rather than briefly flashing a wrong one.
+  const promoPending =
+    !!appliedPromo &&
+    hasCategoryScope(appliedPromo) &&
+    (appliedPromo.resolvedForLocationId !== locationId || Object.keys(menuItemInfoMap).length === 0);
+
+  // Live, Domino's-style: every rule (minimum order, buy-2, pickup-only) is
+  // re-checked on every cart/order-type change, so the discount drops to $0
+  // with a reason when a rule stops being met and comes back once it is.
+  const promoEvaluation = useMemo(() => {
+    if (!appliedPromo || promoPending) return { discount: 0, unmetReason: null };
+    return evaluatePromo(
       items,
-      {
-        discountPercent: appliedPromo.discountPercent,
-        categoryId: appliedPromo.categoryId,
-        itemNamePatterns: appliedPromo.itemNamePatterns,
-        maxDiscountAmount: appliedPromo.maxDiscountAmount,
-      },
-      menuItemInfoMap
+      appliedPromo,
+      hasCategoryScope(appliedPromo) ? appliedPromo.resolvedCategoryIds ?? [] : null,
+      menuItemInfoMap,
+      orderType
     );
-  }, [items, appliedPromo, menuItemInfoMap]);
+  }, [items, appliedPromo, promoPending, menuItemInfoMap, orderType]);
+  const discountAmount = promoEvaluation.discount;
 
   const { data: locationDetails } = useLocationDetails(locationId);
   const taxRate = locationDetails?.taxRate ?? 0.13;
@@ -148,43 +163,26 @@ export default function CartScreen() {
         }
       }
 
-      let infoMap = menuItemInfoMap;
-      if ((promo.category_id || promo.category_name) && Object.keys(infoMap).length === 0 && locationId) {
+      // Resolved up front here (rather than left to the effect above) so the
+      // promo box shows its real state the moment the code is applied.
+      const applied = appliedPromoFromRow(promo);
+      if (locationId && hasCategoryScope(applied)) {
         const { data: menuItems, error: miError } = await supabase
           .from('menu_items')
           .select('id, category_id, name')
           .eq('location_id', locationId);
         if (miError) throw miError;
-        infoMap = Object.fromEntries(
-          (menuItems || []).map((m: any) => [m.id, { categoryId: m.category_id, name: m.name }])
+        setMenuItemInfoMap(
+          Object.fromEntries((menuItems || []).map((m: any) => [m.id, { categoryId: m.category_id, name: m.name }]))
         );
-        setMenuItemInfoMap(infoMap);
+        applied.resolvedCategoryIds = await resolvePromoCategoryIds(applied, locationId);
+        applied.resolvedForLocationId = locationId;
       }
 
-      const resolvedCategoryId = locationId ? await resolvePromoCategoryId(promo, locationId) : promo.category_id;
-      const discountPercent = Number(promo.discount_percent) || 0;
-      const maxDiscountAmount = promo.max_discount_amount != null ? Number(promo.max_discount_amount) : null;
-
-      const eligibleDiscount = computeEligibleDiscount(
-        items,
-        { discountPercent, categoryId: resolvedCategoryId, itemNamePatterns: promo.item_name_patterns, maxDiscountAmount },
-        infoMap
-      );
-      if (eligibleDiscount <= 0) {
-        hapticError();
-        Alert.alert('No Eligible Items', 'None of the items currently in your cart qualify for this promo code.');
-        return;
-      }
-
-      setAppliedPromo({
-        code: promo.code,
-        title: promo.title,
-        discountPercent,
-        categoryId: resolvedCategoryId,
-        categoryName: promo.category_name,
-        itemNamePatterns: promo.item_name_patterns,
-        maxDiscountAmount,
-      });
+      // Accepted even if the cart doesn't meet the deal's rules yet -- the
+      // promo box then says exactly what's missing ("Add $4.50 more...")
+      // and the discount kicks in on its own once it's met.
+      setAppliedPromo(applied);
       hapticSuccess();
       setPromoCode('');
       setPromoInputOpen(false);
@@ -337,6 +335,11 @@ export default function CartScreen() {
         customerPhone = profile.phone;
       }
 
+      // Only a code that actually took money off is recorded (and, for a
+      // single-use code, spent) -- applying a deal whose rules the cart
+      // never met mustn't burn the customer's one use of it for $0.
+      const promoCodeUsed = appliedPromo && discountAmount > 0 ? appliedPromo.code : null;
+
       const estimatedReadyAt = (
         selectedSlot ?? new Date(Date.now() + estimateReadyMinutes(orderType, itemCount) * 60000)
       ).toISOString();
@@ -354,7 +357,7 @@ export default function CartScreen() {
           subtotal_amount: cartTotal,
           discount_amount: discountAmount,
           requested_ready_at: selectedSlot ? selectedSlot.toISOString() : null,
-          promo_code: appliedPromo?.code ?? rewardPromoCodes[0] ?? null,
+          promo_code: promoCodeUsed ?? rewardPromoCodes[0] ?? null,
           tax_amount: taxAmount,
           total_amount: grandTotal,
           status: 'received',
@@ -395,8 +398,8 @@ export default function CartScreen() {
         }
       }
 
-      if (appliedPromo?.code) {
-        const { error: promoError } = await (supabase as any).rpc('mark_promo_used', { p_code: appliedPromo.code });
+      if (promoCodeUsed) {
+        const { error: promoError } = await (supabase as any).rpc('mark_promo_used', { p_code: promoCodeUsed });
         if (promoError) console.warn('Failed to mark promo code used:', promoError.message);
       }
       for (const code of rewardPromoCodes) {
@@ -609,9 +612,19 @@ export default function CartScreen() {
                 <View className="flex-row items-center justify-between">
                   <View className="flex-row items-center flex-1 mr-2">
                     <Ionicons name="pricetag" size={16} color="#A61C14" />
-                    <Text className="text-[#1C1917] font-inter-bold text-sm ml-2" numberOfLines={1}>
-                      Code {activePromoCode} applied
-                    </Text>
+                    <View className="ml-2 flex-1">
+                      <Text className="text-[#1C1917] font-inter-bold text-sm" numberOfLines={1}>
+                        Code {activePromoCode} applied
+                      </Text>
+                      {!!appliedPromo && !!promoEvaluation.unmetReason && (
+                        <View className="flex-row items-center mt-0.5">
+                          <Ionicons name="lock-closed" size={11} color="#B45309" />
+                          <Text className="text-amber-700 text-xs font-inter-medium ml-1 flex-1">
+                            {promoEvaluation.unmetReason}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
                   </View>
                   <TouchableOpacity
                     onPress={() => {

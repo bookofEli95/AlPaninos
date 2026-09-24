@@ -14,7 +14,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { useLocationStore } from '../../store/locationStore';
-import { usePromoStore, AppliedPromo } from '../../store/promoStore';
+import { usePromoStore } from '../../store/promoStore';
+import { appliedPromoFromRow, describePromoRequirements } from '../../lib/promoEligibility';
 import { useCartStore } from '../../store/cartStore';
 import { useBackHandler } from '../../hooks/useBackHandler';
 import {
@@ -124,17 +125,6 @@ export default function DealsScreen() {
   const isAlreadyUsed = (item: any) =>
     item.single_use !== false && !!usedCodes?.has(item.code?.toLowerCase());
 
-  const buildAppliedPromo = (promo: any): AppliedPromo => ({
-    code: promo.code,
-    title: promo.title,
-    discountPercent: Number(promo.discount_percent) || 0,
-    categoryId: promo.category_id,
-    categoryName: promo.category_name,
-    itemNamePatterns: promo.item_name_patterns,
-    maxDiscountAmount:
-      promo.max_discount_amount != null ? Number(promo.max_discount_amount) : null,
-  });
-
   const giveFreeItem = (target: EligiblePrizeItem, promo: any) => {
     itemHasModifiers(target.id).then((hasModifiers) => {
       if (hasModifiers) {
@@ -184,7 +174,7 @@ export default function DealsScreen() {
       showToast('Promo removed');
       return;
     }
-    setAppliedPromo(buildAppliedPromo(item));
+    setAppliedPromo(appliedPromoFromRow(item));
     showToast('Promo applied');
   };
 
@@ -298,6 +288,15 @@ export default function DealsScreen() {
                   </View>
                   {item.description && (
                     <Text className="text-stone-500 text-xs leading-4">{item.description}</Text>
+                  )}
+                  {describePromoRequirements(item).length > 0 && (
+                    <View className="flex-row flex-wrap mt-2">
+                      {describePromoRequirements(item).map((tag) => (
+                        <View key={tag} className="bg-[#FAF6F0] border border-stone-200 rounded-md px-2 py-0.5 mr-1.5 mb-1">
+                          <Text className="text-stone-600 text-[11px] font-inter-semibold">{tag}</Text>
+                        </View>
+                      ))}
+                    </View>
                   )}
                 </View>
 
