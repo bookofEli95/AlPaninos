@@ -59,7 +59,7 @@ export default function MenuCategoryScreen() {
             </Text>
             {!!items?.length && !isLoading && (
               <Text className="text-xs text-stone-500 font-inter-medium">
-                {items.length} {items.length === 1 ? 'item' : 'items'} • Made fresh
+                {items.length} {items.length === 1 ? 'item' : 'items'} • {items.some((i: any) => i.is_catering) ? 'Order by 6 PM for tomorrow' : 'Made fresh'}
               </Text>
             )}
           </View>

@@ -86,8 +86,16 @@ export default function MenuScreen() {
 
   const isSimpleCategoryName = (name?: string) => name === 'Extras' || name === 'Drinks';
 
+  // Catering lives behind its own banner rather than a grid tile -- the
+  // grid sizes its tiles to fill the screen, so a 7th category would squeeze
+  // every everyday tile to make room for an occasional one.
+  const cateringCategory = useMemo(
+    () => (menuData?.categories || []).find((c: any) => c.is_catering) ?? null,
+    [menuData]
+  );
+
   const categoryRows = useMemo(() => {
-    const cats = menuData?.categories || [];
+    const cats = (menuData?.categories || []).filter((c: any) => !c.is_catering);
     const rows: (typeof cats)[] = [];
     for (let i = 0; i < cats.length; i += 2) {
       rows.push(cats.slice(i, i + 2));
@@ -173,6 +181,31 @@ export default function MenuScreen() {
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={16} color="#F4ECE1" />
+        </TouchableOpacity>
+      )}
+
+      {cateringCategory && (
+        <TouchableOpacity
+          onPress={() =>
+            router.push({
+              pathname: '/(main)/menu-category',
+              params: { categoryId: cateringCategory.id, categoryName: cateringCategory.name, locationId },
+            })
+          }
+          className="flex-row items-center justify-between bg-white border border-[#A61C14] mx-4 mb-4 px-4 py-3 rounded-xl shadow-sm"
+        >
+          <View className="flex-row items-center flex-1 mr-2">
+            <Ionicons name="people" size={18} color="#A61C14" />
+            <View className="ml-2 flex-1">
+              <Text className="text-[#1C1917] font-inter-bold text-sm" numberOfLines={1}>
+                {cateringCategory.name}
+              </Text>
+              <Text className="text-[#78716C] text-xs" numberOfLines={1}>
+                Platters for groups -- order by 6 PM for tomorrow
+              </Text>
+            </View>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color="#A61C14" />
         </TouchableOpacity>
       )}
 

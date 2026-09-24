@@ -6,6 +6,9 @@ export type LocationDetails = {
   name: string;
   taxRate: number;
   hours: WeekHours | null;
+  // Store coordinates, for delivery-distance checks (catering's 60 km).
+  latitude: number | null;
+  longitude: number | null;
 };
 
 // Cart and any other per-location screen used to each run their own
@@ -19,7 +22,7 @@ export function useLocationDetails(locationId: string | null) {
     queryFn: async (): Promise<LocationDetails> => {
       const { data, error } = await (supabase as any)
         .from('locations')
-        .select('name, tax_rate, hours')
+        .select('name, tax_rate, hours, latitude, longitude')
         .eq('id', locationId)
         .single();
       if (error) throw error;
@@ -27,6 +30,8 @@ export function useLocationDetails(locationId: string | null) {
         name: data.name,
         taxRate: Number(data.tax_rate),
         hours: data.hours ?? null,
+        latitude: data.latitude != null ? Number(data.latitude) : null,
+        longitude: data.longitude != null ? Number(data.longitude) : null,
       };
     },
     enabled: !!locationId,

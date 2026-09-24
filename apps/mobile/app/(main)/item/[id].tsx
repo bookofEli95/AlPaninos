@@ -17,6 +17,7 @@ import { useCartStore } from '../../../store/cartStore';
 import { useBackHandler } from '../../../hooks/useBackHandler';
 import SkeletonBox from '../../../components/Skeleton';
 import ItemAddOns from '../../../components/ItemAddOns';
+import { CATERING_RULES_SUMMARY, servesLabel } from '../../../lib/catering';
 import { optionsConflict } from '../../../lib/modifierConflicts';
 import { shadowSm } from '../../../lib/shadows';
 import { tabularNums } from '../../../lib/typography';
@@ -394,7 +395,20 @@ export default function ItemDetailScreen() {
             <Text className="text-stone-600 mt-2 text-sm leading-5">{data.description}</Text>
           )}
           <Text className="text-2xl font-inter-bold mt-2.5 text-[#A61C14]">${data.base_price.toFixed(2)}</Text>
+          {!!data.serves_min && (
+            <View className="flex-row items-center mt-1">
+              <Ionicons name="people-outline" size={14} color="#78716C" />
+              <Text className="text-[#78716C] text-sm font-inter-medium ml-1">{servesLabel(data.serves_min, data.serves_max)}</Text>
+            </View>
+          )}
         </View>
+
+        {data.is_catering && (
+          <View className="flex-row items-center bg-white border border-stone-200 rounded-2xl p-3 mt-3">
+            <Ionicons name="calendar-outline" size={18} color="#A61C14" />
+            <Text className="text-[#1C1917] text-xs font-inter-medium ml-2.5 flex-1">{CATERING_RULES_SUMMARY}</Text>
+          </View>
+        )}
 
         {promoCode && (
           <View className="flex-row items-center bg-[#FAF6F0] border border-[#A61C14] rounded-2xl p-3 mt-3">
@@ -429,7 +443,13 @@ export default function ItemDetailScreen() {
                 </View>
 
                 <Text className="text-stone-500 text-xs font-inter-medium">
-                  {isSingleChoice ? 'Select 1' : group.max_selections ? `Up to ${group.max_selections}` : 'Optional'}
+                  {isSingleChoice
+                    ? 'Select 1'
+                    : group.max_selections && minRequired === group.max_selections
+                    ? `${selectedInGroup.length} of ${group.max_selections} chosen`
+                    : group.max_selections
+                    ? `Up to ${group.max_selections}`
+                    : 'Optional'}
                 </Text>
               </View>
 

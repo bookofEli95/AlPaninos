@@ -238,6 +238,27 @@ export default function OrderDetailScreen() {
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }}
         ListHeaderComponent={
           <>
+            {order.is_catering && !isCancelled && (
+              <View className="bg-white border border-[#A61C14] rounded-3xl p-4 mb-4 shadow-sm">
+                <View className="flex-row items-center">
+                  <Ionicons name="people" size={16} color="#A61C14" />
+                  <Text className="text-[#A61C14] font-inter-extrabold text-xs uppercase tracking-wider ml-1.5">
+                    Catering Order
+                  </Text>
+                </View>
+                {order.catering_confirmed_at ? (
+                  <View className="flex-row items-center mt-1.5">
+                    <Ionicons name="checkmark-circle" size={16} color="#047857" />
+                    <Text className="text-emerald-800 text-sm font-inter-semibold ml-1.5">Confirmed by the restaurant</Text>
+                  </View>
+                ) : (
+                  <Text className="text-[#1C1917] text-sm mt-1.5">
+                    Awaiting confirmation -- we'll call you to confirm the details before we start preparing it.
+                  </Text>
+                )}
+              </View>
+            )}
+
             {isReadyForPickup ? (
               <View className="bg-emerald-600 rounded-3xl p-4 mb-4 shadow-sm flex-row items-center">
                 <View className="w-11 h-11 rounded-full bg-white/20 items-center justify-center mr-3">
@@ -257,7 +278,7 @@ export default function OrderDetailScreen() {
                 </View>
                 <View className="flex-1">
                   <Text className="text-xs font-inter-bold uppercase tracking-wider text-[#78716C]">
-                    Estimated Time
+                    {order.requested_ready_at ? 'Scheduled For' : 'Estimated Time'}
                   </Text>
                   <Text className="text-base font-inter-bold text-[#1C1917]">{etaText}</Text>
                 </View>
@@ -327,10 +348,20 @@ export default function OrderDetailScreen() {
                 </Text>
               </View>
 
+              {!!order.catering_company && (
+                <View className="py-2.5 border-b border-stone-100">
+                  <Text className="text-[#78716C] mb-0.5">Company / Event</Text>
+                  <Text className="text-[#1C1917] font-inter-semibold">{order.catering_company}</Text>
+                </View>
+              )}
+
               {order.delivery_address && (
                 <View className="py-2.5 border-b border-stone-100">
                   <Text className="text-[#78716C] mb-0.5">Delivery Address</Text>
                   <Text className="text-[#1C1917] font-inter-semibold">{order.delivery_address}</Text>
+                  {!!order.catering_notes && (
+                    <Text className="text-[#78716C] text-sm mt-1">{order.catering_notes}</Text>
+                  )}
                 </View>
               )}
 

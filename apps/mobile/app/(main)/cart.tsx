@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Keyboard, Image } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
+import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../../lib/supabase';
@@ -17,7 +18,15 @@ import CountryPickerSheet from '../../components/CountryPickerSheet';
 import TimeSlotPickerSheet from '../../components/TimeSlotPickerSheet';
 import CartUpsellTray from '../../components/CartUpsellTray';
 import { isValidEmail } from '../../lib/passwordStrength';
-import { estimateReadyMinutes, getPickupSlots } from '../../lib/orderTiming';
+import { estimateReadyMinutes, formatDayAndTime, getPickupSlots } from '../../lib/orderTiming';
+import {
+  CATERING_MAX_DELIVERY_KM,
+  CATERING_MIN_SUBTOTAL,
+  CATERING_RULES_SUMMARY,
+  getCateringDays,
+  isCateringSlotAllowed,
+} from '../../lib/catering';
+import { distanceKm } from '../../lib/geo';
 import { Country, DEFAULT_COUNTRY, formatPhoneNumber, isValidPhoneForCountry, parsePhone } from '../../lib/countries';
 import { tabularNums } from '../../lib/typography';
 
@@ -56,6 +65,9 @@ export default function CartScreen() {
   const [promoInputOpen, setPromoInputOpen] = useState(false);
   const { appliedPromo, setAppliedPromo } = usePromoStore();
   const [menuItemInfoMap, setMenuItemInfoMap] = useState<Record<string, { categoryId: string; name: string }>>({});
+  const [cateringCompany, setCateringCompany] = useState('');
+  const [cateringSuite, setCateringSuite] = useState('');
+  const [cateringDropoff, setCateringDropoff] = useState('');
 
   const cartTotal = items.reduce((sum: number, item: CartItem) => sum + item.totalPrice, 0);
   const rewardPromoCodes = Array.from(new Set(items.map((item) => item.promoCode).filter((c): c is string => !!c)));
@@ -133,9 +145,72 @@ export default function CartScreen() {
     [locationHours, orderType, itemCount]
   );
 
+  // Any catering package in the cart switches the whole order to catering
+  // rules (see lib/catering.ts). Read straight off menu_items rather than a
+  // flag stored on each cart line, so it holds however the item got here
+  // (item screen, reorder, "Your Usual").
+  const cartMenuItemIds = useMemo(() => Array.from(new Set(items.map((i) => i.menuItemId))).sort(), [items]);
+  const { data: cateringItemIds } = useQuery({
+    queryKey: ['cateringFlags', cartMenuItemIds],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('menu_items')
+        .select('id')
+        .in('id', cartMenuItemIds)
+        .eq('is_catering', true);
+      if (error) throw error;
+      return new Set<string>((data || []).map((row: any) => row.id));
+    },
+    enabled: cartMenuItemIds.length > 0,
+    // Adding a different item changes the key; without this the answer
+    // would briefly be "unknown" (so, not catering) while it refetches,
+    // which would wipe the catering date/time the customer already picked.
+    placeholderData: keepPreviousData,
+  });
+  const isCateringOrder = !!cateringItemIds && items.some((i) => cateringItemIds.has(i.menuItemId));
+  const cateringDays = useMemo(() => getCateringDays(locationHours), [locationHours, isCateringOrder]);
+  // After discounts, before tax.
+  const cateringShortfall = isCateringOrder ? Math.max(0, CATERING_MIN_SUBTOTAL - discountedSubtotal) : 0;
+
+  // A regular order's slot depends on order size/type (the ASAP estimate),
+  // so those changes reset it. A catering slot is a booked day and time --
+  // adding another tray shouldn't throw it away -- so it only resets when
+  // the order switches into or out of catering.
+  useEffect(() => {
+    if (!isCateringOrder) setSelectedSlot(null);
+  }, [orderType, itemCount]);
   useEffect(() => {
     setSelectedSlot(null);
-  }, [orderType, itemCount]);
+  }, [isCateringOrder]);
+
+  // Why Place Order is greyed out, if it is -- shown on the button itself.
+  const checkoutBlockedLabel = isCateringOrder && isAnonymous
+    ? 'Account Needed for Catering'
+    : isCateringOrder && cateringShortfall > 0
+    ? `Add $${cateringShortfall.toFixed(2)} for Catering`
+    : isAnonymous && !emailVerified
+    ? 'Verify Email Above to Continue'
+    : null;
+
+  const handleCreateAccountForCatering = () => {
+    Alert.alert(
+      'Create an Account',
+      'This ends your guest session and empties your cart. On the next screen, tap Sign Up to create a free account, then place your catering order.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Continue',
+          onPress: async () => {
+            await supabase.auth.signOut().catch(console.warn);
+            // Same exit as every other sign-out (Profile, More) -- the root
+            // auth guard expects to land on login once the session is gone.
+            useAuthStore.getState().setSession(null);
+            router.replace('/(auth)/login');
+          },
+        },
+      ]
+    );
+  };
 
   const handleApplyPromo = async () => {
     if (!promoCode.trim()) return;
@@ -288,6 +363,69 @@ export default function CartScreen() {
       return;
     }
 
+    if (isCateringOrder) {
+      if (isAnonymous) {
+        hapticError();
+        Alert.alert('Account Needed', 'Catering orders need a free account so we can confirm the details with you.');
+        return;
+      }
+      if (cateringShortfall > 0) {
+        hapticError();
+        Alert.alert(
+          'Catering Minimum',
+          `Catering orders have a $${CATERING_MIN_SUBTOTAL} minimum. Add $${cateringShortfall.toFixed(2)} more to place this order.`
+        );
+        return;
+      }
+      if (!selectedSlot) {
+        hapticError();
+        Alert.alert('Choose a Date & Time', 'Pick when you need your catering order.');
+        setTimePickerVisible(true);
+        return;
+      }
+      // Re-checked here, not just when the time was picked -- a slot chosen
+      // for tomorrow at 5:59 PM is no longer allowed once it's past 6 PM.
+      if (!isCateringSlotAllowed(selectedSlot)) {
+        hapticError();
+        setSelectedSlot(null);
+        Alert.alert(
+          'Time No Longer Available',
+          'Catering needs to be ordered by 6 PM the day before. Please choose another date or time.'
+        );
+        return;
+      }
+      if (orderType === 'delivery') {
+        if (!cateringDropoff.trim()) {
+          hapticError();
+          Alert.alert('Drop-off Instructions', 'Tell us where to drop off your catering order (e.g. "Front reception, 3rd floor").');
+          return;
+        }
+        // Delivery radius. Fails open: if the phone can't look the address
+        // up, the order still goes through -- staff confirm every catering
+        // order by phone anyway, and a wrongly refused order is worse.
+        const storeLat = locationDetails?.latitude;
+        const storeLng = locationDetails?.longitude;
+        if (storeLat != null && storeLng != null) {
+          try {
+            const [match] = await Location.geocodeAsync(deliveryAddress);
+            if (match) {
+              const km = distanceKm(storeLat, storeLng, match.latitude, match.longitude);
+              if (km > CATERING_MAX_DELIVERY_KM) {
+                hapticError();
+                Alert.alert(
+                  'Outside Delivery Area',
+                  `We deliver catering up to ${CATERING_MAX_DELIVERY_KM} km from the store, and this address is about ${Math.round(km)} km away. You can switch to pickup instead.`
+                );
+                return;
+              }
+            }
+          } catch (e: any) {
+            console.warn('Catering distance check skipped:', e?.message);
+          }
+        }
+      }
+    }
+
     if (isAnonymous && (!guestFirstName.trim() || !guestLastName.trim() || !guestPhone.trim() || !guestEmail.trim())) {
       hapticError();
       Alert.alert('Missing Details', 'Please enter your name, phone number, and email for the order.');
@@ -363,7 +501,16 @@ export default function CartScreen() {
           status: 'received',
           order_type: orderType,
           delivery_address: orderType === 'delivery' ? deliveryAddress : null,
-          estimated_ready_at: estimatedReadyAt
+          estimated_ready_at: estimatedReadyAt,
+          is_catering: isCateringOrder,
+          catering_company: isCateringOrder && cateringCompany.trim() ? cateringCompany.trim() : null,
+          catering_notes:
+            isCateringOrder && orderType === 'delivery'
+              ? [
+                  cateringSuite.trim() && `Floor/Suite: ${cateringSuite.trim()}`,
+                  cateringDropoff.trim() && `Drop-off: ${cateringDropoff.trim()}`,
+                ].filter(Boolean).join('\n') || null
+              : null,
         })
         .select('id')
         .single();
@@ -412,13 +559,21 @@ export default function CartScreen() {
       queryClient.invalidateQueries({ queryKey: ['profile'] });
       queryClient.invalidateQueries({ queryKey: ['wheelPromo'] });
 
+      const wasCatering = isCateringOrder;
       clearCart();
       setAppliedPromo(null);
       setSelectedSlot(null);
+      setCateringCompany('');
+      setCateringSuite('');
+      setCateringDropoff('');
       hapticSuccess();
-      Alert.alert('Order Placed!', 'You can track its status now.', [
-        { text: 'Track Order', onPress: () => router.replace(`/(main)/order/${orderData.id}`) }
-      ]);
+      Alert.alert(
+        wasCatering ? 'Catering Order Received!' : 'Order Placed!',
+        wasCatering
+          ? "We'll call you to confirm the details before we start preparing it."
+          : 'You can track its status now.',
+        [{ text: 'Track Order', onPress: () => router.replace(`/(main)/order/${orderData.id}`) }]
+      );
 
     } catch (error: any) {
       hapticError();
@@ -471,9 +626,14 @@ export default function CartScreen() {
                 <Text className="text-[11px] font-inter-bold uppercase tracking-wider text-stone-500">
                   {orderType === 'delivery' ? 'Delivery' : `Carryout${locationName ? ` • ${locationName}` : ''}`}
                 </Text>
-                <Text className="text-sm font-inter-bold text-[#1C1917]" numberOfLines={1}>
+                <Text
+                  className={`text-sm font-inter-bold ${isCateringOrder && !selectedSlot ? 'text-[#A61C14]' : 'text-[#1C1917]'}`}
+                  numberOfLines={1}
+                >
                   {selectedSlot
-                    ? `${orderType === 'delivery' ? 'Arriving' : 'Ready'} at ${selectedSlot.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
+                    ? `${orderType === 'delivery' ? 'Arriving' : 'Ready'} ${formatDayAndTime(selectedSlot)}`
+                    : isCateringOrder
+                    ? 'Choose a date & time'
                     : `ASAP (~${estimateReadyMinutes(orderType, itemCount)} min)`}
                 </Text>
               </View>
@@ -482,7 +642,7 @@ export default function CartScreen() {
               onPress={() => setTimePickerVisible(true)}
               className="bg-[#FAF6F0] px-3 py-1.5 rounded-xl border border-stone-200"
             >
-              <Text className="text-xs font-inter-bold text-[#A61C14]">Change</Text>
+              <Text className="text-xs font-inter-bold text-[#A61C14]">{isCateringOrder && !selectedSlot ? 'Choose' : 'Change'}</Text>
             </TouchableOpacity>
           </View>
           {orderType === 'delivery' && (
@@ -521,6 +681,42 @@ export default function CartScreen() {
           </View>
         ) : (
           <>
+            {isCateringOrder && (
+              <View className="mb-3 p-4 bg-white rounded-2xl border border-[#A61C14] shadow-sm">
+                <View className="flex-row items-center mb-1">
+                  <Ionicons name="people" size={16} color="#A61C14" />
+                  <Text className="text-[#A61C14] font-inter-extrabold text-xs uppercase tracking-wider ml-1.5">
+                    Catering Order
+                  </Text>
+                </View>
+                <Text className="text-[#1C1917] text-sm">{CATERING_RULES_SUMMARY}</Text>
+                <Text className="text-[#78716C] text-xs mt-1">
+                  We'll call you to confirm before we start preparing it.
+                </Text>
+                {cateringShortfall > 0 && (
+                  <View className="flex-row items-center mt-2 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
+                    <Ionicons name="lock-closed" size={12} color="#B45309" />
+                    <Text className="text-amber-800 text-xs font-inter-semibold ml-1.5 flex-1">
+                      Add ${cateringShortfall.toFixed(2)} more to reach the ${CATERING_MIN_SUBTOTAL} catering minimum.
+                    </Text>
+                  </View>
+                )}
+                {isAnonymous && (
+                  <View className="mt-3 pt-3 border-t border-stone-100">
+                    <Text className="text-[#1C1917] text-sm font-inter-semibold mb-2">
+                      Catering orders need a free account so we can confirm the details with you.
+                    </Text>
+                    <TouchableOpacity
+                      onPress={handleCreateAccountForCatering}
+                      className="bg-[#1C1917] py-2.5 rounded-xl items-center"
+                    >
+                      <Text className="text-[#F4ECE1] font-inter-bold text-sm">Create an Account</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            )}
+
             {items.map(item => (
               <View key={item.cartItemId} className="bg-white p-4 rounded-2xl border border-stone-200 mb-3 shadow-sm">
                 <View className="flex-row justify-between items-start">
@@ -603,7 +799,9 @@ export default function CartScreen() {
               </View>
             ))}
 
-            {locationId && (
+            {/* Sauce/meal/dessert upsells are for individual orders -- not
+                shown on a catering order. */}
+            {locationId && !isCateringOrder && (
               <CartUpsellTray items={items} locationId={locationId} cartTotal={cartTotal} />
             )}
 
@@ -683,6 +881,43 @@ export default function CartScreen() {
                 </View>
               )}
             </View>
+
+            {isCateringOrder && !isAnonymous && (
+              <View className="my-2 p-4 bg-white rounded-2xl border border-stone-200 shadow-sm">
+                <Text className="text-base font-inter-bold text-[#1C1917] mb-3">Catering Details</Text>
+                <TextInput
+                  className="bg-[#FAF6F0] border border-stone-300 px-3 py-2.5 rounded-xl text-sm text-[#1C1917]"
+                  placeholder="Company or event name (optional)"
+                  placeholderTextColor="#A8A29E"
+                  value={cateringCompany}
+                  onChangeText={setCateringCompany}
+                />
+                {orderType === 'delivery' && (
+                  <>
+                    <TextInput
+                      className="bg-[#FAF6F0] border border-stone-300 px-3 py-2.5 rounded-xl text-sm text-[#1C1917] mt-2.5"
+                      placeholder="Floor / suite / unit (optional)"
+                      placeholderTextColor="#A8A29E"
+                      value={cateringSuite}
+                      onChangeText={setCateringSuite}
+                    />
+                    <TextInput
+                      className="bg-[#FAF6F0] border border-stone-300 px-3 py-2.5 rounded-xl text-sm text-[#1C1917] mt-2.5"
+                      style={{ minHeight: 64 }}
+                      placeholder='Drop-off instructions (e.g. "Front reception, 3rd floor")'
+                      placeholderTextColor="#A8A29E"
+                      value={cateringDropoff}
+                      onChangeText={setCateringDropoff}
+                      multiline
+                      textAlignVertical="top"
+                    />
+                    <Text className="text-[11px] text-[#78716C] mt-1.5">
+                      Catering delivery is available up to {CATERING_MAX_DELIVERY_KM} km from the store.
+                    </Text>
+                  </>
+                )}
+              </View>
+            )}
 
             {isAnonymous && (
               <View className="my-2 p-4 bg-white rounded-2xl border border-stone-200 shadow-sm">
@@ -824,18 +1059,18 @@ export default function CartScreen() {
 
           <TouchableOpacity
             className={`py-4 px-5 rounded-2xl items-center shadow-sm flex-row justify-between ${
-              isAnonymous && !emailVerified ? 'bg-stone-300' : 'bg-[#A61C14] active:bg-[#85140E]'
+              checkoutBlockedLabel ? 'bg-stone-300' : 'bg-[#A61C14] active:bg-[#85140E]'
             }`}
             onPress={handleCheckout}
-            disabled={isSubmitting || (isAnonymous && !emailVerified)}
+            disabled={isSubmitting || !!checkoutBlockedLabel}
           >
             {isSubmitting ? (
               <View className="flex-1 items-center">
                 <ActivityIndicator color="#F4ECE1" />
               </View>
-            ) : isAnonymous && !emailVerified ? (
+            ) : checkoutBlockedLabel ? (
               <View className="flex-1 items-center">
-                <Text className="text-stone-500 font-inter-bold text-base">Verify Email Above to Continue</Text>
+                <Text className="text-stone-500 font-inter-bold text-base">{checkoutBlockedLabel}</Text>
               </View>
             ) : (
               <>
@@ -870,6 +1105,7 @@ export default function CartScreen() {
         slots={pickupSlots}
         asapLabel={`${estimateReadyMinutes(orderType, itemCount)} min`}
         selected={selectedSlot}
+        days={isCateringOrder ? cateringDays : undefined}
       />
     </View>
   );

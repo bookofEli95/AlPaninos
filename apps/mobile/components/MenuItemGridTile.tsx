@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useCartStore } from '../store/cartStore';
+import { servesLabel } from '../lib/catering';
 
 type Props = {
   item: {
@@ -12,6 +13,9 @@ type Props = {
     base_price: number;
     image_url: string | null;
     location_id: string;
+    // Catering packages only (see the catering migration).
+    serves_min?: number | null;
+    serves_max?: number | null;
   };
   // Extras/Drinks have no modifiers to configure -- tapping adds/adjusts a
   // quantity right on the tile instead of opening the item detail screen.
@@ -55,6 +59,12 @@ export default function MenuItemGridTile({ item, isSimpleCategory }: Props) {
             {item.name}
           </Text>
           <Text className="text-[#A61C14] font-inter-bold text-sm mt-1">${item.base_price.toFixed(2)}</Text>
+          {!!item.serves_min && (
+            <View className="flex-row items-center mt-0.5">
+              <Ionicons name="people-outline" size={12} color="#78716C" />
+              <Text className="text-[#78716C] text-xs ml-1">{servesLabel(item.serves_min, item.serves_max)}</Text>
+            </View>
+          )}
 
           {isSimpleCategory && (
             qty === 0 ? (

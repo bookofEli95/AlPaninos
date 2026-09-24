@@ -138,7 +138,14 @@ export default function OrdersScreen() {
               className="bg-white p-5 rounded-2xl mb-4 border border-stone-200 shadow-sm"
             >
               <View className="flex-row justify-between items-center mb-2">
-                <Text className="font-inter-bold text-base text-[#1C1917]">Order #{item.id.slice(0, 8)}</Text>
+                <View className="flex-row items-center flex-1 mr-2">
+                  <Text className="font-inter-bold text-base text-[#1C1917]">Order #{item.id.slice(0, 8)}</Text>
+                  {(item as any).is_catering && (
+                    <View className="bg-[#FAF6F0] border border-[#A61C14] px-2 py-0.5 rounded-full ml-2">
+                      <Text className="text-[#A61C14] text-[10px] font-inter-bold uppercase">Catering</Text>
+                    </View>
+                  )}
+                </View>
                 {item.status && (
                   <View className={`${badge.bg} px-2.5 py-0.5 rounded-full`}>
                     <Text className={`${badge.text} font-inter-semibold capitalize text-xs`}>{item.status}</Text>

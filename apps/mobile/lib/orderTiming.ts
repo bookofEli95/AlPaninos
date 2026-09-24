@@ -13,9 +13,9 @@ export function estimateReadyMinutes(orderType: 'pickup' | 'delivery', itemCount
 export type PickupSlot = { time: Date; label: string };
 
 const SLOT_INTERVAL_MINUTES = 15;
-const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
+export const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
 
-function formatSlotTime(date: Date): string {
+export function formatSlotTime(date: Date): string {
   let h = date.getHours();
   const m = date.getMinutes();
   const suffix = h >= 12 ? 'PM' : 'AM';
@@ -69,8 +69,8 @@ export function getEtaDisplay(
   // slot picker) -- show that instead of a live countdown, which is exactly
   // the open-ended uncertainty a chosen slot was meant to remove.
   if (requestedReadyAt) {
-    const label = new Date(requestedReadyAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-    return orderType === 'delivery' ? `Arriving around ${label}` : `Ready at ${label}`;
+    const label = formatDayAndTime(new Date(requestedReadyAt));
+    return orderType === 'delivery' ? `Arriving ${label}` : `Ready ${label}`;
   }
 
   const minsLeft = Math.ceil((new Date(estimatedReadyAt).getTime() - Date.now()) / 60000);
@@ -79,4 +79,17 @@ export function getEtaDisplay(
     return minsLeft > 0 ? `Arriving in ~${minsLeft} min` : 'Arriving any minute now';
   }
   return minsLeft > 0 ? `Ready in ~${minsLeft} min` : 'Running a few minutes behind — almost there!';
+}
+
+// "at 11:30 AM" today, "tomorrow at 11:30 AM", otherwise "Tue, Sep 29 at
+// 11:30 AM" -- catering orders are scheduled days ahead, so a bare time
+// would read as today.
+export function formatDayAndTime(date: Date, now: Date = new Date()): string {
+  const time = formatSlotTime(date);
+  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const dayDiff = Math.round((startOfDay(date) - startOfDay(now)) / 86400000);
+  if (dayDiff === 0) return `at ${time}`;
+  if (dayDiff === 1) return `tomorrow at ${time}`;
+  const day = date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+  return `${day} at ${time}`;
 }
