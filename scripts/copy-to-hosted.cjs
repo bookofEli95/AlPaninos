@@ -16,7 +16,7 @@
 // the starter rows `db push` created). It refuses to run if the online
 // project already has orders, so it can never wipe real ones.
 
-const { ask, makeClient, trimSlash, rewriteStorageUrl, fetchAll, looksLocal } = require('./lib/script-helpers.cjs');
+const { ask, explainError, makeClient, trimSlash, rewriteStorageUrl, fetchAll, looksLocal } = require('./lib/script-helpers.cjs');
 
 // Parents before children, so every link points at a row that's already there.
 const TABLES = ['locations', 'menu_categories', 'menu_items', 'modifier_groups', 'modifier_options', 'promotions', 'challenges'];
@@ -42,7 +42,7 @@ async function insertAll(client, table, rows, { upsert = false } = {}) {
 
 async function countRows(client, table) {
   const { count, error } = await client.from(table).select('id', { count: 'exact', head: true });
-  if (error) throw new Error(`Counting ${table}: ${error.message}`);
+  if (error) throw new Error(explainError(error, `Checking ${table} online`, client.__url));
   return count ?? 0;
 }
 
@@ -99,7 +99,7 @@ async function listFiles(client, bucket, prefix = '') {
 
 async function copyStorage(local, hosted, log) {
   const { data: buckets, error } = await local.storage.listBuckets();
-  if (error) throw new Error(`Listing local storage: ${error.message}`);
+  if (error) throw new Error(explainError(error, 'Listing local storage', local.__url));
 
   for (const bucket of buckets) {
     const { error: createError } = await hosted.storage.createBucket(bucket.id, { public: bucket.public });
@@ -184,7 +184,9 @@ async function main() {
 if (require.main === module) {
   main().catch((e) => {
     console.error(`\nStopped: ${e.message}`);
-    process.exit(1);
+    // Not process.exit(): exiting while the prompt is still closing
+    // crashes Node on Windows ("Assertion failed ... async.c").
+    process.exitCode = 1;
   });
 }
 

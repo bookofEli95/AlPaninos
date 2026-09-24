@@ -113,7 +113,9 @@ async function main() {
 if (require.main === module) {
   main().catch((e) => {
     console.error(`\nStopped: ${e.message}`);
-    process.exit(1);
+    // Not process.exit(): exiting while the prompt is still closing
+    // crashes Node on Windows ("Assertion failed ... async.c").
+    process.exitCode = 1;
   });
 }
 

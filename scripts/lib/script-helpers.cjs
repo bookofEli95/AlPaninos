@@ -9,7 +9,13 @@ function ask(question, { hidden = false } = {}) {
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout, terminal: true });
     rl.question(question, (answer) => {
       rl.close();
-      resolve(answer.trim());
+      // Pasted keys sometimes come with quotes or "KEY=" in front.
+      const value = answer.trim().replace(/^[A-Z_]+=/, '').replace(/^["']|["']$/g, '').trim();
+      if (hidden && value) {
+        // Shown so a cut-off or wrong paste is easy to spot.
+        console.log(`  (got ${value.length} characters: ${value.slice(0, 11)}...${value.slice(-4)})`);
+      }
+      resolve(value);
     });
     if (hidden) {
       rl._writeToOutput = (text) => {
@@ -19,8 +25,26 @@ function ask(question, { hidden = false } = {}) {
   });
 }
 
+// A clearer message for the most common mistake: a key that doesn't belong
+// to that URL (local vs online, or the publishable key instead of the
+// secret one).
+function explainError(error, what, url) {
+  const message = error?.message || String(error);
+  if (/invalid api key|jwt|unauthorized|401/i.test(message)) {
+    return (
+      `${what}: ${message}\n` +
+      `  The key doesn't match ${url}. Check that you pasted that project's SECRET key\n` +
+      '  (starts with sb_secret_ or is the long "service_role" key), not the publishable/anon key,\n' +
+      "  and not the other database's key. Local: `pnpm dlx supabase status`. Online: Project Settings > API Keys."
+    );
+  }
+  return `${what}: ${message}`;
+}
+
 function makeClient(url, key) {
-  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+  const client = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+  client.__url = url;
+  return client;
 }
 
 const trimSlash = (url) => url.replace(/\/+$/, '');
@@ -57,7 +81,7 @@ async function fetchAll(client, table, { filter } = {}) {
     let query = client.from(table).select('*').order('id').range(from, from + 999);
     if (filter) query = filter(query);
     const { data, error } = await query;
-    if (error) throw new Error(`Reading ${table}: ${error.message}`);
+    if (error) throw new Error(explainError(error, `Reading ${table}`, client.__url));
     rows.push(...data);
     if (data.length < 1000) return rows;
   }
@@ -67,4 +91,4 @@ function looksLocal(url) {
   return /:54321\b|127\.0\.0\.1|localhost|192\.168\.|10\.\d+\.\d+\.\d+/.test(url);
 }
 
-module.exports = { ask, makeClient, trimSlash, rewriteStorageUrl, fetchAll, looksLocal, STORAGE_PATH };
+module.exports = { ask, explainError, makeClient, trimSlash, rewriteStorageUrl, fetchAll, looksLocal, STORAGE_PATH };
