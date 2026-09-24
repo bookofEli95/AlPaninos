@@ -9,6 +9,8 @@ import { useCartStore } from '../../store/cartStore';
 import { useLocations } from '../../hooks/useLocations';
 import { isOpenNow, getTodayHoursLabel } from '../../lib/hours';
 import AccountSetupSheet from '../../components/AccountSetupSheet';
+import { useProfile } from '../../hooks/useProfile';
+import { needsPassword } from '../../lib/account';
 
 const MENU_ITEMS = [
   { label: 'Change Location', icon: 'location-outline', route: '/(main)' },
@@ -47,6 +49,10 @@ export default function MoreScreen() {
   const { data: locations } = useLocations();
   const hasCartItems = useCartStore((state) => state.items.length > 0);
   const [setupVisible, setSetupVisible] = useState(false);
+  // 'upgrade' for a guest creating an account; 'finish' for an account that
+  // still has no password (see lib/account.ts).
+  const [setupMode, setSetupMode] = useState<'upgrade' | 'finish'>('upgrade');
+  const { data: profile } = useProfile();
 
   const signOutToLogin = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
@@ -80,6 +86,34 @@ export default function MoreScreen() {
         { text: 'Sign Out', style: 'destructive', onPress: signOutToLogin },
       ]
     );
+  };
+
+  // For signed-in accounts. One that never set a password (a guest who
+  // verified their email at checkout) couldn't sign back in afterward, so
+  // it's offered the chance to set one first.
+  const handleSignOut = () => {
+    if (needsPassword(session?.user)) {
+      Alert.alert(
+        "You Haven't Set a Password",
+        "Without one you won't be able to sign back in to this account and its orders and points. Set a password first?",
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Sign Out Anyway', style: 'destructive', onPress: signOutToLogin },
+          {
+            text: 'Set a Password',
+            onPress: () => {
+              setSetupMode('finish');
+              setSetupVisible(true);
+            },
+          },
+        ]
+      );
+      return;
+    }
+    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Sign Out', style: 'destructive', onPress: signOutToLogin },
+    ]);
   };
 
   const handleAccountCreated = () => {
@@ -127,7 +161,10 @@ export default function MoreScreen() {
             </View>
 
             <TouchableOpacity
-              onPress={() => setSetupVisible(true)}
+              onPress={() => {
+                setSetupMode('upgrade');
+                setSetupVisible(true);
+              }}
               className="bg-[#A61C14] py-3 rounded-xl items-center shadow-sm active:bg-[#85140E] mb-2"
             >
               <Text className="text-[#F4ECE1] font-inter-bold text-xs">Create Free Account</Text>
@@ -226,13 +263,35 @@ export default function MoreScreen() {
             <Text className="text-[#A61C14] font-inter-bold text-xs">End Current Guest Session</Text>
           </TouchableOpacity>
         )}
+
+        {!!session && !isAnonymous && (
+          <TouchableOpacity
+            onPress={handleSignOut}
+            className="flex-row bg-red-50 p-3.5 rounded-2xl w-full items-center justify-center border border-red-200 mt-2 active:bg-red-100"
+          >
+            <Ionicons name="log-out-outline" size={16} color="#A61C14" />
+            <Text className="text-[#A61C14] font-inter-bold text-sm ml-1.5">Sign Out</Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
 
       <AccountSetupSheet
         visible={setupVisible}
-        mode="upgrade"
+        mode={setupMode}
+        initialValues={
+          setupMode === 'finish'
+            ? { firstName: profile?.first_name, lastName: profile?.last_name, phone: profile?.phone }
+            : undefined
+        }
         onClose={() => setSetupVisible(false)}
-        onDone={handleAccountCreated}
+        onDone={
+          setupMode === 'upgrade'
+            ? handleAccountCreated
+            : () => {
+                setSetupVisible(false);
+                Alert.alert("You're All Set!", 'You can now sign out and sign back in anytime with your email and password.');
+              }
+        }
       />
     </View>
   );
