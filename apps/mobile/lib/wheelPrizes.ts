@@ -17,6 +17,9 @@ export type WheelSegment = {
   // discount, so it doesn't need to be authoritative.
   categoryName?: string;
   itemNamePatterns?: string[];
+  // A specific photo in the menu-images storage bucket to show instead of
+  // picking one of the category's item photos.
+  imageFile?: string;
 };
 
 // Each line is kept short (roughly 10 characters or fewer) since the wedges
@@ -24,7 +27,7 @@ export type WheelSegment = {
 // past the segment's edge into its neighbor.
 export const WHEEL_SEGMENTS: WheelSegment[] = [
   { index: 0, label: '25% OFF\nNEXT ORDER', color: '#A61C14' },
-  { index: 1, label: 'FREE\nCHOICE\nOF POP', color: '#1C1917', categoryName: 'Drinks' },
+  { index: 1, label: 'FREE\nCHOICE\nOF POP', color: '#1C1917', categoryName: 'Drinks', imageFile: 'drinks.jpg' },
   { index: 2, label: 'FREE MOB\nSANDWICH', color: '#A61C14', categoryName: 'The Mob' },
   { index: 3, label: 'GRAND\nPRIZE', color: '#D4A017' },
   {

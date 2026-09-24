@@ -154,6 +154,10 @@ export default function SpinWheelScreen() {
       return;
     }
     const segment = WHEEL_SEGMENTS[result.index];
+    if (segment?.imageFile) {
+      setPrizeImageUrl(supabase.storage.from('menu-images').getPublicUrl(segment.imageFile).data.publicUrl);
+      return;
+    }
     if (!segment?.categoryName) {
       setPrizeImageUrl(null);
       return;
@@ -413,6 +417,8 @@ export default function SpinWheelScreen() {
                   source={{ uri: prizeImageUrl }}
                   className="w-24 h-24 rounded-2xl bg-stone-100 border border-stone-200 shadow-sm"
                   resizeMode="cover"
+                  // A missing file shows the gift icon rather than an empty box.
+                  onError={() => setPrizeImageUrl(null)}
                 />
               ) : (
                 <View className="w-20 h-20 rounded-2xl bg-white border border-stone-200 items-center justify-center shadow-sm">
