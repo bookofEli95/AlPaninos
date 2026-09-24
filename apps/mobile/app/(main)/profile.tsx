@@ -12,6 +12,7 @@ import PointsRewards from '../../components/PointsRewards';
 import PrizeItemPicker from '../../components/PrizeItemPicker';
 import { EligiblePrizeItem, fetchEligiblePrizeItems, isPickAnItemPrize, itemHasModifiers } from '../../lib/prizeRedemption';
 import { formatPhoneNumber, parsePhone } from '../../lib/countries';
+import AccountSetupSheet from '../../components/AccountSetupSheet';
 
 type ProfileData = {
   first_name: string;
@@ -21,6 +22,7 @@ type ProfileData = {
   panino_points: number | null;
   wheel_prize_title: string | null;
   wheel_prize_code: string | null;
+  has_spun_wheel: boolean;
 };
 
 export default function ProfileScreen() {
@@ -29,6 +31,7 @@ export default function ProfileScreen() {
   const { session, setSession } = useAuthStore();
   const locationId = useLocationStore(state => state.locationId);
   const isAnonymous = session?.user?.is_anonymous ?? false;
+  const [setupVisible, setSetupVisible] = useState(false);
 
   useEffect(() => {
     if (isAnonymous) {
@@ -225,6 +228,31 @@ export default function ProfileScreen() {
         </View>
 
         <View className="px-4 -mt-4">
+          {/* A guest who verified their email at checkout stops being a
+              guest (Supabase links the email to their session) -- but has no
+              name and no password, so they couldn't sign back in after
+              signing out. Every account created through Sign Up has a first
+              name from signup, so a missing one is how to spot these. */}
+          {profile && !profile.first_name && (
+            <View className="bg-white rounded-3xl border border-[#A61C14] shadow-sm p-5 mb-3">
+              <View className="flex-row items-center mb-1">
+                <Ionicons name="key-outline" size={15} color="#A61C14" />
+                <Text className="text-[11px] font-inter-bold text-[#A61C14] uppercase tracking-wider ml-1.5">
+                  Finish Your Account
+                </Text>
+              </View>
+              <Text className="text-[#1C1917] text-sm mb-3">
+                Add your name, phone and a password so you can sign back in anytime and keep your orders and points.
+              </Text>
+              <TouchableOpacity
+                onPress={() => setSetupVisible(true)}
+                className="bg-[#A61C14] py-3 rounded-xl items-center active:bg-[#85140E]"
+              >
+                <Text className="text-[#F4ECE1] font-inter-bold text-sm">Set Up My Account</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           {profile?.wheel_prize_code && wheelPromo && (
             <View className="bg-white rounded-2xl border border-[#A61C14] shadow-sm p-4 mb-3">
               <Text className="text-[11px] font-inter-bold text-[#A61C14] uppercase tracking-wider mb-1">
@@ -322,6 +350,24 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      <AccountSetupSheet
+        visible={setupVisible}
+        mode="finish"
+        initialValues={{ firstName: profile?.first_name, lastName: profile?.last_name, phone: profile?.phone }}
+        onClose={() => setSetupVisible(false)}
+        onDone={() => {
+          setSetupVisible(false);
+          if (profile && !profile.has_spun_wheel) {
+            Alert.alert("You're All Set!", 'Your account is ready -- and your welcome spin is waiting.', [
+              { text: 'Later', style: 'cancel' },
+              { text: 'Spin the Wheel', onPress: () => router.replace('/(main)/spin-wheel') },
+            ]);
+          } else {
+            Alert.alert("You're All Set!", 'You can now sign in anytime with your email and password.');
+          }
+        }}
+      />
 
       {picker && (
         <PrizeItemPicker
