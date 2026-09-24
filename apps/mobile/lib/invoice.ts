@@ -1,6 +1,7 @@
 import * as Print from 'expo-print';
 import * as MailComposer from 'expo-mail-composer';
 import * as Sharing from 'expo-sharing';
+import { File, Paths } from 'expo-file-system';
 import { groupRepeats } from './modifiers';
 
 // Itemized invoice PDF for an order (the order screen's Email Invoice /
@@ -131,9 +132,17 @@ function invoiceHtml(order: any): string {
 </body></html>`;
 }
 
+// The PDF comes back as data and is saved into the app's own cache folder
+// under a readable name. Sharing the file expo-print writes itself fails in
+// Expo Go ("Not allowed to read file under given URL") -- it lands in a
+// folder the share sheet isn't allowed to read -- and its name is random.
 async function createInvoicePdf(order: any): Promise<string> {
-  const { uri } = await Print.printToFileAsync({ html: invoiceHtml(order) });
-  return uri;
+  const { base64 } = await Print.printToFileAsync({ html: invoiceHtml(order), base64: true });
+  if (!base64) throw new Error('The invoice PDF could not be created.');
+  const file = new File(Paths.cache, `AlPaninos-Invoice-${invoiceNumber(order)}.pdf`);
+  file.create({ overwrite: true });
+  file.write(base64, { encoding: 'base64' });
+  return file.uri;
 }
 
 // Opens the mail app with the PDF attached, addressed to the order's
