@@ -280,7 +280,7 @@ export default function HomeScreen() {
                   className="bg-[#A61C14] px-4 py-2 rounded-xl flex-row items-center active:bg-[#85140E]"
                 >
                   <Text className="text-[#F4ECE1] font-inter-bold text-xs mr-1">
-                    {orderType === 'delivery' ? 'Deliver Here' : 'Order Pickup'}
+                    {orderType === 'delivery' ? 'Order Delivery' : 'Order Pickup'}
                   </Text>
                   <Ionicons name="arrow-forward" size={12} color="#F4ECE1" />
                 </TouchableOpacity>

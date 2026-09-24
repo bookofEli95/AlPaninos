@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Keyboard, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -184,33 +184,83 @@ export default function CartScreen() {
   }, [isCateringOrder]);
 
   // Why Place Order is greyed out, if it is -- shown on the button itself.
-  const checkoutBlockedLabel = isCateringOrder && isAnonymous
-    ? 'Account Needed for Catering'
-    : isCateringOrder && cateringShortfall > 0
-    ? `Add $${cateringShortfall.toFixed(2)} for Catering`
+  // Below the catering minimum, Place Order isn't a dead end: tapping it
+  // scrolls up to the minimum banner and its add-on suggestions.
+  const shortfallBlocked = isCateringOrder && cateringShortfall > 0;
+  const checkoutBlockedLabel = shortfallBlocked
+    ? `Add $${cateringShortfall.toFixed(2)} more -- see options`
     : isAnonymous && !emailVerified
     ? 'Verify Email Above to Continue'
     : null;
-
-  const handleCreateAccountForCatering = () => {
-    Alert.alert(
-      'Create an Account',
-      'This ends your guest session and empties your cart. On the next screen, tap Sign Up to create a free account, then place your catering order.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Continue',
-          onPress: async () => {
-            await supabase.auth.signOut().catch(console.warn);
-            // Same exit as every other sign-out (Profile, More) -- the root
-            // auth guard expects to land on login once the session is gone.
-            useAuthStore.getState().setSession(null);
-            router.replace('/(auth)/login');
-          },
-        },
-      ]
-    );
+  const scrollRef = useRef<ScrollView>(null);
+  const handleShortfallPress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
   };
+
+  // This location's catering packages, cheapest first -- for the "add
+  // something to reach the minimum" suggestions.
+  const { data: cateringMenu } = useQuery({
+    queryKey: ['cateringMenu', locationId],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('menu_items')
+        .select('id, name, base_price, category_id, menu_categories(name)')
+        .eq('location_id', locationId)
+        .eq('is_catering', true)
+        .eq('is_available', true)
+        .order('base_price');
+      if (error) throw error;
+      return data as { id: string; name: string; base_price: number; category_id: string; menu_categories: { name: string } | null }[];
+    },
+    enabled: !!locationId && isCateringOrder,
+  });
+  // The cheapest package that closes the gap comes first (being $3 short
+  // shouldn't lead with an $85 dessert box), then the ones closest to it.
+  const shortfallSuggestions = useMemo(() => {
+    if (!cateringMenu || cateringShortfall <= 0) return [];
+    const covers = cateringMenu.filter((m) => Number(m.base_price) >= cateringShortfall);
+    const under = cateringMenu.filter((m) => Number(m.base_price) < cateringShortfall).reverse();
+    return [...covers, ...under].slice(0, 3);
+  }, [cateringMenu, cateringShortfall]);
+
+  // Catering delivery radius, checked as soon as a catering cart has a
+  // delivery address rather than only at Place Order, so an out-of-range
+  // address is flagged right under it. Cached per store + address; checkout
+  // reuses the result. Fails open (null) when the lookup can't be done --
+  // staff confirm every catering order by phone anyway.
+  const storeLat = locationDetails?.latitude ?? null;
+  const storeLng = locationDetails?.longitude ?? null;
+  const [cateringDistance, setCateringDistance] = useState<{ key: string; km: number | null } | null>(null);
+  const distanceKey = `${locationId}|${deliveryAddress}`;
+  const checkDeliveryDistance = useCallback(
+    async (address: string): Promise<number | null> => {
+      if (storeLat == null || storeLng == null) return null;
+      try {
+        const [match] = await Location.geocodeAsync(address);
+        return match ? distanceKm(storeLat, storeLng, match.latitude, match.longitude) : null;
+      } catch (e: any) {
+        console.warn('Catering distance check skipped:', e?.message);
+        return null;
+      }
+    },
+    [storeLat, storeLng]
+  );
+  useEffect(() => {
+    if (!isCateringOrder || orderType !== 'delivery' || !deliveryAddress) return;
+    if (storeLat == null || storeLng == null) return;
+    if (cateringDistance?.key === distanceKey) return;
+    let cancelled = false;
+    checkDeliveryDistance(deliveryAddress).then((km) => {
+      if (!cancelled) setCateringDistance({ key: distanceKey, km });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isCateringOrder, orderType, distanceKey, checkDeliveryDistance]);
+  const cateringDistanceKm =
+    isCateringOrder && orderType === 'delivery' && cateringDistance?.key === distanceKey ? cateringDistance.km : null;
+  const outOfCateringRange = cateringDistanceKm != null && cateringDistanceKm > CATERING_MAX_DELIVERY_KM;
 
   const handleApplyPromo = async () => {
     if (!promoCode.trim()) return;
@@ -364,11 +414,6 @@ export default function CartScreen() {
     }
 
     if (isCateringOrder) {
-      if (isAnonymous) {
-        hapticError();
-        Alert.alert('Account Needed', 'Catering orders need a free account so we can confirm the details with you.');
-        return;
-      }
       if (cateringShortfall > 0) {
         hapticError();
         Alert.alert(
@@ -400,28 +445,16 @@ export default function CartScreen() {
           Alert.alert('Drop-off Instructions', 'Tell us where to drop off your catering order (e.g. "Front reception, 3rd floor").');
           return;
         }
-        // Delivery radius. Fails open: if the phone can't look the address
-        // up, the order still goes through -- staff confirm every catering
-        // order by phone anyway, and a wrongly refused order is worse.
-        const storeLat = locationDetails?.latitude;
-        const storeLng = locationDetails?.longitude;
-        if (storeLat != null && storeLng != null) {
-          try {
-            const [match] = await Location.geocodeAsync(deliveryAddress);
-            if (match) {
-              const km = distanceKm(storeLat, storeLng, match.latitude, match.longitude);
-              if (km > CATERING_MAX_DELIVERY_KM) {
-                hapticError();
-                Alert.alert(
-                  'Outside Delivery Area',
-                  `We deliver catering up to ${CATERING_MAX_DELIVERY_KM} km from the store, and this address is about ${Math.round(km)} km away. You can switch to pickup instead.`
-                );
-                return;
-              }
-            }
-          } catch (e: any) {
-            console.warn('Catering distance check skipped:', e?.message);
-          }
+        // Delivery radius -- the result the Cart already worked out for this
+        // address when there is one, otherwise looked up now.
+        const km = cateringDistance?.key === distanceKey ? cateringDistance.km : await checkDeliveryDistance(deliveryAddress);
+        if (km != null && km > CATERING_MAX_DELIVERY_KM) {
+          hapticError();
+          Alert.alert(
+            'Outside Delivery Area',
+            `We deliver catering up to ${CATERING_MAX_DELIVERY_KM} km from the store, and this address is about ${Math.round(km)} km away. You can switch to pickup instead.`
+          );
+          return;
         }
       }
     }
@@ -653,12 +686,22 @@ export default function CartScreen() {
               <Text className="text-sm font-inter-semibold text-[#1C1917]">
                 {deliveryAddress || 'Address required'}
               </Text>
+              {outOfCateringRange && (
+                <View className="flex-row items-start mt-1.5 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
+                  <Ionicons name="warning-outline" size={13} color="#B45309" style={{ marginTop: 1 }} />
+                  <Text className="text-amber-800 text-xs font-inter-semibold ml-1.5 flex-1">
+                    About {Math.round(cateringDistanceKm!)} km away -- catering delivery is up to {CATERING_MAX_DELIVERY_KM} km.
+                    Switch to pickup, or use a closer address.
+                  </Text>
+                </View>
+              )}
             </View>
           )}
         </View>
       )}
 
       <ScrollView
+        ref={scrollRef}
         className="flex-1 px-4"
         contentContainerStyle={{ paddingBottom: keyboardHeight + 20 }}
         keyboardShouldPersistTaps="handled"
@@ -694,25 +737,52 @@ export default function CartScreen() {
                   We'll call you to confirm before we start preparing it.
                 </Text>
                 {cateringShortfall > 0 && (
-                  <View className="flex-row items-center mt-2 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
-                    <Ionicons name="lock-closed" size={12} color="#B45309" />
-                    <Text className="text-amber-800 text-xs font-inter-semibold ml-1.5 flex-1">
-                      Add ${cateringShortfall.toFixed(2)} more to reach the ${CATERING_MIN_SUBTOTAL} catering minimum.
-                    </Text>
-                  </View>
-                )}
-                {isAnonymous && (
-                  <View className="mt-3 pt-3 border-t border-stone-100">
-                    <Text className="text-[#1C1917] text-sm font-inter-semibold mb-2">
-                      Catering orders need a free account so we can confirm the details with you.
-                    </Text>
-                    <TouchableOpacity
-                      onPress={handleCreateAccountForCatering}
-                      className="bg-[#1C1917] py-2.5 rounded-xl items-center"
-                    >
-                      <Text className="text-[#F4ECE1] font-inter-bold text-sm">Create an Account</Text>
-                    </TouchableOpacity>
-                  </View>
+                  <>
+                    <View className="flex-row items-center mt-2 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
+                      <Ionicons name="lock-closed" size={12} color="#B45309" />
+                      <Text className="text-amber-800 text-xs font-inter-semibold ml-1.5 flex-1">
+                        Add ${cateringShortfall.toFixed(2)} more to reach the ${CATERING_MIN_SUBTOTAL} catering minimum.
+                      </Text>
+                    </View>
+                    {shortfallSuggestions.length > 0 && (
+                      <View className="mt-2.5">
+                        <Text className="text-[11px] font-inter-bold uppercase tracking-wider text-stone-500 mb-1.5">
+                          Add to your order
+                        </Text>
+                        <View className="flex-row flex-wrap">
+                          {shortfallSuggestions.map((m) => (
+                            <TouchableOpacity
+                              key={m.id}
+                              onPress={() => router.push({ pathname: `/(main)/item/${m.id}`, params: { returnTo: 'cart' } })}
+                              className="flex-row items-center bg-[#FAF6F0] border border-stone-300 rounded-full px-3 py-1.5 mr-2 mb-2"
+                            >
+                              <Ionicons name="add" size={13} color="#A61C14" />
+                              <Text className="text-[#1C1917] text-xs font-inter-semibold ml-1">
+                                {m.name} <Text style={tabularNums}>${Number(m.base_price).toFixed(2)}</Text>
+                              </Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                        <TouchableOpacity
+                          onPress={() =>
+                            router.push({
+                              pathname: '/(main)/menu-category',
+                              params: {
+                                categoryId: shortfallSuggestions[0].category_id,
+                                categoryName: shortfallSuggestions[0].menu_categories?.name ?? 'Catering & Platters',
+                                locationId: locationId ?? '',
+                              },
+                            })
+                          }
+                          className="flex-row items-center self-start"
+                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                        >
+                          <Text className="text-[#A61C14] text-xs font-inter-bold">Browse all catering</Text>
+                          <Ionicons name="chevron-forward" size={12} color="#A61C14" />
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </>
                 )}
               </View>
             )}
@@ -882,7 +952,7 @@ export default function CartScreen() {
               )}
             </View>
 
-            {isCateringOrder && !isAnonymous && (
+            {isCateringOrder && (
               <View className="my-2 p-4 bg-white rounded-2xl border border-stone-200 shadow-sm">
                 <Text className="text-base font-inter-bold text-[#1C1917] mb-3">Catering Details</Text>
                 <TextInput
@@ -1061,8 +1131,8 @@ export default function CartScreen() {
             className={`py-4 px-5 rounded-2xl items-center shadow-sm flex-row justify-between ${
               checkoutBlockedLabel ? 'bg-stone-300' : 'bg-[#A61C14] active:bg-[#85140E]'
             }`}
-            onPress={handleCheckout}
-            disabled={isSubmitting || !!checkoutBlockedLabel}
+            onPress={shortfallBlocked ? handleShortfallPress : handleCheckout}
+            disabled={isSubmitting || (!!checkoutBlockedLabel && !shortfallBlocked)}
           >
             {isSubmitting ? (
               <View className="flex-1 items-center">

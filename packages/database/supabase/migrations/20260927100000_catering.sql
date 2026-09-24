@@ -2,7 +2,8 @@
 --
 -- Rules enforced in the app (apps/mobile/lib/catering.ts + cart.tsx):
 -- order by 6 PM for the next day or later (no ASAP), a $100 minimum after
--- discounts, registered accounts only, delivery up to 60 km. There's no
+-- discounts, delivery up to 60 km (guests welcome -- guest checkout already
+-- collects a phone number and a verified email). There's no
 -- card payment yet, so every catering order is confirmed by phone first --
 -- catering_confirmed_at stays NULL ("Awaiting confirmation") until staff set it.
 
