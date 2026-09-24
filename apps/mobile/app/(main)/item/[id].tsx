@@ -174,6 +174,26 @@ export default function ItemDetailScreen() {
     return map;
   }, [data]);
 
+  // Quantity groups (modifier_groups.allow_quantity -- the catering boards'
+  // paninos, the Drinks Pack's cans): the same option can be picked several
+  // times, stored as that many repeats of its id, and max_selections caps
+  // the total rather than the number of distinct options.
+  const handleChangeOptionCount = (groupId: string, optionId: string, delta: 1 | -1, maxSelections: number) => {
+    setSelections((prev) => {
+      const current = prev[groupId] || [];
+      if (delta > 0) {
+        if (maxSelections && current.length >= maxSelections) return prev;
+        return { ...prev, [groupId]: [...current, optionId] };
+      }
+      const index = current.lastIndexOf(optionId);
+      if (index < 0) return prev;
+      const next = [...current];
+      next.splice(index, 1);
+      return { ...prev, [groupId]: next };
+    });
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
   const handleToggleOption = (groupId: string, optionId: string, maxSelections: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelections((prev) => {
@@ -231,9 +251,9 @@ export default function ItemDetailScreen() {
     visibleGroups.forEach((group: any) => {
       const groupSelectedIds = selections[group.id] || [];
       group.modifier_options?.forEach((opt: any) => {
-        if (groupSelectedIds.includes(opt.id)) {
-          total += opt.price_adjustment;
-        }
+        // Counted, not just checked -- a quantity group can hold repeats.
+        const count = groupSelectedIds.filter((id) => id === opt.id).length;
+        total += opt.price_adjustment * count;
       });
     });
     return total * quantity;
@@ -267,13 +287,17 @@ export default function ItemDetailScreen() {
 
     const modifiers = visibleGroups.flatMap((group: any) => {
       const groupSelectedIds = selections[group.id] || [];
-      return group.modifier_options
-        .filter((opt: any) => groupSelectedIds.includes(opt.id))
-        .map((opt: any) => ({
+      // One entry per unit, so "2x Fat Tony" is two Fat Tony modifiers --
+      // saved as two order_item_modifiers rows, and priced and reordered
+      // with no special handling.
+      return group.modifier_options.flatMap((opt: any) => {
+        const count = groupSelectedIds.filter((id) => id === opt.id).length;
+        return Array.from({ length: count }, () => ({
           optionId: opt.id,
           name: opt.name,
           price: opt.price_adjustment,
         }));
+      });
     });
 
     addItem(
@@ -456,6 +480,45 @@ export default function ItemDetailScreen() {
               <View className="gap-2">
                 {group.modifier_options?.map((option: any) => {
                   const isSelected = selectedInGroup.includes(option.id);
+
+                  if (group.allow_quantity) {
+                    const count = selectedInGroup.filter((id: string) => id === option.id).length;
+                    const groupFull = !!group.max_selections && selectedInGroup.length >= group.max_selections;
+                    return (
+                      <View
+                        key={option.id}
+                        className={`flex-row justify-between items-center pl-3.5 pr-2 py-2 rounded-2xl border ${
+                          count > 0 ? 'bg-white border-[#A61C14]' : 'bg-white/70 border-stone-200'
+                        }`}
+                        style={count > 0 ? shadowSm : undefined}
+                      >
+                        <Text
+                          className={`text-sm flex-1 mr-2 ${count > 0 ? 'font-inter-bold text-[#1C1917]' : 'font-inter-medium text-stone-800'}`}
+                        >
+                          {option.name}
+                        </Text>
+                        <View className="flex-row items-center bg-[#FAF6F0] rounded-xl p-1 border border-stone-200">
+                          <TouchableOpacity
+                            onPress={() => handleChangeOptionCount(group.id, option.id, -1, group.max_selections)}
+                            disabled={count === 0}
+                            className={`w-8 h-8 rounded-lg items-center justify-center ${count === 0 ? 'opacity-40' : 'bg-white'}`}
+                            hitSlop={{ top: 6, bottom: 6, left: 6, right: 4 }}
+                          >
+                            <Ionicons name="remove" size={16} color="#1C1917" />
+                          </TouchableOpacity>
+                          <Text className="w-7 text-center text-sm font-inter-bold text-[#1C1917]">{count}</Text>
+                          <TouchableOpacity
+                            onPress={() => handleChangeOptionCount(group.id, option.id, 1, group.max_selections)}
+                            disabled={groupFull}
+                            className={`w-8 h-8 rounded-lg items-center justify-center ${groupFull ? 'opacity-40' : 'bg-white'}`}
+                            hitSlop={{ top: 6, bottom: 6, left: 4, right: 6 }}
+                          >
+                            <Ionicons name="add" size={16} color="#1C1917" />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    );
+                  }
 
                   return (
                     <TouchableOpacity

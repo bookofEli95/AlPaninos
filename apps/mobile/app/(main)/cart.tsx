@@ -30,6 +30,7 @@ import {
 import { distanceKm } from '../../lib/geo';
 import { Country, DEFAULT_COUNTRY, formatPhoneNumber, isValidPhoneForCountry, parsePhone } from '../../lib/countries';
 import { tabularNums } from '../../lib/typography';
+import { groupRepeats } from '../../lib/modifiers';
 
 const hapticSuccess = () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
 const hapticError = () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
@@ -847,13 +848,14 @@ export default function CartScreen() {
                     </View>
                     {item.modifiers.length > 0 && (
                       <View className="flex-row flex-wrap mt-1">
-                        {item.modifiers.map(mod => (
+                        {groupRepeats(item.modifiers, (mod) => mod.optionId).map(({ item: mod, count }) => (
                           <View
                             key={mod.optionId}
                             className="bg-[#FAF6F0] border border-stone-200 rounded-md px-2 py-0.5 mr-1.5 mb-1.5"
                           >
                             <Text className="text-stone-600 text-xs font-inter-medium">
-                              + {mod.name}{!item.promoCode && mod.price > 0 ? ` ($${mod.price.toFixed(2)})` : ''}
+                              + {count > 1 ? `${count}× ` : ''}{mod.name}
+                              {!item.promoCode && mod.price > 0 ? ` ($${(mod.price * count).toFixed(2)})` : ''}
                             </Text>
                           </View>
                         ))}

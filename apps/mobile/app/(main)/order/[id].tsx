@@ -10,6 +10,7 @@ import SkeletonBox from '../../../components/Skeleton';
 import { getEtaDisplay } from '../../../lib/orderTiming';
 import { reorderFromOrder } from '../../../lib/reorder';
 import { tabularNums } from '../../../lib/typography';
+import { groupRepeats } from '../../../lib/modifiers';
 
 const DELIVERY_STEPS = [
   { key: 'received', label: 'Received' },
@@ -423,16 +424,19 @@ export default function OrderDetailScreen() {
 
             {item.order_item_modifiers?.length > 0 && (
               <View className="flex-row flex-wrap mt-2">
-                {item.order_item_modifiers.map((mod: any, index: number) => (
-                  <View
-                    key={index}
-                    className="bg-[#FAF6F0] border border-stone-200 rounded-lg px-2 py-0.5 mr-1.5 mb-1.5"
-                  >
-                    <Text className="text-stone-600 text-sm">
-                      + {mod.modifier_options?.name}{mod.price_adjustment > 0 ? ` ($${Number(mod.price_adjustment).toFixed(2)})` : ''}
-                    </Text>
-                  </View>
-                ))}
+                {groupRepeats(item.order_item_modifiers as any[], (mod) => mod.modifier_options?.name ?? '').map(
+                  ({ item: mod, count }, index) => (
+                    <View
+                      key={index}
+                      className="bg-[#FAF6F0] border border-stone-200 rounded-lg px-2 py-0.5 mr-1.5 mb-1.5"
+                    >
+                      <Text className="text-stone-600 text-sm">
+                        + {count > 1 ? `${count}× ` : ''}{mod.modifier_options?.name}
+                        {mod.price_adjustment > 0 ? ` ($${(Number(mod.price_adjustment) * count).toFixed(2)})` : ''}
+                      </Text>
+                    </View>
+                  )
+                )}
               </View>
             )}
             {item.special_instructions && (
