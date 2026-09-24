@@ -15,8 +15,10 @@ import { formatPhoneNumber, parsePhone } from '../../lib/countries';
 import AccountSetupSheet from '../../components/AccountSetupSheet';
 import { useProfile } from '../../hooks/useProfile';
 import { needsPassword } from '../../lib/account';
+import { useCartBarSpace } from '../../hooks/useCartBarSpace';
 
 export default function ProfileScreen() {
+  const cartBarSpace = useCartBarSpace();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { session, setSession } = useAuthStore();
@@ -191,7 +193,12 @@ export default function ProfileScreen() {
 
   return (
     <View className="flex-1 bg-[#FAF6F0]">
-      <ScrollView ref={scrollViewRef} className="flex-1" showsVerticalScrollIndicator={false}>
+      <ScrollView
+        ref={scrollViewRef}
+        className="flex-1"
+        contentContainerStyle={{ paddingBottom: cartBarSpace }}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Hero */}
         <View className="bg-[#A61C14] pt-16 pb-8 px-6 items-center rounded-b-[32px]">
           <View className="w-[88px] h-[88px] rounded-full bg-[#F4ECE1] items-center justify-center mb-3 border-4 border-[#85140E]">

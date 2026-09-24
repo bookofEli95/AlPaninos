@@ -27,8 +27,10 @@ import { useDrops } from '../../hooks/useDrops';
 import { getDaypart } from '../../lib/daypart';
 import { dropLabel, dropState } from '../../lib/drops';
 import { switchStore } from '../../lib/storeSwitch';
+import { useCartBarSpace } from '../../hooks/useCartBarSpace';
 
 export default function HomeScreen() {
+  const cartBarSpace = useCartBarSpace();
   const router = useRouter();
   const { session } = useAuthStore();
   const isAnonymous = session?.user?.is_anonymous ?? false;
@@ -294,7 +296,7 @@ export default function HomeScreen() {
         data={sortedLocations}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 24 }}
+        contentContainerStyle={{ paddingBottom: 24 + cartBarSpace }}
         ListHeaderComponent={
           <>
             {featuredDrop && (

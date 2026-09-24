@@ -14,6 +14,7 @@ import { groupRepeats } from '../../../lib/modifiers';
 import { pointsForSubtotal } from '../../../lib/points';
 import { emailInvoice, shareInvoice } from '../../../lib/invoice';
 import BoxManifest from '../../../components/BoxManifest';
+import { useCartBarSpace } from '../../../hooks/useCartBarSpace';
 
 const DELIVERY_STEPS = [
   { key: 'received', label: 'Received' },
@@ -30,6 +31,7 @@ const PICKUP_STEPS = [
 ];
 
 export default function OrderDetailScreen() {
+  const cartBarSpace = useCartBarSpace();
   const { id } = useLocalSearchParams() as { id: string };
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -277,7 +279,7 @@ export default function OrderDetailScreen() {
         keyExtractor={(item) => item.id}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 + cartBarSpace }}
         ListHeaderComponent={
           <>
             {order.is_catering && !isCancelled && (

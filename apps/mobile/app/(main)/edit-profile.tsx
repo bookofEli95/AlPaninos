@@ -23,8 +23,10 @@ import ErrorBanner from '../../components/ErrorBanner';
 import { Country, DEFAULT_COUNTRY, formatPhoneNumber, isValidPhoneForCountry, parsePhone } from '../../lib/countries';
 import { isValidEmail } from '../../lib/passwordStrength';
 import { useBackHandler } from '../../hooks/useBackHandler';
+import { useCartBarSpace } from '../../hooks/useCartBarSpace';
 
 export default function EditProfile() {
+  const cartBarSpace = useCartBarSpace();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { session } = useAuthStore();
@@ -171,6 +173,7 @@ export default function EditProfile() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: cartBarSpace }}
       >
         <TouchableOpacity onPress={goBackToProfile} className="flex-row items-center py-2 pr-8 -ml-2 mb-4">
           <Ionicons name="chevron-back" size={28} color="#A61C14" />

@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { useBackHandler } from '../../hooks/useBackHandler';
+import { useCartBarSpace } from '../../hooks/useCartBarSpace';
 
 const SUPPORT_PHONE = '(548) 866-0420';
 const SUPPORT_PHONE_DIAL = '+15488660420';
@@ -22,6 +23,7 @@ const TOPICS = [
 ];
 
 export default function CustomerSupportScreen() {
+  const cartBarSpace = useCartBarSpace();
   const router = useRouter();
   const { session } = useAuthStore();
   const [message, setMessage] = useState('');
@@ -68,7 +70,12 @@ export default function CustomerSupportScreen() {
         <Text className="text-2xl font-display-bold text-[#1C1917] tracking-tight ml-2">Customer Support</Text>
       </View>
 
-      <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" showsVerticalScrollIndicator={false}>
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: cartBarSpace }}
+      >
         <TouchableOpacity
           onPress={() => Linking.openURL(`tel:${SUPPORT_PHONE_DIAL}`)}
           className="bg-white rounded-2xl border border-stone-200 shadow-sm p-4 flex-row items-center mb-5"

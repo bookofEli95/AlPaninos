@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useBackHandler } from '../../hooks/useBackHandler';
+import { useCartBarSpace } from '../../hooks/useCartBarSpace';
 
 // Generic placeholder copy -- have an actual lawyer review this before
 // Al Paninos takes real orders/payments from the public.
@@ -34,6 +35,7 @@ const SECTIONS = [
 ];
 
 export default function LegalScreen() {
+  const cartBarSpace = useCartBarSpace();
   const router = useRouter();
 
   const goBackToMore = useCallback(() => {
@@ -51,7 +53,7 @@ export default function LegalScreen() {
         <Text className="text-2xl font-display-bold text-[#1C1917] ml-2">Legal</Text>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: cartBarSpace }}>
         {SECTIONS.map((section) => (
           <View key={section.heading} className="mb-5">
             <Text className="text-base font-inter-bold text-[#1C1917] mb-1">{section.heading}</Text>
