@@ -26,6 +26,7 @@ import { useProfile } from '../../hooks/useProfile';
 import { useDrops } from '../../hooks/useDrops';
 import { getDaypart } from '../../lib/daypart';
 import { dropLabel, dropState } from '../../lib/drops';
+import { switchStore } from '../../lib/storeSwitch';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -78,6 +79,10 @@ export default function HomeScreen() {
     if (!usualItem) return;
     setAddingUsual(true);
     try {
+      // The usual is from a particular store; a cart from another store
+      // moves over first (asking if anything would be lost).
+      const usualStore = locations?.find((l: any) => l.id === usualItem.location_id);
+      if (!(await switchStore(usualItem.location_id, usualStore?.name))) return;
       const { locationId: itemLocationId, skipped } = await reorderUsualItem(
         usualItem.menu_item_id
       );
@@ -94,8 +99,9 @@ export default function HomeScreen() {
     }
   };
 
-  const handleStartOrder = (locId: string) => {
-    setLocationId(locId);
+  const handleStartOrder = async (locId: string) => {
+    const store = locations?.find((l: any) => l.id === locId);
+    if (!(await switchStore(locId, store?.name))) return;
     router.replace(`/(main)/menu/${locId}`);
   };
 
@@ -161,8 +167,9 @@ export default function HomeScreen() {
   const { data: drops } = useDrops(featuredLocationId);
   const featuredDrop = drops?.[0] ?? null;
 
-  const openItem = (itemId: string, itemLocationId: string) => {
-    setLocationId(itemLocationId);
+  const openItem = async (itemId: string, itemLocationId: string) => {
+    const store = locations?.find((l: any) => l.id === itemLocationId);
+    if (!(await switchStore(itemLocationId, store?.name))) return;
     router.push(`/(main)/item/${itemId}`);
   };
 

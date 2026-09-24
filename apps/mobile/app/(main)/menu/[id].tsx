@@ -311,7 +311,11 @@ export default function MenuScreen() {
         </View>
       )}
 
-      <OrderTypeSheet visible={orderTypeModalVisible} onClose={() => setOrderTypeModalVisible(false)} />
+      <OrderTypeSheet
+        visible={orderTypeModalVisible}
+        onClose={() => setOrderTypeModalVisible(false)}
+        onStoreChanged={(newLocationId) => router.replace(`/(main)/menu/${newLocationId}`)}
+      />
     </View>
   );
 }

@@ -51,6 +51,9 @@ interface CartState {
   addItem: (item: CartItem, locationId: string) => void;
   removeItem: (cartItemId: string) => void;
   clearCart: () => void;
+  // Swaps in a whole cart at a (possibly different) store -- used when
+  // switching stores moves the cart over (lib/storeSwitch.ts).
+  replaceCart: (items: CartItem[], locationId: string) => void;
   incrementSimpleItem: (
     item: { menuItemId: string; name: string; basePrice: number; imageUrl?: string | null },
     locationId: string
@@ -151,6 +154,15 @@ export const useCartStore = create<CartState>((set) => ({
   clearCart: () => set((state) => {
     const current = state.carts[state.activeUserId] || { ...defaultCart };
     const updatedCart: AccountCart = { ...current, items: [] };
+    return {
+      ...updatedCart,
+      carts: { ...state.carts, [state.activeUserId]: updatedCart },
+    };
+  }),
+
+  replaceCart: (items, locationId) => set((state) => {
+    const current = state.carts[state.activeUserId] || { ...defaultCart };
+    const updatedCart: AccountCart = { ...current, items, locationId };
     return {
       ...updatedCart,
       carts: { ...state.carts, [state.activeUserId]: updatedCart },

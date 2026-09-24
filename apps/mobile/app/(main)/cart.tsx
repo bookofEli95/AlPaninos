@@ -189,6 +189,10 @@ export default function CartScreen() {
   useEffect(() => {
     setSelectedSlot(null);
   }, [isCateringOrder]);
+  // A different store has different hours, so a picked time can't carry over.
+  useEffect(() => {
+    setSelectedSlot(null);
+  }, [locationId]);
 
   // Why Place Order is greyed out, if it is -- shown on the button itself.
   // Below the catering minimum, Place Order isn't a dead end: tapping it
