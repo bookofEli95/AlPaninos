@@ -120,6 +120,16 @@ export default function DealsScreen() {
     enabled: !!session?.user?.id,
   });
 
+  // Deals is a tab, so it stays mounted (and keeps its scroll position)
+  // while the customer is elsewhere -- start back at the top every time
+  // it's opened instead.
+  const listRef = useRef<FlatList>(null);
+  useFocusEffect(
+    useCallback(() => {
+      listRef.current?.scrollToOffset({ offset: 0, animated: false });
+    }, [])
+  );
+
   useFocusEffect(
     useCallback(() => {
       queryClient.invalidateQueries({ queryKey: ['challenges', session?.user?.id] });
@@ -232,6 +242,7 @@ export default function DealsScreen() {
       </View>
 
       <FlatList
+        ref={listRef}
         data={promotions}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: hasBottomBar ? 96 : 32 }}

@@ -22,10 +22,15 @@ export default function CartUpsellTray({
   items,
   locationId,
   cartTotal,
+  onBeforeChange,
 }: {
   items: CartItem[];
   locationId: string;
   cartTotal: number;
+  // Called just before an add/remove here changes the cart, so the Cart
+  // screen can keep this tray still while cart lines above it appear or
+  // disappear.
+  onBeforeChange?: () => void;
 }) {
   const router = useRouter();
   const cartItems = useCartStore((state) => state.items);
@@ -34,10 +39,12 @@ export default function CartUpsellTray({
 
   const incrementSimpleItem: typeof incrementSimpleItemRaw = (...args) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onBeforeChange?.();
     incrementSimpleItemRaw(...args);
   };
   const decrementSimpleItem: typeof decrementSimpleItemRaw = (...args) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onBeforeChange?.();
     decrementSimpleItemRaw(...args);
   };
 
@@ -168,7 +175,7 @@ export default function CartUpsellTray({
                         onPress={() =>
                           router.push({ pathname: `/(main)/item/${upsellItem.id}`, params: { returnTo: 'cart' } })
                         }
-                        className="bg-[#A61C14] rounded-lg py-1.5 items-center active:bg-[#85140E]"
+                        className="bg-[#A61C14] rounded-lg h-8 items-center justify-center active:bg-[#85140E]"
                       >
                         <Text className="text-[#F4ECE1] font-inter-bold text-xs">Customize</Text>
                       </TouchableOpacity>
@@ -185,13 +192,13 @@ export default function CartUpsellTray({
                             locationId
                           )
                         }
-                        className="bg-[#A61C14] rounded-lg py-1.5 flex-row items-center justify-center active:bg-[#85140E]"
+                        className="bg-[#A61C14] rounded-lg h-8 flex-row items-center justify-center active:bg-[#85140E]"
                       >
                         <Ionicons name="add" size={14} color="#F4ECE1" />
                         <Text className="text-[#F4ECE1] font-inter-bold text-xs ml-0.5">Add</Text>
                       </TouchableOpacity>
                     ) : (
-                      <View className="flex-row items-center justify-between bg-stone-100 rounded-lg p-1 border border-stone-200">
+                      <View className="flex-row items-center justify-between bg-stone-100 rounded-lg h-8 px-1 border border-stone-200">
                         <TouchableOpacity
                           onPress={() => decrementSimpleItem(upsellItem.id)}
                           className="bg-white w-6 h-6 rounded-md items-center justify-center shadow-sm"

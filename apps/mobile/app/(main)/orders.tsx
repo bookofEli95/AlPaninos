@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { View, Text, FlatList, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
@@ -39,8 +39,11 @@ export default function OrdersScreen() {
   // wouldn't otherwise show up here until the realtime listener below
   // catches it. This is a backstop for that -- refetch every time this tab
   // is actually looked at, not just when it first mounts.
+  const listRef = useRef<FlatList>(null);
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
+      // Always open at the newest order, not wherever the list was left.
+      listRef.current?.scrollToOffset({ offset: 0, animated: false });
       queryClient.invalidateQueries({ queryKey: ['orders', session?.user?.id] });
     });
     return unsubscribe;
@@ -167,6 +170,7 @@ export default function OrdersScreen() {
       )}
 
       <FlatList
+        ref={listRef}
         data={orders}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}

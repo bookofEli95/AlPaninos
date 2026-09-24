@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Alert, Linking, Platform } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../../lib/supabase';
@@ -48,6 +48,14 @@ export default function MoreScreen() {
   const isAnonymous = session?.user?.is_anonymous ?? false;
   const { data: locations } = useLocations();
   const hasCartItems = useCartStore((state) => state.items.length > 0);
+
+  // A tab stays mounted, so it would otherwise reopen wherever it was left.
+  const scrollRef = useRef<ScrollView>(null);
+  useFocusEffect(
+    useCallback(() => {
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
+    }, [])
+  );
   const [setupVisible, setSetupVisible] = useState(false);
   // 'upgrade' for a guest creating an account; 'finish' for an account that
   // still has no password (see lib/account.ts).
@@ -132,6 +140,7 @@ export default function MoreScreen() {
       <Text className="text-2xl font-display-bold text-[#1C1917] tracking-tight mb-3">More</Text>
 
       <ScrollView
+        ref={scrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: hasCartItems ? 96 : 32 }}
       >
