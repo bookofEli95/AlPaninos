@@ -74,7 +74,7 @@ export default function MainLayout() {
         <Tabs.Screen
           name="deals"
           options={{
-            title: 'Rewards',
+            title: 'Deals',
             tabBarIcon: ({ color, focused }) => (
               <Ionicons name={focused ? 'gift' : 'gift-outline'} size={22} color={color} />
             ),

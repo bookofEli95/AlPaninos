@@ -392,7 +392,7 @@ export default function SpinWheelScreen() {
       )}
 
       {/* Result panel -- slides up from the bottom. No prize code shown:
-          code prizes already appear on the Rewards tab (tap to apply) and
+          code prizes already appear on the Deals tab (tap to apply) and
           on Profile ("Redeem Now"), so there's nothing to copy down here. */}
       {result && (
         <View style={StyleSheet.absoluteFill} className="justify-end bg-black/60">
@@ -430,7 +430,7 @@ export default function SpinWheelScreen() {
               <View className="bg-emerald-100 px-3 py-0.5 rounded-full mb-1.5 flex-row items-center">
                 <Ionicons name="checkmark-circle" size={13} color="#047857" />
                 <Text className="text-emerald-800 text-[11px] font-inter-bold ml-1 uppercase tracking-wider">
-                  Gift Added to Rewards
+                  Gift Added to Deals
                 </Text>
               </View>
 
@@ -440,7 +440,7 @@ export default function SpinWheelScreen() {
 
               <Text className="text-stone-500 text-xs text-center mt-1 px-4 leading-4">
                 {result.code
-                  ? "It's waiting for you on the Rewards tab and on your Profile -- redeem it whenever you're ready. It never expires."
+                  ? "It's waiting for you on the Deals tab and on your Profile -- redeem it whenever you're ready. It never expires."
                   : "It's already been added to your account -- no code needed."}
               </Text>
             </View>

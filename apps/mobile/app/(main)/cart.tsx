@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Keyboard, Image } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +16,7 @@ import { appliedPromoFromRow, evaluatePromo, hasCategoryScope, hasUserRedeemedCo
 import NotifyPreferenceToggle from '../../components/NotifyPreferenceToggle';
 import CountryPickerSheet from '../../components/CountryPickerSheet';
 import TimeSlotPickerSheet from '../../components/TimeSlotPickerSheet';
+import OrderTypeSheet from '../../components/OrderTypeSheet';
 import CartUpsellTray from '../../components/CartUpsellTray';
 import { isValidEmail } from '../../lib/passwordStrength';
 import { estimateReadyMinutes, formatDayAndTime, getPickupSlots } from '../../lib/orderTiming';
@@ -193,6 +194,15 @@ export default function CartScreen() {
     ? 'Verify Email Above to Continue'
     : null;
   const scrollRef = useRef<ScrollView>(null);
+  // The cart is a tab screen, so it stays mounted (and keeps its scroll
+  // position) while the customer browses the menu -- start back at the top
+  // every time it's opened instead.
+  useFocusEffect(
+    useCallback(() => {
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
+    }, [])
+  );
+  const [orderTypeSheetVisible, setOrderTypeSheetVisible] = useState(false);
   const handleShortfallPress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     scrollRef.current?.scrollTo({ y: 0, animated: true });
@@ -409,7 +419,8 @@ export default function CartScreen() {
 
     if (orderType === 'delivery' && !deliveryAddress) {
       hapticError();
-      Alert.alert('Missing Address', 'Please provide a delivery address before checking out.');
+      Alert.alert('Missing Address', 'Please add a delivery address before checking out.');
+      setOrderTypeSheetVisible(true);
       return;
     }
 
@@ -670,9 +681,18 @@ export default function CartScreen() {
                 <Ionicons name={orderType === 'delivery' ? 'bicycle' : 'bag-handle'} size={18} color="#A61C14" />
               </View>
               <View className="flex-1">
-                <Text className="text-[11px] font-inter-bold uppercase tracking-wider text-stone-500">
-                  {orderType === 'delivery' ? 'Delivery' : `Pickup${locationName ? ` • ${locationName}` : ''}`}
-                </Text>
+                {/* Tapping the order type opens the same Pickup / Delivery
+                    sheet as the menu's pill. */}
+                <TouchableOpacity
+                  onPress={() => setOrderTypeSheetVisible(true)}
+                  className="flex-row items-center self-start"
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                >
+                  <Text className="text-[11px] font-inter-bold uppercase tracking-wider text-stone-500">
+                    {orderType === 'delivery' ? 'Delivery' : `Pickup${locationName ? ` • ${locationName}` : ''}`}
+                  </Text>
+                  <Ionicons name="chevron-down" size={11} color="#78716C" style={{ marginLeft: 3 }} />
+                </TouchableOpacity>
                 <Text
                   className={`text-sm font-inter-bold ${isCateringOrder && !selectedSlot ? 'text-[#A61C14]' : 'text-[#1C1917]'}`}
                   numberOfLines={1}
@@ -694,12 +714,17 @@ export default function CartScreen() {
           </View>
           {orderType === 'delivery' && (
             <View className="mt-2.5 pt-2.5 border-t border-stone-100">
-              <Text className="text-[11px] font-inter-bold uppercase tracking-wider text-stone-500 mb-0.5">
-                Delivering To
-              </Text>
-              <Text className="text-sm font-inter-semibold text-[#1C1917]">
-                {deliveryAddress || 'Address required'}
-              </Text>
+              <TouchableOpacity onPress={() => setOrderTypeSheetVisible(true)} activeOpacity={0.7}>
+                <View className="flex-row items-center justify-between mb-0.5">
+                  <Text className="text-[11px] font-inter-bold uppercase tracking-wider text-stone-500">
+                    Delivering To
+                  </Text>
+                  <Text className="text-xs font-inter-bold text-[#A61C14]">{deliveryAddress ? 'Change' : 'Add'}</Text>
+                </View>
+                <Text className={`text-sm font-inter-semibold ${deliveryAddress ? 'text-[#1C1917]' : 'text-[#A61C14]'}`}>
+                  {deliveryAddress || 'Tap to add your delivery address'}
+                </Text>
+              </TouchableOpacity>
               {outOfCateringRange && (
                 <View className="flex-row items-start mt-1.5 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
                   <Ionicons name="warning-outline" size={13} color="#B45309" style={{ marginTop: 1 }} />
@@ -1178,6 +1203,8 @@ export default function CartScreen() {
         }}
         keyboardHeight={keyboardHeight}
       />
+
+      <OrderTypeSheet visible={orderTypeSheetVisible} onClose={() => setOrderTypeSheetVisible(false)} />
 
       <TimeSlotPickerSheet
         visible={timePickerVisible}
