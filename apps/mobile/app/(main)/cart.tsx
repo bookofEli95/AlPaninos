@@ -657,7 +657,7 @@ export default function CartScreen() {
               </View>
               <View className="flex-1">
                 <Text className="text-[11px] font-inter-bold uppercase tracking-wider text-stone-500">
-                  {orderType === 'delivery' ? 'Delivery' : `Carryout${locationName ? ` • ${locationName}` : ''}`}
+                  {orderType === 'delivery' ? 'Delivery' : `Pickup${locationName ? ` • ${locationName}` : ''}`}
                 </Text>
                 <Text
                   className={`text-sm font-inter-bold ${isCateringOrder && !selectedSlot ? 'text-[#A61C14]' : 'text-[#1C1917]'}`}

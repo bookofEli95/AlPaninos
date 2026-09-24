@@ -13,17 +13,7 @@ import PrizeItemPicker from '../../components/PrizeItemPicker';
 import { EligiblePrizeItem, fetchEligiblePrizeItems, isPickAnItemPrize, itemHasModifiers } from '../../lib/prizeRedemption';
 import { formatPhoneNumber, parsePhone } from '../../lib/countries';
 import AccountSetupSheet from '../../components/AccountSetupSheet';
-
-type ProfileData = {
-  first_name: string;
-  last_name: string;
-  phone: string;
-  address: string;
-  panino_points: number | null;
-  wheel_prize_title: string | null;
-  wheel_prize_code: string | null;
-  has_spun_wheel: boolean;
-};
+import { useProfile } from '../../hooks/useProfile';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -39,20 +29,7 @@ export default function ProfileScreen() {
     }
   }, [isAnonymous, locationId, router]);
 
-  const { data: profile, isLoading } = useQuery({
-    queryKey: ['profile', session?.user?.id],
-    queryFn: async () => {
-      if (!session?.user?.id) return null;
-      const { data, error } = await (supabase as any)
-        .from('profiles')
-        .select('*')
-        .eq('id', session.user.id)
-        .single();
-      if (error) throw error;
-      return data as ProfileData;
-    },
-    enabled: !isAnonymous && !!session?.user?.id
-  });
+  const { data: profile, isLoading } = useProfile();
 
   const { data: wheelPromo } = useQuery({
     queryKey: ['wheelPromo', session?.user?.id, profile?.wheel_prize_code],
