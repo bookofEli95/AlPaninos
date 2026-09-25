@@ -623,10 +623,12 @@ export default function CartScreen() {
                 { text: 'Clear', style: 'destructive', onPress: clearCart },
               ]);
             }}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            className="px-2 py-1"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityLabel="Clear cart"
+            className="items-center px-2 py-1"
           >
-            <Text className="text-stone-500 font-inter-medium text-xs">Clear</Text>
+            <Ionicons name="trash-outline" size={24} color="#A61C14" />
+            <Text className="text-[#A61C14] font-inter-semibold text-[11px] mt-0.5">Clear</Text>
           </TouchableOpacity>
         )}
       </View>
