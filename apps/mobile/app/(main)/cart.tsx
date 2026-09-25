@@ -625,7 +625,7 @@ export default function CartScreen() {
             }}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityLabel="Clear cart"
-            className="items-center px-2 py-1"
+            className="items-center px-2 py-1 mt-2 mr-3"
           >
             <Ionicons name="trash-outline" size={24} color="#A61C14" />
             <Text className="text-[#A61C14] font-inter-semibold text-[11px] mt-0.5">Clear</Text>
