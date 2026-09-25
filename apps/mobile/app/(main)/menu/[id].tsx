@@ -10,6 +10,7 @@ import SkeletonBox from '../../../components/Skeleton';
 import OrderTypeSheet from '../../../components/OrderTypeSheet';
 import MenuItemGridTile from '../../../components/MenuItemGridTile';
 import { dropLabel, dropState, isDropOrderable, isDropVisible } from '../../../lib/drops';
+import { useFanFavourites } from '../../../hooks/useFanFavourites';
 
 export default function MenuScreen() {
   const { id: locationId } = useLocalSearchParams<{ id: string }>();
@@ -96,7 +97,9 @@ export default function MenuScreen() {
   );
 
   const hasDeals = !!activePromotions && activePromotions.length > 0;
-  const showSecret = !!secretCategory && secretItems.length > 0;
+  // The Secret Mob shows when it has drops/items -- or Fan Favourites.
+  const { data: fanFavourites } = useFanFavourites(secretCategory ? locationId : null);
+  const showSecret = !!secretCategory && (secretItems.length > 0 || !!fanFavourites?.length);
 
   const categoryRows = useMemo(() => {
     const cats = (menuData?.categories || []).filter((c: any) => !c.is_catering && !c.is_secret);
@@ -238,6 +241,8 @@ export default function MenuScreen() {
                   ? dropState(secretHighlight as any) === 'live'
                     ? 'Drop live now'
                     : dropLabel(secretHighlight as any)
+                  : fanFavourites?.length
+                  ? 'Fan favourites'
                   : 'App only'}
               </Text>
             </TouchableOpacity>

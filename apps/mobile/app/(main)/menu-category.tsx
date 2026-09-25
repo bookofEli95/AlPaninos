@@ -9,6 +9,8 @@ import { useBackHandler } from '../../hooks/useBackHandler';
 import SkeletonBox from '../../components/Skeleton';
 import MenuItemGridTile from '../../components/MenuItemGridTile';
 import CateringPlanner from '../../components/CateringPlanner';
+import FanFavourites from '../../components/FanFavourites';
+import { useFanFavourites } from '../../hooks/useFanFavourites';
 import { isDropVisible } from '../../lib/drops';
 
 export default function MenuCategoryScreen() {
@@ -43,6 +45,20 @@ export default function MenuCategoryScreen() {
     },
     enabled: !!categoryId,
   });
+
+  // The Secret Mob also shows the store's Fan Favourites.
+  const { data: category } = useQuery({
+    queryKey: ['menuCategory', categoryId],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from('menu_categories').select('is_secret').eq('id', categoryId).maybeSingle();
+      if (error) throw error;
+      return data as { is_secret: boolean } | null;
+    },
+    enabled: !!categoryId,
+  });
+  const isSecret = !!category?.is_secret;
+  const { data: favourites } = useFanFavourites(isSecret ? locationId : null);
+  const hasFavourites = isSecret && !!favourites?.length;
 
   // The catering category gets the "how many are you feeding" planner.
   const plannerPackages = useMemo(
@@ -127,9 +143,17 @@ export default function MenuCategoryScreen() {
           contentContainerStyle={{ paddingBottom: cartItems.length > 0 ? 100 : 28 }}
           showsVerticalScrollIndicator={false}
           renderItem={({ item }) => <MenuItemGridTile item={item} isSimpleCategory={isSimpleCategory} />}
-          ListHeaderComponent={plannerPackages.length > 0 ? <CateringPlanner packages={plannerPackages} /> : null}
+          ListHeaderComponent={
+            plannerPackages.length > 0 ? (
+              <CateringPlanner packages={plannerPackages} />
+            ) : hasFavourites && locationId ? (
+              <FanFavourites locationId={locationId} />
+            ) : null
+          }
           ListEmptyComponent={
-            <Text className="text-center text-stone-500 mt-10 text-sm font-inter-medium w-full">No items in this category.</Text>
+            hasFavourites ? null : (
+              <Text className="text-center text-stone-500 mt-10 text-sm font-inter-medium w-full">No items in this category.</Text>
+            )
           }
         />
       )}
