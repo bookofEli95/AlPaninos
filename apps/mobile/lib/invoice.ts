@@ -1,14 +1,16 @@
+import { Alert, Platform } from 'react-native';
 import * as Print from 'expo-print';
-import * as MailComposer from 'expo-mail-composer';
 import * as Sharing from 'expo-sharing';
-import { File, Paths } from 'expo-file-system';
+import * as SecureStore from 'expo-secure-store';
+import { Directory, File, Paths } from 'expo-file-system';
 import { groupRepeats } from './modifiers';
+import { supabase } from './supabase';
 
 // Itemized invoice PDF for an order (the order screen's Email Invoice /
-// Save PDF buttons): the store and its HST number, who it's billed to
+// Save as PDF buttons): the store and its HST number, who it's billed to
 // (company, PO number), every item, and the tax breakdown. Built on the
-// phone -- there's no email server -- and handed to the mail app or the
-// share sheet.
+// phone; Email Invoice hands it to the email-invoice function to send, and
+// Save as PDF saves it on the phone.
 
 const BUSINESS_NAME = 'Al Paninos';
 
@@ -136,34 +138,94 @@ function invoiceHtml(order: any): string {
 // under a readable name. Sharing the file expo-print writes itself fails in
 // Expo Go ("Not allowed to read file under given URL") -- it lands in a
 // folder the share sheet isn't allowed to read -- and its name is random.
-async function createInvoicePdf(order: any): Promise<string> {
+async function createInvoicePdf(order: any): Promise<{ file: File; base64: string }> {
   const { base64 } = await Print.printToFileAsync({ html: invoiceHtml(order), base64: true });
   if (!base64) throw new Error('The invoice PDF could not be created.');
-  const file = new File(Paths.cache, `AlPaninos-Invoice-${invoiceNumber(order)}.pdf`);
+  const file = new File(Paths.cache, invoiceFileName(order));
   file.create({ overwrite: true });
   file.write(base64, { encoding: 'base64' });
-  return file.uri;
+  return { file, base64 };
 }
 
-// Opens the mail app with the PDF attached, addressed to the order's
-// invoice email when there is one. Falls back to the share sheet on a
-// phone with no mail account set up.
-export async function emailInvoice(order: any): Promise<void> {
-  const uri = await createInvoicePdf(order);
-  if (await MailComposer.isAvailableAsync()) {
-    await MailComposer.composeAsync({
-      recipients: order.invoice_email ? [order.invoice_email] : [],
-      subject: `${BUSINESS_NAME} Invoice ${invoiceNumber(order)}`,
-      body: `Please find attached invoice ${invoiceNumber(order)} for ${money(order.total_amount)}${order.po_number ? ` (PO ${order.po_number})` : ''}.`,
-      attachments: [uri],
-    });
-    return;
+const invoiceFileName = (order: any) => `AlPaninos-Invoice-${invoiceNumber(order)}.pdf`;
+
+// Emails the invoice to the address saved on the order, sent by the
+// email-invoice function (supabase/functions/email-invoice) -- nothing opens
+// on the phone. Returns where it went.
+export async function emailInvoice(order: any): Promise<string> {
+  const { base64 } = await createInvoicePdf(order);
+  const { data, error } = await supabase.functions.invoke('email-invoice', {
+    body: { order_id: order.id, pdf_base64: base64 },
+  });
+  if (error) {
+    // The function's own message ("already emailed 5 times", ...) is in the
+    // response body; fall back to a general one.
+    let message = "The invoice couldn't be emailed right now. Please try again in a minute.";
+    try {
+      const body = await (error as any).context?.json?.();
+      if (body?.error) message = body.error;
+    } catch {}
+    throw new Error(message);
   }
-  await shareInvoiceFile(uri, order);
+  return data?.sent_to ?? order.invoice_email ?? order.customer_email;
 }
 
-export async function shareInvoice(order: any): Promise<void> {
-  await shareInvoiceFile(await createInvoicePdf(order), order);
+// Android: saved straight into a folder on the phone. The first time, the
+// phone's folder picker opens so the customer can choose (or create) one --
+// Android doesn't let an app pick the Downloads folder itself for them --
+// and that folder is remembered for next time.
+// iPhone: apps can't save into a folder on their own, so the share screen
+// opens, where "Save to Files" is the option.
+const SAVE_FOLDER_KEY = 'invoiceSaveFolder';
+const DOWNLOADS_URI = 'content://com.android.externalstorage.documents/document/primary%3ADownload';
+
+export type SaveInvoiceResult = { savedTo: string } | { shared: true } | { cancelled: true };
+
+export async function saveInvoice(order: any): Promise<SaveInvoiceResult> {
+  const { file } = await createInvoicePdf(order);
+  if (Platform.OS !== 'android') {
+    await shareInvoiceFile(file.uri, order);
+    return { shared: true };
+  }
+
+  const saveInto = (folder: Directory) => {
+    const target = folder.createFile(invoiceFileName(order), 'application/pdf');
+    target.write(file.bytesSync());
+    return folder.name;
+  };
+
+  const remembered = await SecureStore.getItemAsync(SAVE_FOLDER_KEY).catch(() => null);
+  if (remembered) {
+    try {
+      return { savedTo: saveInto(new Directory(remembered)) };
+    } catch {
+      // The folder was deleted or access was taken back -- ask again.
+      await SecureStore.deleteItemAsync(SAVE_FOLDER_KEY).catch(() => {});
+    }
+  }
+
+  const go = await new Promise<boolean>((resolve) =>
+    Alert.alert(
+      'Choose a Folder for Invoices',
+      "Pick where your invoices are saved -- we'll remember it for next time.\n\nTip: in Downloads, tap the folder + button to make an \"Al Paninos\" folder and use that.",
+      [
+        { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+        { text: 'Choose Folder', onPress: () => resolve(true) },
+      ],
+      { cancelable: true, onDismiss: () => resolve(false) }
+    )
+  );
+  if (!go) return { cancelled: true };
+
+  let folder: Directory;
+  try {
+    folder = await Directory.pickDirectoryAsync(DOWNLOADS_URI);
+  } catch {
+    return { cancelled: true };
+  }
+  const savedTo = saveInto(folder);
+  await SecureStore.setItemAsync(SAVE_FOLDER_KEY, folder.uri).catch(() => {});
+  return { savedTo };
 }
 
 async function shareInvoiceFile(uri: string, order: any): Promise<void> {

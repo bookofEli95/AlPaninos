@@ -12,7 +12,7 @@ import { reorderFromOrder } from '../../../lib/reorder';
 import { tabularNums } from '../../../lib/typography';
 import { groupRepeats } from '../../../lib/modifiers';
 import { pointsForSubtotal } from '../../../lib/points';
-import { emailInvoice, shareInvoice } from '../../../lib/invoice';
+import { emailInvoice, saveInvoice } from '../../../lib/invoice';
 import BoxManifest from '../../../components/BoxManifest';
 import { useCartBarSpace } from '../../../hooks/useCartBarSpace';
 import { useAuthStore } from '../../../store/authStore';
@@ -119,10 +119,15 @@ export default function OrderDetailScreen() {
     if (!order) return;
     setInvoiceBusy(mode);
     try {
-      if (mode === 'email') await emailInvoice(order);
-      else await shareInvoice(order);
+      if (mode === 'email') {
+        const sentTo = await emailInvoice(order);
+        Alert.alert('Invoice Sent', `Your invoice was emailed to ${sentTo}.`);
+      } else {
+        const result = await saveInvoice(order);
+        if ('savedTo' in result) Alert.alert('Invoice Saved', `Saved to your "${result.savedTo}" folder.`);
+      }
     } catch (e: any) {
-      Alert.alert("Couldn't create the invoice", e.message);
+      Alert.alert(mode === 'email' ? "Couldn't email the invoice" : "Couldn't save the invoice", e.message);
     } finally {
       setInvoiceBusy(null);
     }

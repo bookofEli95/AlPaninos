@@ -414,6 +414,11 @@ deno_version = 2
 [functions.send-order-notification]
 verify_jwt = false
 
+# Checks who's signed in itself (so guests' sign-ins work too) -- see
+# functions/email-invoice/index.ts.
+[functions.email-invoice]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327
