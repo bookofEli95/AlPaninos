@@ -117,7 +117,8 @@ export default function DealsScreen() {
       if (error) throw error;
       return (data || []) as Challenge[];
     },
-    enabled: !!session?.user?.id,
+    // Challenges are for account holders -- guests don't see them.
+    enabled: !!session?.user?.id && !isAnonymous,
   });
 
   // Deals is a tab, so it stays mounted (and keeps its scroll position)
@@ -303,7 +304,7 @@ export default function DealsScreen() {
             </View>
             )}
 
-            {!!challenges?.length && (
+            {!isAnonymous && !!challenges?.length && (
               <View className="mb-2">
                 <Text className="text-base font-inter-bold text-[#1C1917] mb-0.5 px-1">Challenges</Text>
                 <Text className="text-xs text-stone-500 mb-2.5 px-1">

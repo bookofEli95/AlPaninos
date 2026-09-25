@@ -56,6 +56,7 @@ export function appliedPromoFromRow(row: any): AppliedPromo {
     maxDiscountAmount: num(row.max_discount_amount),
     minOrderAmount: num(row.min_order_amount),
     minItemCount: row.min_item_count != null ? Number(row.min_item_count) : null,
+    maxDiscountedItems: row.max_discounted_items != null ? Number(row.max_discounted_items) : null,
     orderType: row.order_type ?? null,
   };
 }
@@ -121,7 +122,16 @@ export function evaluatePromo(
     return true;
   });
   const eligibleCount = eligibleItems.reduce((sum, item) => sum + item.quantity, 0);
-  const eligibleSubtotal = eligibleItems.reduce((sum, item) => sum + item.totalPrice, 0);
+  let eligibleSubtotal = eligibleItems.reduce((sum, item) => sum + item.totalPrice, 0);
+  // "One sandwich only": just the cheapest maxDiscountedItems units (each
+  // priced with its options) count -- place_order() does the same.
+  if (promo.maxDiscountedItems != null) {
+    const unitPrices = eligibleItems
+      .filter((item) => item.quantity > 0)
+      .flatMap((item) => Array(item.quantity).fill(item.totalPrice / item.quantity) as number[])
+      .sort((a, b) => a - b);
+    eligibleSubtotal = unitPrices.slice(0, Math.max(0, promo.maxDiscountedItems)).reduce((sum, n) => sum + n, 0);
+  }
   const cartSubtotal = paidItems.reduce((sum, item) => sum + item.totalPrice, 0);
 
   const names = scopeCategoryNames(promo);
@@ -159,5 +169,6 @@ export function describePromoRequirements(row: any): string[] {
   if (row.order_type === 'delivery') tags.push('Delivery only');
   if (row.min_order_amount != null) tags.push(`Min. ${money(Number(row.min_order_amount))}`);
   if (row.min_item_count != null) tags.push(`Buy ${row.min_item_count}+`);
+  if (row.max_discounted_items === 1) tags.push('1 item');
   return tags;
 }

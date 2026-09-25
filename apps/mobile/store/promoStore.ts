@@ -19,6 +19,9 @@ export type AppliedPromo = {
   maxDiscountAmount: number | null;
   minOrderAmount: number | null;
   minItemCount: number | null;
+  // Only the cheapest this-many qualifying items get the discount ("25%
+  // off ONE Mob sandwich"). Null = every qualifying item.
+  maxDiscountedItems: number | null;
   orderType: 'pickup' | 'delivery' | null;
   // The category scope above, resolved to concrete ids for one location
   // (categories are duplicated per location) -- see the cart's resolver
