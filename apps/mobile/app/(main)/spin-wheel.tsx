@@ -14,6 +14,7 @@ import Svg, { Path, Circle } from 'react-native-svg';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
+  useAnimatedProps,
   withTiming,
   withRepeat,
   withSpring,
@@ -21,6 +22,7 @@ import Animated, {
   withSequence,
   Easing,
   runOnJS,
+  SharedValue,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
@@ -30,10 +32,10 @@ import { WHEEL_SEGMENTS, WHEEL_SEGMENT_ANGLE } from '../../lib/wheelPrizes';
 import { fetchPrizeShowcaseImage } from '../../lib/prizeRedemption';
 import ConfettiBurst from '../../components/ConfettiBurst';
 
-// RING_MARGIN reserves room for the brass rim and its studs outside the
-// wheel's own edge -- baked into WHEEL_SIZE's cap (not just RING_SIZE) so the
-// whole assembly, rim included, still fits the same width-80 safety margin
-// the plain wheel used to reserve on its own.
+// RING_MARGIN reserves room for the brass rim and its chasing light bulbs
+// outside the wheel's own edge -- baked into WHEEL_SIZE's cap (not just
+// RING_SIZE) so the whole assembly, bulbs included, still fits the same
+// width-80 safety margin the plain wheel used to reserve on its own.
 const RING_MARGIN = 22;
 const WHEEL_SIZE = Math.min(280, Dimensions.get('window').width - 80 - RING_MARGIN * 2);
 const RING_SIZE = WHEEL_SIZE + RING_MARGIN * 2;
@@ -50,7 +52,7 @@ const LABEL_LINE_HEIGHT = 11;
 const HUB_SIZE = WHEEL_SIZE * 0.24;
 const EXTRA_SPINS = 6;
 const SPIN_DURATION = 4200;
-const STUD_COUNT = 24;
+const LIGHT_COUNT = 20;
 const BRASS = '#D4A017';
 // Matches the GRAND PRIZE segment in lib/wheelPrizes.ts (prize_index 3 in
 // the spin_wheel migration) -- the one win that gets the bigger celebration.
@@ -67,29 +69,42 @@ function describeSlice(cx: number, cy: number, r: number, startAngle: number, en
   return [`M ${cx} ${cy}`, `L ${start.x} ${start.y}`, `A ${r} ${r} 0 0 0 ${end.x} ${end.y}`, 'Z'].join(' ');
 }
 
-// The brass rim around the wheel: an outer and inner ring with studs
-// between them, gold and cream alternating. It doesn't change, so it's drawn
-// once -- no animation loop.
-function BrassRim() {
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
+// A ring of bulbs around the wheel with a single "chase head" (marquee-light
+// style) sweeping around them -- driven by one shared clock (phase) rather
+// than each bulb animating independently, so there's exactly one animation
+// loop regardless of LIGHT_COUNT.
+function RimLight({ index, phase }: { index: number; phase: SharedValue<number> }) {
+  const angle = (360 / LIGHT_COUNT) * index;
+  const { x, y } = polarToCartesian(RING_SIZE / 2, RING_SIZE / 2, RING_SIZE / 2 - 11, angle);
+  const animatedProps = useAnimatedProps(() => {
+    const head = phase.value * LIGHT_COUNT;
+    let dist = Math.abs(head - index);
+    dist = Math.min(dist, LIGHT_COUNT - dist);
+    const glow = Math.max(0, 1 - dist / 2.4);
+    return { opacity: 0.25 + glow * 0.75 };
+  });
+  return (
+    <AnimatedCircle
+      cx={x}
+      cy={y}
+      r={index % 2 === 0 ? 4.5 : 3.5}
+      fill={index % 2 === 0 ? '#E7E5E4' : '#F4ECE1'}
+      animatedProps={animatedProps}
+    />
+  );
+}
+
+// The brass rim around the wheel with the chasing lights inside it.
+function BrassRim({ phase }: { phase: SharedValue<number> }) {
   const c = RING_SIZE / 2;
   return (
     <Svg width={RING_SIZE} height={RING_SIZE} style={StyleSheet.absoluteFill}>
       <Circle cx={c} cy={c} r={c - 3} fill="none" stroke={BRASS} strokeWidth={2.5} />
-      <Circle cx={c} cy={c} r={c - 11} fill="none" stroke="#44403C" strokeWidth={1} />
-      {Array.from({ length: STUD_COUNT }, (_, i) => {
-        const { x, y } = polarToCartesian(c, c, c - 11, (360 / STUD_COUNT) * i);
-        return (
-          <Circle
-            key={i}
-            cx={x}
-            cy={y}
-            r={i % 2 === 0 ? 3.5 : 2.5}
-            fill={i % 2 === 0 ? BRASS : '#F4ECE1'}
-            stroke="#1C1917"
-            strokeWidth={0.8}
-          />
-        );
-      })}
+      {Array.from({ length: LIGHT_COUNT }, (_, i) => (
+        <RimLight key={i} index={i} phase={phase} />
+      ))}
     </Svg>
   );
 }
@@ -125,6 +140,7 @@ export default function SpinWheelScreen() {
 
   const rotation = useSharedValue(0);
   const haloPulse = useSharedValue(0.15);
+  const lightsPhase = useSharedValue(0);
   const pulseScale = useSharedValue(1);
   const sheetTranslateY = useSharedValue(400);
   const sheetOpacity = useSharedValue(0);
@@ -175,6 +191,12 @@ export default function SpinWheelScreen() {
     // The gold glow behind the rim breathes slowly from the start.
     haloPulse.value = withRepeat(withTiming(0.35, { duration: 1500, easing: Easing.inOut(Easing.ease) }), -1, true);
   }, [entranceOpacity, entranceRotation, entranceScale, shockwaveScale, shockwaveOpacity, pointerDropY, uiOpacity, haloPulse]);
+
+  // Chasing rim lights run continuously from mount -- a casino wheel's
+  // marquee lights don't wait for anything.
+  useEffect(() => {
+    lightsPhase.value = withRepeat(withTiming(1, { duration: 1400, easing: Easing.linear }), -1, false);
+  }, [lightsPhase]);
 
   // The spin button pulses to draw the eye while idle, and settles down
   // once the wheel is actually moving (or the prize is showing) rather than
@@ -364,10 +386,10 @@ export default function SpinWheelScreen() {
         </Animated.View>
 
         <Animated.View style={[entranceWheelStyle, { width: RING_SIZE, height: RING_SIZE, marginTop: 18 }]}>
-          {/* A faint gold band that breathes behind the studs (and a soft
+          {/* A faint gold band that breathes behind the lights (and a soft
               glow around the rim on iPhone). */}
           <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.haloGlow, haloStyle]} />
-          <BrassRim />
+          <BrassRim phase={lightsPhase} />
 
           <Animated.View
             style={[

@@ -44,6 +44,20 @@ export default function MenuItemGridTile({ item, isSimpleCategory }: Props) {
   const dropNote = dropLabel(item);
   const canQuickAdd = isSimpleCategory && drop !== 'upcoming';
 
+  const addOne = () =>
+    incrementSimpleItem(
+      { menuItemId: item.id, name: item.name, basePrice: item.base_price, imageUrl: item.image_url },
+      item.location_id
+    );
+
+  const picture = item.image_url ? (
+    <Image source={{ uri: item.image_url }} className="w-full h-32 bg-stone-200" resizeMode="cover" />
+  ) : (
+    <View className="w-full h-32 bg-[#FAF6F0] items-center justify-center">
+      <Ionicons name="restaurant" size={28} color="#A8A29E" />
+    </View>
+  );
+
   return (
     <View className="w-1/2 p-2">
       <TouchableOpacity
@@ -52,12 +66,13 @@ export default function MenuItemGridTile({ item, isSimpleCategory }: Props) {
         onPress={() => router.push(`/(main)/item/${item.id}`)}
         className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden"
       >
-        {item.image_url ? (
-          <Image source={{ uri: item.image_url }} className="w-full h-32 bg-stone-200" resizeMode="cover" />
+        {/* On a quick-add tile the picture works like the Add / + button. */}
+        {canQuickAdd ? (
+          <TouchableOpacity onPress={addOne} activeOpacity={0.8} accessibilityLabel={`Add ${item.name}`}>
+            {picture}
+          </TouchableOpacity>
         ) : (
-          <View className="w-full h-32 bg-[#FAF6F0] items-center justify-center">
-            <Ionicons name="restaurant" size={28} color="#A8A29E" />
-          </View>
+          picture
         )}
         <View className="p-3">
           <Text className="text-[#1C1917] font-inter-bold text-sm" numberOfLines={2}>
@@ -86,12 +101,7 @@ export default function MenuItemGridTile({ item, isSimpleCategory }: Props) {
           {canQuickAdd && (
             qty === 0 ? (
               <TouchableOpacity
-                onPress={() =>
-                  incrementSimpleItem(
-                    { menuItemId: item.id, name: item.name, basePrice: item.base_price, imageUrl: item.image_url },
-                    item.location_id
-                  )
-                }
+                onPress={addOne}
                 className="bg-[#A61C14] rounded-lg py-2 items-center mt-2 active:bg-[#85140E]"
               >
                 <Text className="text-[#F4ECE1] font-inter-bold text-xs">Add</Text>
@@ -106,12 +116,7 @@ export default function MenuItemGridTile({ item, isSimpleCategory }: Props) {
                 </TouchableOpacity>
                 <Text className="font-inter-bold text-[#1C1917] text-sm">{qty}</Text>
                 <TouchableOpacity
-                  onPress={() =>
-                    incrementSimpleItem(
-                      { menuItemId: item.id, name: item.name, basePrice: item.base_price, imageUrl: item.image_url },
-                      item.location_id
-                    )
-                  }
+                  onPress={addOne}
                   className="bg-white w-7 h-7 rounded-md items-center justify-center shadow-sm"
                 >
                   <Text className="font-inter-bold text-[#1C1917]">+</Text>
