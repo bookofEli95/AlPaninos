@@ -54,8 +54,10 @@ export default function Register() {
   const handleRegister = async () => {
     setErrorMessage(null);
 
-    if (!firstName.trim() || !lastName.trim() || !phone.trim() || !address.trim() || !email.trim() || !password.trim()) {
-      setErrorMessage('Please fill out all fields.');
+    // The address is optional: most orders are pickup, and choosing
+    // Delivery asks for one anyway (OrderTypeSheet).
+    if (!firstName.trim() || !lastName.trim() || !phone.trim() || !email.trim() || !password.trim()) {
+      setErrorMessage('Please fill out your name, phone number, email and password.');
       return;
     }
     if (!isValidEmail(email)) {
@@ -85,7 +87,7 @@ export default function Register() {
           first_name: firstName.trim(),
           last_name: lastName.trim(),
           phone: `+${country.dialCode}${phone.trim()}`,
-          address: address.trim(),
+          address: address.trim() || null,
           notify_email: notifyEmail,
           notify_sms: notifySms,
         },
@@ -210,7 +212,7 @@ export default function Register() {
             className={`flex-1 ml-3 text-base ${address ? 'text-[#1C1917]' : 'text-[#A8A29E]'}`}
             numberOfLines={1}
           >
-            {address || 'Enter delivery address...'}
+            {address || 'Delivery address (optional)'}
           </Text>
         </TouchableOpacity>
 

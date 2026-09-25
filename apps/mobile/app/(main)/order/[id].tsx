@@ -15,6 +15,11 @@ import { pointsForSubtotal } from '../../../lib/points';
 import { emailInvoice, shareInvoice } from '../../../lib/invoice';
 import BoxManifest from '../../../components/BoxManifest';
 import { useCartBarSpace } from '../../../hooks/useCartBarSpace';
+import { useAuthStore } from '../../../store/authStore';
+import { useProfile } from '../../../hooks/useProfile';
+import { needsPassword } from '../../../lib/account';
+import AccountSetupSheet from '../../../components/AccountSetupSheet';
+import OrderPushPrompt from '../../../components/OrderPushPrompt';
 
 const DELIVERY_STEPS = [
   { key: 'received', label: 'Received' },
@@ -41,6 +46,14 @@ export default function OrderDetailScreen() {
   const [submittingRating, setSubmittingRating] = useState(false);
   const [reordering, setReordering] = useState(false);
   const [now, setNow] = useState(Date.now());
+
+  // A guest who just checked out is now a password-less account (their
+  // email was verified) -- this is where they wait for their food, so it's
+  // where they're asked to set a password and keep the order and points.
+  const session = useAuthStore((state) => state.session);
+  const { data: profile } = useProfile();
+  const [setupVisible, setSetupVisible] = useState(false);
+  const showKeepAccount = needsPassword(session?.user);
 
   const goBackToOrders = useCallback(() => {
     router.replace('/(main)/orders');
@@ -394,6 +407,28 @@ export default function OrderDetailScreen() {
               )}
             </View>
 
+            {showKeepAccount && !isCancelled && (
+              <View className="bg-white border border-[#A61C14] rounded-3xl p-4 mb-4 shadow-sm">
+                <View className="flex-row items-center mb-1">
+                  <Ionicons name="shield-checkmark-outline" size={16} color="#A61C14" />
+                  <Text className="text-sm font-inter-bold text-[#1C1917] ml-1.5 flex-1">Keep This Order & Your Points</Text>
+                </View>
+                <Text className="text-xs text-[#78716C] mb-3">
+                  Set a password to keep this order in your account and collect its{' '}
+                  {pointsForSubtotal(Number(order.subtotal_amount ?? order.total_amount)).toLocaleString()} PaninoPoints
+                  {isCompleted ? '.' : ' once it\'s picked up.'}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setSetupVisible(true)}
+                  className="bg-[#A61C14] py-2.5 rounded-xl items-center active:bg-[#85140E]"
+                >
+                  <Text className="text-[#F4ECE1] font-inter-bold text-sm">Set a Password</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {!isCompleted && !isCancelled && <OrderPushPrompt />}
+
             {/* Order Info */}
             <View className="bg-white p-4 rounded-3xl border border-stone-200 shadow-sm mb-4">
               <View className="flex-row justify-between items-center pb-2.5 border-b border-stone-100">
@@ -616,6 +651,16 @@ export default function OrderDetailScreen() {
             </View>
           ) : null
         }
+      />
+      <AccountSetupSheet
+        visible={setupVisible}
+        mode="finish"
+        initialValues={{ firstName: profile?.first_name, lastName: profile?.last_name, phone: profile?.phone }}
+        onClose={() => setSetupVisible(false)}
+        onDone={() => {
+          setSetupVisible(false);
+          Alert.alert("You're All Set!", 'This order and its points are saved to your account -- sign in anytime with your email and password.');
+        }}
       />
     </View>
   );

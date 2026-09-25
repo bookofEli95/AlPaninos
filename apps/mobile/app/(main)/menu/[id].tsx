@@ -95,6 +95,9 @@ export default function MenuScreen() {
     [secretItems]
   );
 
+  const hasDeals = !!activePromotions && activePromotions.length > 0;
+  const showSecret = !!secretCategory && secretItems.length > 0;
+
   const categoryRows = useMemo(() => {
     const cats = (menuData?.categories || []).filter((c: any) => !c.is_catering && !c.is_secret);
     const rows: (typeof cats)[] = [];
@@ -170,74 +173,76 @@ export default function MenuScreen() {
         </View>
       </View>
 
-      {activePromotions && activePromotions.length > 0 && (
-        <TouchableOpacity
-          onPress={() => router.push('/(main)/deals')}
-          className="flex-row items-center justify-between bg-[#A61C14] mx-4 mb-4 px-4 py-3 rounded-xl shadow-sm"
-        >
-          <View className="flex-row items-center flex-1 mr-2">
-            <Ionicons name="pricetag" size={16} color="#F4ECE1" />
-            <Text className="text-[#F4ECE1] font-inter-bold text-sm ml-2" numberOfLines={1}>
-              Deals
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={16} color="#F4ECE1" />
-        </TouchableOpacity>
-      )}
-
-      {cateringCategory && (
-        <TouchableOpacity
-          onPress={() =>
-            router.push({
-              pathname: '/(main)/menu-category',
-              params: { categoryId: cateringCategory.id, categoryName: cateringCategory.name, locationId },
-            })
-          }
-          className="flex-row items-center justify-between bg-white border border-[#A61C14] mx-4 mb-4 px-4 py-3 rounded-xl shadow-sm"
-        >
-          <View className="flex-row items-center flex-1 mr-2">
-            <Ionicons name="people" size={18} color="#A61C14" />
-            <View className="ml-2 flex-1">
-              <Text className="text-[#1C1917] font-inter-bold text-sm" numberOfLines={1}>
-                {cateringCategory.name}
-              </Text>
-              <Text className="text-[#78716C] text-xs" numberOfLines={1}>
-                Platters for groups -- order by 6 PM for tomorrow
-              </Text>
-            </View>
-          </View>
-          <Ionicons name="chevron-forward" size={16} color="#A61C14" />
-        </TouchableOpacity>
-      )}
-
-      {secretCategory && secretItems.length > 0 && (
-        <TouchableOpacity
-          onPress={() =>
-            router.push({
-              pathname: '/(main)/menu-category',
-              params: { categoryId: secretCategory.id, categoryName: secretCategory.name, locationId },
-            })
-          }
-          className="flex-row items-center justify-between bg-[#1C1917] mx-4 mb-4 px-4 py-3 rounded-xl"
-        >
-          <View className="flex-row items-center flex-1 mr-2">
-            <Ionicons name="flame" size={18} color="#F0B4AC" />
-            <View className="ml-2 flex-1">
+      {/* Deals, Catering and the Secret Mob as one row of small tiles --
+          three stacked full-width banners pushed the category grid half
+          off the screen. Each tile only appears when it has something. */}
+      {(hasDeals || !!cateringCategory || showSecret) && (
+        <View className="flex-row mx-4 mb-4 gap-2">
+          {hasDeals && (
+            <TouchableOpacity
+              onPress={() => router.push('/(main)/deals')}
+              className="flex-1 bg-[#A61C14] rounded-xl px-3 py-2.5 shadow-sm"
+              activeOpacity={0.85}
+            >
               <View className="flex-row items-center">
-                <Text className="text-[#F4ECE1] font-inter-bold text-sm" numberOfLines={1}>
-                  {secretCategory.name}
-                </Text>
-                <View className="bg-[#A61C14] px-1.5 py-0.5 rounded ml-2">
-                  <Text className="text-[#F4ECE1] text-[9px] font-inter-bold uppercase">App Only</Text>
-                </View>
+                <Ionicons name="pricetag" size={14} color="#F4ECE1" />
+                <Text className="text-[#F4ECE1] font-inter-bold text-sm ml-1.5" numberOfLines={1}>Deals</Text>
               </View>
-              <Text className="text-stone-400 text-xs" numberOfLines={1}>
-                {secretHighlight ? `${secretHighlight.name} • ${dropLabel(secretHighlight as any)}` : 'Creations you won\'t find on the board'}
+              <Text className="text-[#F4ECE1] opacity-80 text-[11px] mt-0.5" numberOfLines={1}>
+                {activePromotions!.length} {activePromotions!.length === 1 ? 'offer' : 'offers'}
               </Text>
-            </View>
-          </View>
-          <Ionicons name="chevron-forward" size={16} color="#F4ECE1" />
-        </TouchableOpacity>
+            </TouchableOpacity>
+          )}
+
+          {cateringCategory && (
+            <TouchableOpacity
+              onPress={() =>
+                router.push({
+                  pathname: '/(main)/menu-category',
+                  params: { categoryId: cateringCategory.id, categoryName: cateringCategory.name, locationId },
+                })
+              }
+              className="flex-1 bg-white border border-[#A61C14] rounded-xl px-3 py-2.5 shadow-sm"
+              activeOpacity={0.85}
+            >
+              <View className="flex-row items-center">
+                <Ionicons name="people" size={14} color="#A61C14" />
+                <Text className="text-[#1C1917] font-inter-bold text-sm ml-1.5" numberOfLines={1}>Catering</Text>
+              </View>
+              <Text className="text-[#78716C] text-[11px] mt-0.5" numberOfLines={1}>
+                Order by 6 PM
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {showSecret && (
+            <TouchableOpacity
+              onPress={() =>
+                router.push({
+                  pathname: '/(main)/menu-category',
+                  params: { categoryId: secretCategory!.id, categoryName: secretCategory!.name, locationId },
+                })
+              }
+              className="flex-1 bg-[#1C1917] rounded-xl px-3 py-2.5"
+              activeOpacity={0.85}
+            >
+              <View className="flex-row items-center">
+                <Ionicons name="flame" size={14} color="#F0B4AC" />
+                <Text className="text-[#F4ECE1] font-inter-bold text-sm ml-1.5" numberOfLines={1}>Secret Mob</Text>
+              </View>
+              <Text
+                className={`text-[11px] mt-0.5 ${secretHighlight && dropState(secretHighlight as any) === 'live' ? 'text-[#F0B4AC] font-inter-semibold' : 'text-stone-400'}`}
+                numberOfLines={1}
+              >
+                {secretHighlight
+                  ? dropState(secretHighlight as any) === 'live'
+                    ? 'Drop live now'
+                    : dropLabel(secretHighlight as any)
+                  : 'App only'}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
       )}
 
       {/* Search */}

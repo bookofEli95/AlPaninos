@@ -15,11 +15,33 @@ function isExpoGo(): boolean {
   return Constants.appOwnership === 'expo' || Constants.executionEnvironment === 'storeClient';
 }
 
+// Whether this phone has said yes / no to notifications yet -- null where
+// push can't work at all (Expo Go, a simulator), so no prompt is offered.
+export async function getPushPermissionStatus(): Promise<'granted' | 'denied' | 'undetermined' | null> {
+  if (isExpoGo()) return null;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const Notifications = require('expo-notifications');
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const Device = require('expo-device');
+    if (!Device.isDevice) return null;
+    const { status } = await Notifications.getPermissionsAsync();
+    return status;
+  } catch {
+    return null;
+  }
+}
+
 // Registers this device for push and returns its Expo push token, or null
 // if this is Expo Go (needs a development build instead), permission was
 // denied, this is a simulator, or no EAS project is linked yet (`eas init`
 // writes the project ID app.json needs).
-export async function registerForPushNotificationsAsync(): Promise<string | null> {
+//
+// Only shows the phone's permission question when `ask` is set -- that
+// happens from the order screen's "Turn On" card, when the customer has an
+// order to be told about. Called without it (at launch), it just refreshes
+// the token for phones that already said yes, and never prompts.
+export async function registerForPushNotificationsAsync({ ask = false }: { ask?: boolean } = {}): Promise<string | null> {
   // Expected every time while testing in Expo Go (this project's normal
   // dev workflow), not an actionable problem -- silently no-op rather than
   // warn on every single app load.
@@ -51,6 +73,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
     if (existingStatus !== 'granted') {
+      if (!ask) return null;
       const { status } = await Notifications.requestPermissionsAsync();
       finalStatus = status;
     }

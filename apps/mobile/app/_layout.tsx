@@ -137,6 +137,9 @@ export default function Layout() {
     };
   }, []);
 
+  // Refreshes the push token for phones that already allowed notifications.
+  // Never asks at launch -- the order screen's "Turn On" card does that,
+  // once there's an order to be notified about (OrderPushPrompt).
   useEffect(() => {
     if (!session?.user?.id) return;
     (async () => {
@@ -159,8 +162,14 @@ export default function Layout() {
       navigationAttempted.current = true;
       const isAnonymous = session.user?.is_anonymous ?? false;
       if (isAnonymous) {
-        useLocationStore.setState({ locationId: null, isLoaded: true });
-        router.replace('/(main)');
+        // A guest who's ordered here before goes straight back to their
+        // store's menu, like a member -- the store is remembered per phone,
+        // not per account.
+        (async () => {
+          await useLocationStore.getState().loadSavedLocation();
+          const savedId = useLocationStore.getState().locationId;
+          router.replace(savedId ? `/(main)/menu/${savedId}` : '/(main)');
+        })();
       } else {
         (async () => {
           let showWheel = false;
@@ -212,7 +221,7 @@ export default function Layout() {
           runOnJS(setSplashComplete)(true);
         }
       });
-    }, 700);
+    }, 200);
 
     return () => {
       isMounted = false;
