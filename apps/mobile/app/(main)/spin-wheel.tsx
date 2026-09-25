@@ -17,6 +17,8 @@ import Animated, {
   useAnimatedProps,
   withTiming,
   withRepeat,
+  withSpring,
+  withDelay,
   Easing,
   runOnJS,
   SharedValue,
@@ -106,6 +108,16 @@ export default function SpinWheelScreen() {
   const [prizeImageUrl, setPrizeImageUrl] = useState<string | null>(null);
   const [imageLoading, setImageLoading] = useState(false);
 
+  // Entrance: the wheel lands from 2.8x, overshoots to 0.92x and springs
+  // back; the pointer drops in and the header and button fade in after.
+  const entranceScale = useSharedValue(2.8);
+  const entranceOpacity = useSharedValue(0.1);
+  const uiOpacity = useSharedValue(0);
+  const pointerDropY = useSharedValue(-40);
+  // The button is invisible until the header fades in -- it ignores taps
+  // until then, so a quick tap can't start a spin mid-landing.
+  const [uiReady, setUiReady] = useState(false);
+
   const rotation = useSharedValue(0);
   const lightsPhase = useSharedValue(0);
   const pulseScale = useSharedValue(1);
@@ -126,6 +138,31 @@ export default function SpinWheelScreen() {
   // to yet, so the hardware back button / system back gesture is swallowed
   // instead of following the usual pattern of returning somewhere.
   useBackHandler(() => {});
+
+  const triggerImpactThud = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
+  };
+
+  useEffect(() => {
+    entranceOpacity.value = withTiming(1, { duration: 150 });
+    entranceScale.value = withTiming(
+      0.92,
+      { duration: 360, easing: Easing.bezier(0.12, 1, 0.2, 1) },
+      (finished) => {
+        if (!finished) return;
+        // The thud lands at the moment of peak compression.
+        runOnJS(triggerImpactThud)();
+        entranceScale.value = withSpring(1, { damping: 12, stiffness: 140, mass: 0.85 });
+      }
+    );
+    pointerDropY.value = withDelay(320, withSpring(0, { damping: 11, stiffness: 130 }));
+    uiOpacity.value = withDelay(
+      400,
+      withTiming(1, { duration: 250 }, (finished) => {
+        if (finished) runOnJS(setUiReady)(true);
+      })
+    );
+  }, [entranceOpacity, entranceScale, pointerDropY, uiOpacity]);
 
   // Chasing rim lights run continuously from mount -- a casino wheel's
   // marquee lights don't wait for anything.
@@ -193,6 +230,12 @@ export default function SpinWheelScreen() {
     transform: [{ rotate: `${rotation.value}deg` }],
   }));
   const pulseStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulseScale.value }] }));
+  const entranceWheelStyle = useAnimatedStyle(() => ({
+    opacity: entranceOpacity.value,
+    transform: [{ scale: entranceScale.value }],
+  }));
+  const pointerAnimatedStyle = useAnimatedStyle(() => ({ transform: [{ translateY: pointerDropY.value }] }));
+  const uiFadeStyle = useAnimatedStyle(() => ({ opacity: uiOpacity.value }));
   const sheetAnimatedStyle = useAnimatedStyle(() => ({
     opacity: sheetOpacity.value,
     transform: [{ translateY: sheetTranslateY.value }],
@@ -224,7 +267,7 @@ export default function SpinWheelScreen() {
   };
 
   const handleSpin = async () => {
-    if (spinning || result) return;
+    if (spinning || result || !uiReady) return;
     setSpinning(true);
     setErrorMessage(null);
 
@@ -278,8 +321,8 @@ export default function SpinWheelScreen() {
         pointerEvents="none"
       />
 
-      {/* Screen Header */}
-      <View className="items-center mb-6">
+      {/* Screen Header (fades in as the wheel lands) */}
+      <Animated.View style={uiFadeStyle} className="items-center mb-6">
         <Text className="text-[#F4ECE1] opacity-70 font-inter-bold text-xs uppercase tracking-widest mb-1.5">
           Welcome Perk
         </Text>
@@ -289,13 +332,13 @@ export default function SpinWheelScreen() {
         <Text className="text-[#F4ECE1] opacity-70 text-center text-xs mt-1 max-w-[260px]">
           Spin the wheel for a one-time welcome prize.
         </Text>
-      </View>
+      </Animated.View>
 
-      {/* Wheel Assembly */}
-      <View style={{ width: RING_SIZE, height: RING_SIZE + 30, alignItems: 'center' }}>
-        <View style={styles.pointer}>
+      {/* Wheel Assembly (with the entrance zoom) */}
+      <Animated.View style={[entranceWheelStyle, { width: RING_SIZE, height: RING_SIZE + 30, alignItems: 'center' }]}>
+        <Animated.View style={[styles.pointer, pointerAnimatedStyle]}>
           <Ionicons name="caret-down" size={34} color="#F4ECE1" />
-        </View>
+        </Animated.View>
 
         <View style={{ width: RING_SIZE, height: RING_SIZE, marginTop: 18 }}>
           <Svg width={RING_SIZE} height={RING_SIZE} style={StyleSheet.absoluteFill}>
@@ -370,7 +413,7 @@ export default function SpinWheelScreen() {
             </View>
           </Animated.View>
         </View>
-      </View>
+      </Animated.View>
 
       {errorMessage && (
         <Text className="text-[#F4ECE1] bg-[#A61C14] px-4 py-2 rounded-xl mt-6 text-center text-xs font-inter-medium">
@@ -380,10 +423,10 @@ export default function SpinWheelScreen() {
 
       {/* Spin Button */}
       {!result && (
-        <Animated.View style={pulseStyle} className="mt-8">
+        <Animated.View style={[pulseStyle, uiFadeStyle]} className="mt-8">
           <TouchableOpacity
             onPress={handleSpin}
-            disabled={spinning}
+            disabled={spinning || !uiReady}
             className={`px-12 py-3.5 rounded-full items-center shadow-lg ${
               spinning ? 'bg-stone-700' : 'bg-[#A61C14] active:bg-[#85140E]'
             }`}
