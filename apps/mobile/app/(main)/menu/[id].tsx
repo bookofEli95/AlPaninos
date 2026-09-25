@@ -140,7 +140,7 @@ export default function MenuScreen() {
     <View className="flex-1 bg-[#FAF6F0] pt-12">
       {/* Header */}
       <View className="flex-row items-center justify-between px-4 mb-4">
-        <Text className="text-2xl font-display-bold text-[#1C1917] tracking-tight">Menu</Text>
+        <Text className="text-2xl font-display-bold text-[#1C1917] tracking-tight mt-2 ml-1.5">Menu</Text>
 
         <View className="flex-row items-center">
           <TouchableOpacity

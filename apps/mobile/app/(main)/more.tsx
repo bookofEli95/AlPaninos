@@ -106,7 +106,7 @@ export default function MoreScreen() {
 
   return (
     <View className="flex-1 bg-[#FAF6F0] pt-14 px-4">
-      <Text className="text-2xl font-display-bold text-[#1C1917] tracking-tight mb-3">More</Text>
+      <Text className="text-2xl font-display-bold text-[#1C1917] tracking-tight mb-3 mt-1 ml-1.5">More</Text>
 
       <ScrollView
         ref={scrollRef}
