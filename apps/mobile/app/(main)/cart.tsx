@@ -19,6 +19,8 @@ import TimeSlotPickerSheet from '../../components/TimeSlotPickerSheet';
 import OrderTypeSheet from '../../components/OrderTypeSheet';
 import CartUpsellTray from '../../components/CartUpsellTray';
 import AvailableDeals from '../../components/AvailableDeals';
+import AccountSetupSheet from '../../components/AccountSetupSheet';
+import { welcomeNewAccount } from '../../lib/guestSession';
 import { isValidEmail } from '../../lib/passwordStrength';
 import { estimateReadyMinutes, formatDayAndTime, getPickupSlots } from '../../lib/orderTiming';
 import {
@@ -52,6 +54,7 @@ export default function CartScreen() {
   // cart stays mounted (it's a tab), and a guest who creates an account
   // elsewhere (More / Profile) must see the normal member checkout.
   const [verifiedAtCheckout, setVerifiedAtCheckout] = useState(false);
+  const [accountSetupVisible, setAccountSetupVisible] = useState(false);
   const isAnonymous = (session?.user?.is_anonymous ?? false) || verifiedAtCheckout;
   // A different person signed in (sign out, then in) -- start fresh.
   useEffect(() => {
@@ -1146,13 +1149,26 @@ export default function CartScreen() {
                   <TouchableOpacity
                     onPress={handleSendCode}
                     disabled={sendingOtp}
-                    className="bg-[#1C1917] py-2.5 rounded-xl items-center mt-2.5"
+                    className="bg-[#1C1917] py-3.5 rounded-xl items-center justify-center mt-2.5 active:bg-stone-800"
                   >
                     {sendingOtp ? (
                       <ActivityIndicator size="small" color="#F4ECE1" />
                     ) : (
-                      <Text className="text-[#F4ECE1] font-inter-bold text-xs">Verify Email to Continue</Text>
+                      <Text className="text-[#F4ECE1] font-inter-bold text-sm">Verify Email to Continue</Text>
                     )}
+                  </TouchableOpacity>
+                )}
+                {/* Same offer as the More tab's guest card: an account keeps
+                    this cart and unlocks the welcome spin and PaninoPoints.
+                    Hidden once they've verified here (they're then already a
+                    password-less account). */}
+                {!!session?.user?.is_anonymous && !emailVerified && (
+                  <TouchableOpacity
+                    onPress={() => setAccountSetupVisible(true)}
+                    className="bg-[#A61C14] py-3.5 rounded-xl flex-row items-center justify-center mt-2.5 active:bg-[#85140E]"
+                  >
+                    <Ionicons name="sparkles" size={15} color="#F4ECE1" />
+                    <Text className="text-[#F4ECE1] font-inter-bold text-sm ml-1.5">Create a Free Account</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -1247,6 +1263,22 @@ export default function CartScreen() {
         asapLabel={`${estimateReadyMinutes(orderType, itemCount)} min`}
         selected={selectedSlot}
         days={isCateringOrder ? cateringDays : undefined}
+      />
+
+      {/* Starts with whatever they've already typed into the guest form. */}
+      <AccountSetupSheet
+        visible={accountSetupVisible}
+        mode="upgrade"
+        initialValues={{
+          firstName: guestFirstName,
+          lastName: guestLastName,
+          phone: guestPhone ? `+${guestCountry.dialCode}${guestPhone}` : null,
+        }}
+        onClose={() => setAccountSetupVisible(false)}
+        onDone={() => {
+          setAccountSetupVisible(false);
+          welcomeNewAccount(router);
+        }}
       />
     </View>
   );
