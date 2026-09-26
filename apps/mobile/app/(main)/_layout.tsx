@@ -28,7 +28,8 @@ export default function MainLayout() {
   // total at checkout is never a surprise.
   const { total: cartTotal } = useCartTotals();
 
-  const isInsideCart = segments.includes('cart') || segments.includes('item');
+  // Also hidden over the welcome wheel, which is a full screen of its own.
+  const hideCartBar = segments.includes('cart') || segments.includes('item') || segments.includes('spin-wheel');
 
   return (
     <View className="flex-1 bg-[#FAF6F0]">
@@ -128,7 +129,7 @@ export default function MainLayout() {
         <Tabs.Screen name="legal" options={{ href: null }} />
       </Tabs>
 
-      {itemCount > 0 && !isInsideCart && (
+      {itemCount > 0 && !hideCartBar && (
         <View className="absolute left-4 right-4 z-50" style={{ bottom: tabBarHeight + 20 }}>
           <TouchableOpacity
             onPress={() => router.push('/(main)/cart')}

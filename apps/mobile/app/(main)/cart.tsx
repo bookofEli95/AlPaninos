@@ -44,7 +44,18 @@ export default function CartScreen() {
   const { items, locationId, removeItem, updateItemQuantity, clearCart, orderType, deliveryAddress, removeItemsByPromoCode } = useCartStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { session } = useAuthStore();
-  const [isAnonymous] = useState(() => session?.user?.is_anonymous ?? false);
+  // Verifying their email at checkout turns a guest's session into a real
+  // (password-less) account, which would make the guest form vanish half-way
+  // through checkout -- so a guest who verified here stays on the guest form
+  // until this order is placed. Otherwise it follows the live session: the
+  // cart stays mounted (it's a tab), and a guest who creates an account
+  // elsewhere (More / Profile) must see the normal member checkout.
+  const [verifiedAtCheckout, setVerifiedAtCheckout] = useState(false);
+  const isAnonymous = (session?.user?.is_anonymous ?? false) || verifiedAtCheckout;
+  // A different person signed in (sign out, then in) -- start fresh.
+  useEffect(() => {
+    setVerifiedAtCheckout(false);
+  }, [session?.user?.id]);
 
   const [guestFirstName, setGuestFirstName] = useState('');
   const [guestLastName, setGuestLastName] = useState('');
@@ -369,6 +380,7 @@ export default function CartScreen() {
       });
       if (error) throw error;
       setVerifiedEmail(guestEmail.trim());
+      setVerifiedAtCheckout(true);
       setOtpSent(false);
       setOtpCode('');
     } catch (e: any) {
@@ -575,6 +587,7 @@ export default function CartScreen() {
 
       const wasCatering = isCateringOrder;
       clearCart();
+      setVerifiedAtCheckout(false);
       setAppliedPromo(null);
       setSelectedSlot(null);
       setCateringCompany('');
