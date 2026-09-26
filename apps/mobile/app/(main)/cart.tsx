@@ -18,6 +18,7 @@ import CountryPickerSheet from '../../components/CountryPickerSheet';
 import TimeSlotPickerSheet from '../../components/TimeSlotPickerSheet';
 import OrderTypeSheet from '../../components/OrderTypeSheet';
 import CartUpsellTray from '../../components/CartUpsellTray';
+import AvailableDeals from '../../components/AvailableDeals';
 import { isValidEmail } from '../../lib/passwordStrength';
 import { estimateReadyMinutes, formatDayAndTime, getPickupSlots } from '../../lib/orderTiming';
 import {
@@ -989,6 +990,7 @@ export default function CartScreen() {
                   </View>
                 </View>
               )}
+              {locationId && <AvailableDeals locationId={locationId} />}
             </View>
 
             {isCateringOrder && (
