@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, TextInput, FlatList, TouchableOpacity, Alert, ActivityIndicator, StyleSheet } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { View, Text, TextInput, FlatList, TouchableOpacity, Alert, ActivityIndicator, StyleSheet, Keyboard } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
@@ -44,6 +44,27 @@ export default function OrderDetailScreen() {
   const [ratingValue, setRatingValue] = useState(0);
   const [ratingComment, setRatingComment] = useState('');
   const [submittingRating, setSubmittingRating] = useState(false);
+
+  // The review box is the last thing on the screen, so the keyboard would
+  // cover it (and the Submit button). While it's open the list gets that
+  // much extra room at the bottom, and scrolls the review into view.
+  const listRef = useRef<FlatList>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [commentFocused, setCommentFocused] = useState(false);
+  useEffect(() => {
+    const showSub = Keyboard.addListener('keyboardDidShow', (e) => setKeyboardHeight(e.endCoordinates.height));
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+  useEffect(() => {
+    if (!commentFocused || keyboardHeight === 0) return;
+    // After the extra room has been laid out.
+    const timer = setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 60);
+    return () => clearTimeout(timer);
+  }, [commentFocused, keyboardHeight]);
   const [reordering, setReordering] = useState(false);
   const [now, setNow] = useState(Date.now());
 
@@ -152,15 +173,22 @@ export default function OrderDetailScreen() {
     setSubmittingRating(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      const { error } = await (supabase as any).from('order_ratings').insert({
-        order_id: id,
-        user_id: user?.id,
-        rating: ratingValue,
-        comment: ratingComment.trim() || null,
-      });
+      const { data: saved, error } = await (supabase as any)
+        .from('order_ratings')
+        .insert({
+          order_id: id,
+          user_id: user?.id,
+          rating: ratingValue,
+          comment: ratingComment.trim() || null,
+        })
+        .select()
+        .single();
       if (error) throw error;
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      queryClient.invalidateQueries({ queryKey: ['orderRating', id] });
+      // Straight to "Thanks for the feedback!" with what was just saved,
+      // rather than asking the database for it again first.
+      Keyboard.dismiss();
+      queryClient.setQueryData(['orderRating', id], saved);
     } catch (e: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
       Alert.alert("Couldn't submit rating", e.message);
@@ -293,11 +321,12 @@ export default function OrderDetailScreen() {
       </View>
 
       <FlatList
+        ref={listRef}
         data={order.order_items}
         keyExtractor={(item) => item.id}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 + cartBarSpace }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 + cartBarSpace + keyboardHeight }}
         ListHeaderComponent={
           <>
             {order.is_catering && !isCancelled && (
@@ -633,6 +662,8 @@ export default function OrderDetailScreen() {
                     placeholderTextColor="#A8A29E"
                     value={ratingComment}
                     onChangeText={setRatingComment}
+                    onFocus={() => setCommentFocused(true)}
+                    onBlur={() => setCommentFocused(false)}
                     multiline
                     textAlignVertical="top"
                   />
