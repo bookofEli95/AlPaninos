@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, Image, FlatList } from 'react-native';
+import { View, Text, TouchableOpacity, Image, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { EligiblePrizeItem } from '../lib/prizeRedemption';
 
@@ -33,11 +33,13 @@ export default function PrizeItemPicker({
         </View>
         <Text className="text-[#78716C] mb-4">Pick one -- it's on us.</Text>
 
-        <FlatList
-          data={items}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
+        {/* A plain ScrollView, not a FlatList: the list is short, and the
+            cart shows this from inside its own scrolling screen, where a
+            FlatList triggers React Native's nested-list warning. */}
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {items.map((item) => (
             <TouchableOpacity
+              key={item.id}
               onPress={() => onSelect(item)}
               className="flex-row items-center bg-white border border-stone-200 rounded-xl p-3 mb-2"
             >
@@ -51,8 +53,8 @@ export default function PrizeItemPicker({
               <Text className="flex-1 ml-3 font-inter-semibold text-[#1C1917]" numberOfLines={1}>{item.name}</Text>
               <Text className="text-[#A61C14] font-inter-extrabold text-sm">FREE</Text>
             </TouchableOpacity>
-          )}
-        />
+          ))}
+        </ScrollView>
       </View>
     </View>
   );

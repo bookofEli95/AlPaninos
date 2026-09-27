@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, Alert, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
@@ -260,17 +260,21 @@ export default function AvailableDeals({ locationId }: { locationId: string }) {
         </View>
       )}
 
-      {picker && (
-        <PrizeItemPicker
-          title={picker.promo.title}
-          items={picker.items}
-          onSelect={(selected) => {
-            giveFreeItem(selected, picker.promo);
-            setPicker(null);
-          }}
-          onClose={() => setPicker(null)}
-        />
-      )}
+      {/* In a Modal so it covers the whole screen -- this component sits
+          inside the cart's promo box. */}
+      <Modal visible={!!picker} transparent animationType="fade" onRequestClose={() => setPicker(null)}>
+        {picker && (
+          <PrizeItemPicker
+            title={picker.promo.title}
+            items={picker.items}
+            onSelect={(selected) => {
+              giveFreeItem(selected, picker.promo);
+              setPicker(null);
+            }}
+            onClose={() => setPicker(null)}
+          />
+        )}
+      </Modal>
     </View>
   );
 }
