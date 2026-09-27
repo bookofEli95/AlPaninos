@@ -145,8 +145,16 @@ export default function AvailableDeals({ locationId }: { locationId: string }) {
 
   if (rows.length === 0) return null;
 
-  const best = rows.reduce((max, r) => Math.max(max, r.savings), 0);
-  const summary = `${rows.length} deal${rows.length === 1 ? '' : 's'} available${best > 0 ? ` · best saves ${money(best)}` : ''}`;
+  // The discount that saves the most on this cart right now -- one tap
+  // applies it without opening the list. (Free-item prizes have no dollar
+  // figure until an item is picked, so they're never "best".)
+  const bestRow = rows.reduce<DealRow | null>(
+    (best, r) => (!r.freeItem && r.savings > 0 && (!best || r.savings > best.savings) ? r : best),
+    null
+  );
+  const showApplyBest = !!bestRow && !bestRow.applied;
+  const count = `${rows.length} deal${rows.length === 1 ? '' : 's'} available`;
+  const summary = bestRow?.applied ? `${count} · best deal applied` : count;
 
   const giveFreeItem = async (target: EligiblePrizeItem, promo: any) => {
     if (await itemHasModifiers(target.id)) {
@@ -199,6 +207,16 @@ export default function AvailableDeals({ locationId }: { locationId: string }) {
             {summary}
           </Text>
         </View>
+        {showApplyBest && (
+          <TouchableOpacity
+            onPress={() => handleTap(bestRow!)}
+            disabled={!!busyCode}
+            hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+            className="bg-[#A61C14] rounded-lg px-2.5 py-1.5 mr-2 active:bg-[#85140E]"
+          >
+            <Text className="text-[#F4ECE1] text-[11px] font-inter-bold">Apply best · Save {money(bestRow!.savings)}</Text>
+          </TouchableOpacity>
+        )}
         <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color="#A8A29E" />
       </TouchableOpacity>
 
@@ -262,7 +280,7 @@ export default function AvailableDeals({ locationId }: { locationId: string }) {
 
       {/* In a Modal so it covers the whole screen -- this component sits
           inside the cart's promo box. */}
-      <Modal visible={!!picker} transparent animationType="fade" onRequestClose={() => setPicker(null)}>
+      <Modal visible={!!picker} transparent animationType="none" onRequestClose={() => setPicker(null)}>
         {picker && (
           <PrizeItemPicker
             title={picker.promo.title}

@@ -1,4 +1,6 @@
-import { View, Text, TouchableOpacity, Image, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, Image, ScrollView, StyleSheet } from 'react-native';
+import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { EligiblePrizeItem } from '../lib/prizeRedemption';
 
@@ -6,6 +8,10 @@ import { EligiblePrizeItem } from '../lib/prizeRedemption';
 // more than one eligible item -- e.g. Free Choice of Pop lists every drink,
 // Free Specialty Fries lists Greek/Philly/etc. A single-match prize (Free
 // Fries) skips this entirely and adds straight to the cart instead.
+//
+// A sheet that slides up from the bottom, like the app's other pickers
+// (order type, pickup time, account setup) -- within thumb reach on tall
+// phones.
 export default function PrizeItemPicker({
   title,
   items,
@@ -17,14 +23,17 @@ export default function PrizeItemPicker({
   onSelect: (item: EligiblePrizeItem) => void;
   onClose: () => void;
 }) {
+  const insets = useSafeAreaInsets();
+
   return (
-    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)' }}>
-      <TouchableOpacity
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
-        activeOpacity={1}
-        onPress={onClose}
-      />
-      <View className="bg-[#FAF6F0] rounded-2xl mx-4 p-5" style={{ marginTop: 90, maxHeight: '75%' }}>
+    <Animated.View entering={FadeIn.duration(150)} style={styles.overlay}>
+      <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
+      <Animated.View
+        entering={SlideInDown.duration(280)}
+        className="bg-[#FAF6F0] rounded-t-3xl px-5 pt-3"
+        style={{ maxHeight: '75%', paddingBottom: Math.max(insets.bottom, 16) + 8 }}
+      >
+        <View className="w-10 h-1 bg-stone-300 rounded-full self-center mb-3" />
         <View className="flex-row justify-between items-center mb-1">
           <Text className="text-xl font-inter-extrabold text-[#1C1917] flex-1 mr-2">{title}</Text>
           <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
@@ -55,7 +64,20 @@ export default function PrizeItemPicker({
             </TouchableOpacity>
           ))}
         </ScrollView>
-      </View>
-    </View>
+      </Animated.View>
+    </Animated.View>
   );
 }
+
+const styles = StyleSheet.create({
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+    zIndex: 100,
+  },
+});

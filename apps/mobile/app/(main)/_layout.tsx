@@ -1,5 +1,13 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withSpring,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
 import { Tabs, useRouter, useSegments } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,6 +15,47 @@ import { useLocationStore } from '../../store/locationStore';
 import { useCartStore } from '../../store/cartStore';
 import { tabularNums } from '../../lib/typography';
 import { useCartTotals } from '../../hooks/useCartTotals';
+import { useTabBadges } from '../../hooks/useTabBadges';
+
+// Small dot on a tab icon's top-right corner.
+function TabDot({ color }: { color: string }) {
+  return (
+    <View
+      style={{
+        position: 'absolute',
+        top: -2,
+        right: -5,
+        width: 9,
+        height: 9,
+        borderRadius: 4.5,
+        backgroundColor: color,
+        borderWidth: 1.5,
+        borderColor: '#FAF6F0',
+      }}
+    />
+  );
+}
+
+// The Orders tab's "your food is on its way" dot -- a green dot with a soft
+// ring pulsing out of it.
+function PulsingDot() {
+  const pulse = useSharedValue(0);
+  useEffect(() => {
+    pulse.value = withRepeat(withTiming(1, { duration: 1400, easing: Easing.out(Easing.ease) }), -1, false);
+  }, [pulse]);
+  const ringStyle = useAnimatedStyle(() => ({
+    opacity: 0.6 * (1 - pulse.value),
+    transform: [{ scale: 1 + pulse.value * 1.4 }],
+  }));
+  return (
+    <View style={{ position: 'absolute', top: -2, right: -5, width: 9, height: 9 }}>
+      <Animated.View
+        style={[{ position: 'absolute', width: 9, height: 9, borderRadius: 4.5, backgroundColor: '#16A34A' }, ringStyle]}
+      />
+      <TabDot color="#16A34A" />
+    </View>
+  );
+}
 
 export default function MainLayout() {
   const router = useRouter();
@@ -30,6 +79,35 @@ export default function MainLayout() {
 
   // Also hidden over the welcome wheel, which is a full screen of its own.
   const hideCartBar = segments.includes('cart') || segments.includes('item') || segments.includes('spin-wheel');
+
+  const { hasActiveOrder, hasNewPrize, markPrizesSeen, refreshIfStale } = useTabBadges();
+  const onDeals = segments.includes('deals');
+  useEffect(() => {
+    refreshIfStale();
+  }, [segments.join('/'), refreshIfStale]);
+  // Opening Deals is "seeing" the new prize.
+  useEffect(() => {
+    if (onDeals) markPrizesSeen();
+  }, [onDeals, markPrizesSeen]);
+
+  // The View Cart bar slides up (with a little spring) when the cart goes
+  // from empty to having something in it -- not every time it reappears
+  // after leaving the cart screen. If the first item goes in while the bar
+  // is hidden (from an item's own screen), it slides up once it shows.
+  const barTranslateY = useSharedValue(0);
+  const pendingEntrance = useRef(false);
+  const hadItems = useRef(itemCount > 0);
+  const barVisible = itemCount > 0 && !hideCartBar;
+  useEffect(() => {
+    if (itemCount > 0 && !hadItems.current) pendingEntrance.current = true;
+    hadItems.current = itemCount > 0;
+    if (barVisible && pendingEntrance.current) {
+      pendingEntrance.current = false;
+      barTranslateY.value = 90;
+      barTranslateY.value = withSpring(0, { damping: 14, stiffness: 160, mass: 0.8 });
+    }
+  }, [itemCount, barVisible, barTranslateY]);
+  const barStyle = useAnimatedStyle(() => ({ transform: [{ translateY: barTranslateY.value }] }));
 
   return (
     <View className="flex-1 bg-[#FAF6F0]">
@@ -77,7 +155,10 @@ export default function MainLayout() {
           options={{
             title: 'Deals',
             tabBarIcon: ({ color, focused }) => (
-              <Ionicons name={focused ? 'gift' : 'gift-outline'} size={22} color={color} />
+              <View>
+                <Ionicons name={focused ? 'gift' : 'gift-outline'} size={22} color={color} />
+                {hasNewPrize && !onDeals && <TabDot color="#D4A017" />}
+              </View>
             ),
           }}
         />
@@ -86,7 +167,10 @@ export default function MainLayout() {
           options={{
             title: 'Orders',
             tabBarIcon: ({ color, focused }) => (
-              <Ionicons name={focused ? 'receipt' : 'receipt-outline'} size={22} color={color} />
+              <View>
+                <Ionicons name={focused ? 'receipt' : 'receipt-outline'} size={22} color={color} />
+                {hasActiveOrder && <PulsingDot />}
+              </View>
             ),
           }}
         />
@@ -129,8 +213,8 @@ export default function MainLayout() {
         <Tabs.Screen name="legal" options={{ href: null }} />
       </Tabs>
 
-      {itemCount > 0 && !hideCartBar && (
-        <View className="absolute left-4 right-4 z-50" style={{ bottom: tabBarHeight + 20 }}>
+      {barVisible && (
+        <Animated.View className="absolute left-4 right-4 z-50" style={[{ bottom: tabBarHeight + 20 }, barStyle]}>
           <TouchableOpacity
             onPress={() => router.push('/(main)/cart')}
             className="bg-[#A61C14] py-3.5 px-4 rounded-2xl flex-row items-center justify-between shadow-lg active:bg-[#85140E]"
@@ -150,7 +234,7 @@ export default function MainLayout() {
               <Ionicons name="arrow-forward" size={16} color="#F4ECE1" />
             </View>
           </TouchableOpacity>
-        </View>
+        </Animated.View>
       )}
     </View>
   );
