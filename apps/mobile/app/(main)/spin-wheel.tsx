@@ -52,6 +52,8 @@ const LABEL_LINE_HEIGHT = 11;
 const HUB_SIZE = WHEEL_SIZE * 0.24;
 const EXTRA_SPINS = 6;
 const SPIN_DURATION = 4200;
+// The pull-back before a spin launches.
+const WIND_UP_MS = 130;
 const LIGHT_COUNT = 20;
 const BRASS = '#D4A017';
 // Matches the GRAND PRIZE segment in lib/wheelPrizes.ts (prize_index 3 in
@@ -140,6 +142,9 @@ export default function SpinWheelScreen() {
   const shockwaveOpacity = useSharedValue(0);
   const uiOpacity = useSharedValue(0);
   const pointerDropY = useSharedValue(-50);
+  // Its own fade, so the pointer isn't left hanging in mid-air before the
+  // wheel lands -- it appears as it drops.
+  const pointerOpacity = useSharedValue(0);
   // The button is invisible until the header fades in -- it ignores taps
   // until then, so a quick tap can't start a spin mid-landing.
   const [uiReady, setUiReady] = useState(false);
@@ -193,6 +198,7 @@ export default function SpinWheelScreen() {
       );
       entranceScale.value = withSpring(1, { damping: 12, stiffness: 150, mass: 0.85 });
     });
+    pointerOpacity.value = withDelay(320, withTiming(1, { duration: 120 }));
     pointerDropY.value = withDelay(340, withSpring(0, { damping: 10, stiffness: 140 }));
     uiOpacity.value = withDelay(
       420,
@@ -202,7 +208,7 @@ export default function SpinWheelScreen() {
     );
     // The gold glow behind the rim breathes slowly from the start.
     haloPulse.value = withRepeat(withTiming(0.35, { duration: 1500, easing: Easing.inOut(Easing.ease) }), -1, true);
-  }, [entranceOpacity, entranceRotation, entranceScale, shockwaveScale, shockwaveOpacity, pointerDropY, uiOpacity, haloPulse]);
+  }, [entranceOpacity, entranceRotation, entranceScale, shockwaveScale, shockwaveOpacity, pointerDropY, pointerOpacity, uiOpacity, haloPulse]);
 
   // Chasing rim lights run continuously from mount -- a casino wheel's
   // marquee lights don't wait for anything -- and race while it spins.
@@ -304,7 +310,7 @@ export default function SpinWheelScreen() {
   }));
   const haloStyle = useAnimatedStyle(() => ({ opacity: haloPulse.value }));
   const pointerAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: entranceOpacity.value,
+    opacity: pointerOpacity.value,
     transform: [{ translateY: pointerDropY.value }, { rotate: `${pointerFlap.value}deg` }],
   }));
   const sunburstStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${sunburstRotation.value}deg` }] }));
@@ -323,11 +329,11 @@ export default function SpinWheelScreen() {
 
   // A peg knocking the pointer: it flicks sideways (the wheel turns
   // clockwise, so the tip is pushed right -- a counter-clockwise turn about
-  // its top) and springs back.
+  // its top) and snaps back.
   const flickPointer = () => {
     pointerFlap.value = withSequence(
-      withTiming(-18, { duration: 25, easing: Easing.linear }),
-      withSpring(0, { damping: 10, stiffness: 180 })
+      withTiming(-22, { duration: 20, easing: Easing.linear }),
+      withSpring(0, { damping: 9, stiffness: 220 })
     );
   };
 
@@ -337,7 +343,8 @@ export default function SpinWheelScreen() {
   const scheduleTicks = (totalDuration: number) => {
     tickTimeouts.current.forEach(clearTimeout);
     const timeouts: ReturnType<typeof setTimeout>[] = [];
-    let t = 0;
+    // Starts as the wind-up (see handleSpin) launches into the spin.
+    let t = WIND_UP_MS;
     let gap = 45;
     while (t < totalDuration - 180) {
       t += gap;
@@ -375,13 +382,16 @@ export default function SpinWheelScreen() {
         (((-(prize.index * WHEEL_SEGMENT_ANGLE + WHEEL_SEGMENT_ANGLE / 2)) % 360) + 360) % 360;
       const target = EXTRA_SPINS * 360 + baseOffset;
 
+      // Wind-up: the wheel pulls back a few degrees, then slingshots
+      // forward. It still ends on exactly `target`, so where it lands is
+      // unchanged.
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
       scheduleTicks(SPIN_DURATION);
-      rotation.value = withTiming(
-        target,
-        { duration: SPIN_DURATION, easing: Easing.out(Easing.cubic) },
-        (finished) => {
+      rotation.value = withSequence(
+        withTiming(-8, { duration: WIND_UP_MS, easing: Easing.out(Easing.quad) }),
+        withTiming(target, { duration: SPIN_DURATION, easing: Easing.out(Easing.cubic) }, (finished) => {
           if (finished) runOnJS(handleSpinFinished)(prize);
-        }
+        })
       );
     } catch (e: any) {
       setSpinning(false);
@@ -463,6 +473,11 @@ export default function SpinWheelScreen() {
                   strokeWidth={1.5}
                 />
               ))}
+              {/* A brass rivet at the outer tip of each divider */}
+              {WHEEL_SEGMENTS.map((_, i) => {
+                const { x, y } = polarToCartesian(R, R, R - 5, i * WHEEL_SEGMENT_ANGLE);
+                return <Circle key={`rivet-${i}`} cx={x} cy={y} r={2.5} fill={BRASS} stroke="#1C1917" strokeWidth={0.8} />;
+              })}
               <Circle cx={R} cy={R} r={R - 2} fill="none" stroke={BRASS} strokeWidth={2.5} />
             </Svg>
 
