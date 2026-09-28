@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Alert, Linking, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Alert, Linking } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
@@ -11,6 +11,7 @@ import GuestJoinCard from '../../components/GuestJoinCard';
 import { confirmSwitchToExistingAccount, signOutToLogin as signOutToLoginScreen, welcomeNewAccount } from '../../lib/guestSession';
 import { useProfile } from '../../hooks/useProfile';
 import { needsPassword } from '../../lib/account';
+import { openDirections } from '../../lib/directions';
 
 const MENU_ITEMS = [
   { label: 'Change Location', icon: 'location-outline', route: '/(main)' },
@@ -24,17 +25,6 @@ const MENU_ITEMS = [
 // Android hand instagram.com links to the Instagram app when it's installed
 // (and open the browser when it isn't), with no extra app config needed.
 const INSTAGRAM_URL = 'https://www.instagram.com/al_paninos/';
-
-// Apple Maps on iOS, Google Maps everywhere else -- each phone's own default
-// maps app, opened straight into directions to the store.
-function openDirections(address: string) {
-  const destination = encodeURIComponent(address);
-  const url =
-    Platform.OS === 'ios'
-      ? `http://maps.apple.com/?daddr=${destination}`
-      : `https://www.google.com/maps/dir/?api=1&destination=${destination}`;
-  Linking.openURL(url).catch(() => Alert.alert("Couldn't open maps", 'Please try again.'));
-}
 
 export default function MoreScreen() {
   const router = useRouter();

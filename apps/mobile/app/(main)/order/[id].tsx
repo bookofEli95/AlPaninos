@@ -11,7 +11,7 @@ import { getEtaDisplay } from '../../../lib/orderTiming';
 import { reorderFromOrder } from '../../../lib/reorder';
 import { tabularNums } from '../../../lib/typography';
 import { groupRepeats } from '../../../lib/modifiers';
-import { pointsForSubtotal } from '../../../lib/points';
+import { pointsForSubtotal, pointsProgressLabel, pointsRewardLabel } from '../../../lib/points';
 import { emailInvoice, saveInvoice } from '../../../lib/invoice';
 import BoxManifest from '../../../components/BoxManifest';
 import { useCartBarSpace } from '../../../hooks/useCartBarSpace';
@@ -20,6 +20,7 @@ import { useProfile } from '../../../hooks/useProfile';
 import { needsPassword } from '../../../lib/account';
 import AccountSetupSheet from '../../../components/AccountSetupSheet';
 import OrderPushPrompt from '../../../components/OrderPushPrompt';
+import OrderStoreCard from '../../../components/OrderStoreCard';
 
 const DELIVERY_STEPS = [
   { key: 'received', label: 'Received' },
@@ -27,6 +28,37 @@ const DELIVERY_STEPS = [
   { key: 'out_for_delivery', label: 'On the Way' },
   { key: 'completed', label: 'Delivered' },
 ];
+
+const clock = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+// A friendly line under the tracker for where the order is, with the time
+// it got there once the database has stamped it (ready_at / completed_at...).
+function statusLine(order: any): { text: string; time: string | null } | null {
+  const pickup = order.order_type !== 'delivery';
+  switch (order.status) {
+    case 'received':
+      return { text: "Got it! Your order's in line for the press.", time: null };
+    case 'preparing':
+      return { text: "It's in the press, getting its grill marks.", time: null };
+    case 'ready':
+      return {
+        text: 'Hot off the press and wrapped at the counter.',
+        time: order.ready_at ? `Ready since ${clock(order.ready_at)}` : null,
+      };
+    case 'out_for_delivery':
+      return {
+        text: "Wrapped up and on its way to you.",
+        time: order.out_for_delivery_at ? `Left the shop at ${clock(order.out_for_delivery_at)}` : null,
+      };
+    case 'completed':
+      return {
+        text: 'Enjoy, and thanks for ordering from Al Paninos!',
+        time: order.completed_at ? `${pickup ? 'Picked up' : 'Delivered'} at ${clock(order.completed_at)}` : null,
+      };
+    default:
+      return null;
+  }
+}
 
 const PICKUP_STEPS = [
   { key: 'received', label: 'Received' },
@@ -233,8 +265,10 @@ export default function OrderDetailScreen() {
           table: 'orders',
           filter: `id=eq.${id}`,
         },
-        () => {
+        (payload: any) => {
           queryClient.invalidateQueries({ queryKey: ['order', id] });
+          // Points land the moment it's completed -- refresh the balance.
+          if (payload?.new?.status === 'completed') queryClient.invalidateQueries({ queryKey: ['profile'] });
         }
       )
       .subscribe();
@@ -301,6 +335,17 @@ export default function OrderDetailScreen() {
   // Every step is flex-1, so step centers sit at (i + 0.5) / n of the row --
   // the connector track runs between the first and last centers, and its
   // filled part stops at the current step's center.
+  const statusText = statusLine(order);
+  const orderPoints = Number(order.points_earned ?? pointsForSubtotal(Number(order.subtotal_amount ?? order.total_amount)));
+  const showPointsCard =
+    !order.is_catering && !isCancelled && !showKeepAccount && !session?.user?.is_anonymous && orderPoints > 0;
+  const balance = profile?.panino_points ?? null;
+  const pointsBalanceLine =
+    balance == null
+      ? 'Added to your balance.'
+      : balance >= 300
+      ? `Balance: ${balance.toLocaleString()} · enough for ${pointsRewardLabel(balance)}. Redeem on Deals.`
+      : `Balance: ${balance.toLocaleString()} · ${pointsProgressLabel(balance)}.`;
   const halfStepPct = 100 / (2 * steps.length);
   const fillPct = Math.max(0, currentStepIndex) * (100 / steps.length);
 
@@ -372,6 +417,9 @@ export default function OrderDetailScreen() {
                   <Text className="text-[#F4ECE1] opacity-90 text-sm">
                     Pick it up at the front counter{order.locations?.name ? ` at ${order.locations.name}` : ''}.
                   </Text>
+                  {!!order.ready_at && (
+                    <Text className="text-[#F4ECE1] font-inter-semibold text-xs mt-0.5">Ready since {clock(order.ready_at)}</Text>
+                  )}
                 </View>
               </View>
             ) : etaText ? (
@@ -439,7 +487,41 @@ export default function OrderDetailScreen() {
                   })}
                 </View>
               )}
+
+              {!isCancelled && statusText && (
+                <View className="bg-[#FAF6F0] rounded-2xl px-3 py-2.5 mt-4 items-center">
+                  <Text className="text-[#1C1917] text-sm font-inter-semibold text-center">{statusText.text}</Text>
+                  {!!statusText.time && (
+                    <Text className="text-[#78716C] text-xs font-inter-medium mt-0.5">{statusText.time}</Text>
+                  )}
+                </View>
+              )}
             </View>
+
+            {/* PaninoPoints for this order -- catering orders show theirs in
+                the catering card, and a password-less account gets the
+                "Keep This Order & Your Points" card below instead. */}
+            {showPointsCard && (
+              <View className="bg-white p-4 rounded-3xl border border-stone-200 shadow-sm mb-4 flex-row items-center">
+                <View className="w-11 h-11 rounded-2xl bg-[#FAF6F0] border border-stone-200 items-center justify-center mr-3">
+                  <Ionicons name={isCompleted ? 'star' : 'star-outline'} size={20} color="#D4A017" />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-base font-inter-bold text-[#1C1917]">
+                    {isCompleted
+                      ? `Nice! You earned ${orderPoints.toLocaleString()} PaninoPoints`
+                      : `You'll earn ${orderPoints.toLocaleString()} PaninoPoints`}
+                  </Text>
+                  <Text className="text-xs text-[#78716C] mt-0.5">
+                    {isCompleted
+                      ? pointsBalanceLine
+                      : `Added the moment it's ${order.order_type === 'delivery' ? 'delivered' : 'picked up'}.`}
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {!isCancelled && <OrderStoreCard location={order.locations} orderType={order.order_type} />}
 
             {showKeepAccount && !isCancelled && (
               <View className="bg-white border border-[#A61C14] rounded-3xl p-4 mb-4 shadow-sm">
