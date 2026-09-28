@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
-import Svg, { Path, Circle } from 'react-native-svg';
+import Svg, { Path, Circle, Line } from 'react-native-svg';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -57,6 +57,9 @@ const BRASS = '#D4A017';
 // Matches the GRAND PRIZE segment in lib/wheelPrizes.ts (prize_index 3 in
 // the spin_wheel migration) -- the one win that gets the bigger celebration.
 const GRAND_PRIZE_INDEX = 3;
+// The win reveal's prize photo frame and the gold rays around it.
+const PRIZE_FRAME_SIZE = 116;
+const SUNBURST_SIZE = 170;
 
 function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
   const angleRad = ((angleDeg - 90) * Math.PI) / 180;
@@ -74,22 +77,25 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 // A ring of bulbs around the wheel with a single "chase head" (marquee-light
 // style) sweeping around them -- driven by one shared clock (phase) rather
 // than each bulb animating independently, so there's exactly one animation
-// loop regardless of LIGHT_COUNT.
-function RimLight({ index, phase }: { index: number; phase: SharedValue<number> }) {
+// loop regardless of LIGHT_COUNT. While the wheel spins (boost 0 -> 1) the
+// bulbs swell slightly and the lit head gets tighter, on top of the clock
+// itself running 4x faster.
+function RimLight({ index, phase, boost }: { index: number; phase: SharedValue<number>; boost: SharedValue<number> }) {
   const angle = (360 / LIGHT_COUNT) * index;
   const { x, y } = polarToCartesian(RING_SIZE / 2, RING_SIZE / 2, RING_SIZE / 2 - 11, angle);
+  const baseRadius = index % 2 === 0 ? 4.5 : 3.5;
   const animatedProps = useAnimatedProps(() => {
     const head = phase.value * LIGHT_COUNT;
     let dist = Math.abs(head - index);
     dist = Math.min(dist, LIGHT_COUNT - dist);
-    const glow = Math.max(0, 1 - dist / 2.4);
-    return { opacity: 0.25 + glow * 0.75 };
+    const glow = Math.max(0, 1 - dist / (2.4 - boost.value * 0.9));
+    return { opacity: 0.25 + glow * 0.75, r: baseRadius + boost.value * 0.8 };
   });
   return (
     <AnimatedCircle
       cx={x}
       cy={y}
-      r={index % 2 === 0 ? 4.5 : 3.5}
+      r={baseRadius}
       fill={index % 2 === 0 ? '#E7E5E4' : '#F4ECE1'}
       animatedProps={animatedProps}
     />
@@ -97,13 +103,13 @@ function RimLight({ index, phase }: { index: number; phase: SharedValue<number> 
 }
 
 // The brass rim around the wheel with the chasing lights inside it.
-function BrassRim({ phase }: { phase: SharedValue<number> }) {
+function BrassRim({ phase, boost }: { phase: SharedValue<number>; boost: SharedValue<number> }) {
   const c = RING_SIZE / 2;
   return (
     <Svg width={RING_SIZE} height={RING_SIZE} style={StyleSheet.absoluteFill}>
       <Circle cx={c} cy={c} r={c - 3} fill="none" stroke={BRASS} strokeWidth={2.5} />
       {Array.from({ length: LIGHT_COUNT }, (_, i) => (
-        <RimLight key={i} index={i} phase={phase} />
+        <RimLight key={i} index={i} phase={phase} boost={boost} />
       ))}
     </Svg>
   );
@@ -141,6 +147,12 @@ export default function SpinWheelScreen() {
   const rotation = useSharedValue(0);
   const haloPulse = useSharedValue(0.15);
   const lightsPhase = useSharedValue(0);
+  const lightsBoost = useSharedValue(0);
+  // The pointer's flick as each peg passes it (degrees; 0 = at rest).
+  const pointerFlap = useSharedValue(0);
+  // Win reveal: gold rays turning slowly behind the prize photo, which pops in.
+  const sunburstRotation = useSharedValue(0);
+  const prizePopScale = useSharedValue(0.1);
   const pulseScale = useSharedValue(1);
   const sheetTranslateY = useSharedValue(400);
   const sheetOpacity = useSharedValue(0);
@@ -193,10 +205,34 @@ export default function SpinWheelScreen() {
   }, [entranceOpacity, entranceRotation, entranceScale, shockwaveScale, shockwaveOpacity, pointerDropY, uiOpacity, haloPulse]);
 
   // Chasing rim lights run continuously from mount -- a casino wheel's
-  // marquee lights don't wait for anything.
+  // marquee lights don't wait for anything -- and race while it spins.
+  // (Restarting the clock from 0 on each switch is a one-frame jump nobody
+  // can see in a chase of blinking bulbs.)
   useEffect(() => {
-    lightsPhase.value = withRepeat(withTiming(1, { duration: 1400, easing: Easing.linear }), -1, false);
-  }, [lightsPhase]);
+    lightsPhase.value = 0;
+    lightsPhase.value = withRepeat(
+      withTiming(1, { duration: spinning ? 350 : 1400, easing: Easing.linear }),
+      -1,
+      false
+    );
+    lightsBoost.value = withTiming(spinning ? 1 : 0, { duration: 300 });
+  }, [spinning, lightsPhase, lightsBoost]);
+
+  // The win reveal: the rays start turning and the prize photo pops in with
+  // a little overshoot.
+  useEffect(() => {
+    if (!result) return;
+    sunburstRotation.value = 0;
+    sunburstRotation.value = withRepeat(withTiming(360, { duration: 10000, easing: Easing.linear }), -1, false);
+    prizePopScale.value = 0.1;
+    prizePopScale.value = withDelay(
+      200,
+      withSequence(
+        withTiming(1.15, { duration: 400, easing: Easing.bezier(0.16, 1, 0.3, 1) }),
+        withSpring(1, { damping: 10, stiffness: 120 })
+      )
+    );
+  }, [result, sunburstRotation, prizePopScale]);
 
   // The spin button pulses to draw the eye while idle, and settles down
   // once the wheel is actually moving (or the prize is showing) rather than
@@ -269,8 +305,10 @@ export default function SpinWheelScreen() {
   const haloStyle = useAnimatedStyle(() => ({ opacity: haloPulse.value }));
   const pointerAnimatedStyle = useAnimatedStyle(() => ({
     opacity: entranceOpacity.value,
-    transform: [{ translateY: pointerDropY.value }],
+    transform: [{ translateY: pointerDropY.value }, { rotate: `${pointerFlap.value}deg` }],
   }));
+  const sunburstStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${sunburstRotation.value}deg` }] }));
+  const prizePopStyle = useAnimatedStyle(() => ({ transform: [{ scale: prizePopScale.value }] }));
   const uiFadeStyle = useAnimatedStyle(() => ({ opacity: uiOpacity.value }));
   const sheetAnimatedStyle = useAnimatedStyle(() => ({
     opacity: sheetOpacity.value,
@@ -283,8 +321,19 @@ export default function SpinWheelScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
   }, []);
 
+  // A peg knocking the pointer: it flicks sideways (the wheel turns
+  // clockwise, so the tip is pushed right -- a counter-clockwise turn about
+  // its top) and springs back.
+  const flickPointer = () => {
+    pointerFlap.value = withSequence(
+      withTiming(-18, { duration: 25, easing: Easing.linear }),
+      withSpring(0, { damping: 10, stiffness: 180 })
+    );
+  };
+
   // Mimics a mechanical wheel's ratchet -- frequent ticks early, spacing out
-  // as it "slows down", instead of just one haptic at the very end.
+  // as it "slows down", instead of just one haptic at the very end. Each tick
+  // also flicks the pointer.
   const scheduleTicks = (totalDuration: number) => {
     tickTimeouts.current.forEach(clearTimeout);
     const timeouts: ReturnType<typeof setTimeout>[] = [];
@@ -294,6 +343,7 @@ export default function SpinWheelScreen() {
       t += gap;
       timeouts.push(
         setTimeout(() => {
+          flickPointer();
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
         }, t)
       );
@@ -389,7 +439,7 @@ export default function SpinWheelScreen() {
           {/* A faint gold band that breathes behind the lights (and a soft
               glow around the rim on iPhone). */}
           <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.haloGlow, haloStyle]} />
-          <BrassRim phase={lightsPhase} />
+          <BrassRim phase={lightsPhase} boost={lightsBoost} />
 
           <Animated.View
             style={[
@@ -504,27 +554,50 @@ export default function SpinWheelScreen() {
           >
             <View className="w-10 h-1 bg-stone-300 rounded-full mb-5" />
 
-            {/* Prize photo, in a round brass frame */}
-            <View className="mb-4">
-              {imageLoading ? (
-                <View className="w-24 h-24 rounded-full bg-stone-200 items-center justify-center border-2 border-stone-300">
-                  <ActivityIndicator color="#85140E" size="small" />
-                </View>
-              ) : prizeImageUrl ? (
-                <View className="w-24 h-24 rounded-full overflow-hidden border-2 border-[#D4A017] shadow-md bg-stone-100">
+            {/* Prize photo in a round brass frame, popping in over slowly
+                turning gold rays */}
+            <View className="items-center justify-center mb-3" style={{ width: SUNBURST_SIZE, height: SUNBURST_SIZE }}>
+              <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, sunburstStyle]}>
+                <Svg width={SUNBURST_SIZE} height={SUNBURST_SIZE} viewBox="0 0 100 100">
+                  {Array.from({ length: 12 }, (_, i) => {
+                    const a = (i * 30 * Math.PI) / 180;
+                    return (
+                      <Line
+                        key={i}
+                        x1={50 + 30 * Math.cos(a)}
+                        y1={50 + 30 * Math.sin(a)}
+                        x2={50 + 48 * Math.cos(a)}
+                        y2={50 + 48 * Math.sin(a)}
+                        stroke={BRASS}
+                        strokeWidth={3.5}
+                        strokeOpacity={0.45}
+                        strokeDasharray="4, 4"
+                        strokeLinecap="round"
+                      />
+                    );
+                  })}
+                </Svg>
+              </Animated.View>
+
+              <Animated.View style={[styles.prizeFrame, prizePopStyle]}>
+                {imageLoading ? (
+                  <View className="w-full h-full rounded-full bg-stone-200 items-center justify-center">
+                    <ActivityIndicator color="#85140E" size="small" />
+                  </View>
+                ) : prizeImageUrl ? (
                   <Image
                     source={{ uri: prizeImageUrl }}
-                    className="w-full h-full"
+                    className="w-full h-full rounded-full bg-stone-100"
                     resizeMode="cover"
                     // A missing file shows the gift icon rather than an empty frame.
                     onError={() => setPrizeImageUrl(null)}
                   />
-                </View>
-              ) : (
-                <View className="w-24 h-24 rounded-full bg-[#1C1917] border-2 border-[#D4A017] items-center justify-center shadow-md">
-                  <Ionicons name={isBigWin ? 'trophy' : 'gift'} size={30} color={BRASS} />
-                </View>
-              )}
+                ) : (
+                  <View className="w-full h-full rounded-full bg-[#1C1917] items-center justify-center">
+                    <Ionicons name={isBigWin ? 'trophy' : 'gift'} size={36} color={BRASS} />
+                  </View>
+                )}
+              </Animated.View>
             </View>
 
             <View className="items-center mb-6">
@@ -566,6 +639,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -8,
     zIndex: 30,
+    // Flicks swing about its top, like a real pointer on a pin.
+    transformOrigin: 'top center',
     shadowColor: '#000',
     shadowOpacity: 0.6,
     shadowRadius: 6,
@@ -613,5 +688,19 @@ const styles = StyleSheet.create({
   },
   resultSheet: {
     width: '100%',
+  },
+  prizeFrame: {
+    width: PRIZE_FRAME_SIZE,
+    height: PRIZE_FRAME_SIZE,
+    borderRadius: PRIZE_FRAME_SIZE / 2,
+    borderWidth: 3,
+    borderColor: BRASS,
+    backgroundColor: '#FAF6F0',
+    padding: 3,
+    shadowColor: BRASS,
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 10,
   },
 });
