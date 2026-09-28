@@ -80,15 +80,27 @@ function ConfettiPiece({ particle, progress }: { particle: Particle; progress: S
   );
 }
 
-// Mount this only while it should be visible (e.g. `{result && <ConfettiBurst />}`)
-// -- it plays once on mount and doesn't loop or need to be told to stop.
-export default function ConfettiBurst({ count = 36, colors = DEFAULT_COLORS }: { count?: number; colors?: string[] }) {
+// Plays once -- on mount, or (with `playing`) the moment `playing` turns
+// true. Mounting it early with playing={false} gets the setup cost (one
+// view per particle) out of the way before the moment it's needed, so the
+// burst itself starts without a hitch.
+export default function ConfettiBurst({
+  count = 36,
+  colors = DEFAULT_COLORS,
+  playing = true,
+}: {
+  count?: number;
+  colors?: string[];
+  playing?: boolean;
+}) {
   const particles = useMemo(() => buildParticles(count, colors), [count, colors]);
   const progress = useSharedValue(0);
 
   useEffect(() => {
+    if (!playing) return;
+    progress.value = 0;
     progress.value = withTiming(1, { duration: TOTAL_DURATION, easing: Easing.out(Easing.quad) });
-  }, []);
+  }, [playing]);
 
   return (
     <Animated.View

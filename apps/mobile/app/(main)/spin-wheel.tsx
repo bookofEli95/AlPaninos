@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -284,6 +284,109 @@ function MarqueeLetter({
   return <Animated.Text style={[styles.title, style]}>{char === ' ' ? '\u00A0' : char}</Animated.Text>;
 }
 
+// The face of the wheel -- wedges, labels and the logo hub -- drawn once and
+// memoised: nothing on it changes after mount except the logo's coin flip,
+// which runs on its own animated value.
+const WheelFace = memo(function WheelFace({ hubFlip }: { hubFlip: SharedValue<number> }) {
+  const hubFlipStyle = useAnimatedStyle(() => ({
+    transform: [{ perspective: 800 }, { rotateY: `${hubFlip.value}deg` }],
+  }));
+  return (
+    <>
+    <Svg width={WHEEL_SIZE} height={WHEEL_SIZE}>
+      <Defs>
+        {WHEEL_SEGMENTS.map((seg) => {
+          // Black can't get darker at the hub, so it just gets a
+          // subtle glossy lift towards the rim instead.
+          const isBlack = parseInt(seg.color.slice(1), 16) < 0x333333;
+          return (
+            <RadialGradient
+              key={seg.index}
+              id={`seg${seg.index}`}
+              cx={R}
+              cy={R}
+              r={R}
+              gradientUnits="userSpaceOnUse"
+            >
+              <Stop offset="0" stopColor={isBlack ? seg.color : shade(seg.color, -0.35)} />
+              <Stop offset="0.55" stopColor={seg.color} />
+              <Stop offset="1" stopColor={shade(seg.color, isBlack ? 0.16 : 0.22)} />
+            </RadialGradient>
+          );
+        })}
+      </Defs>
+      {WHEEL_SEGMENTS.map((seg, i) => (
+        <Path
+          key={seg.index}
+          d={describeSlice(R, R, R - 2, i * WHEEL_SEGMENT_ANGLE, (i + 1) * WHEEL_SEGMENT_ANGLE)}
+          fill={`url(#seg${seg.index})`}
+          stroke={GOLD_LIGHT}
+          strokeWidth={2}
+        />
+      ))}
+      {/* A gold rivet at the outer tip of each divider */}
+      {WHEEL_SEGMENTS.map((_, i) => {
+        const { x, y } = polarToCartesian(R, R, R - 6, i * WHEEL_SEGMENT_ANGLE);
+        return <Circle key={`rivet-${i}`} cx={x} cy={y} r={3} fill={GOLD} stroke="#5C4003" strokeWidth={0.8} />;
+      })}
+      <Circle cx={R} cy={R} r={R - 2} fill="none" stroke={GOLD_LIGHT} strokeWidth={3} />
+    </Svg>
+
+    {WHEEL_SEGMENTS.map((seg, i) => {
+      const midAngle = i * WHEEL_SEGMENT_ANGLE + WHEEL_SEGMENT_ANGLE / 2;
+      const { x, y } = polarToCartesian(R, R, LABEL_RADIUS, midAngle);
+      const lineCount = seg.label.split('\n').length;
+      const labelHeight = lineCount * LABEL_LINE_HEIGHT;
+      return (
+        <View
+          key={seg.index}
+          style={{
+            position: 'absolute',
+            left: x - LABEL_WIDTH / 2,
+            top: y - labelHeight / 2,
+            width: LABEL_WIDTH,
+            transform: [{ rotate: `${midAngle}deg` }],
+          }}
+        >
+          {/* Deep red on the gold Grand Prize wedge -- white on gold is hard to read. */}
+          <Text style={[styles.segmentLabel, i === GRAND_PRIZE_INDEX && styles.grandPrizeLabel]}>
+            {seg.label}
+          </Text>
+        </View>
+      );
+    })}
+
+    <Animated.View
+      style={[
+        hubFlipStyle,
+        styles.centerHub,
+        {
+          width: HUB_SIZE,
+          height: HUB_SIZE,
+          borderRadius: HUB_SIZE / 2,
+          left: R - HUB_SIZE / 2,
+          top: R - HUB_SIZE / 2,
+        },
+      ]}
+    >
+      <Image
+        source={require('../../assets/logo.jpg')}
+        style={{ width: HUB_SIZE - 8, height: HUB_SIZE - 8, borderRadius: (HUB_SIZE - 8) / 2 }}
+        resizeMode="cover"
+      />
+    </Animated.View>
+    </>
+  );
+});
+
+// Memoised so the screen's own state changes (spinning, the result...) don't
+// re-render the wheel's many animated parts -- that re-render is what made
+// the reveal stutter.
+const GoldRimMemo = memo(GoldRim);
+const PointerMemo = memo(Pointer);
+const SparkMemo = memo(Spark);
+const MarqueeLetterMemo = memo(MarqueeLetter);
+
 type PrizeResult = {
   index: number;
   title: string;
@@ -352,7 +455,7 @@ export default function SpinWheelScreen() {
   // dims in and a gold bloom opens out behind the jackpot card.
   const winGlow = useSharedValue(0);
   const backdrop = useSharedValue(0);
-  const bloom = useSharedValue(0);
+  const bloom = useSharedValue(1);
   const revealTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   // The pointer's flick as each peg passes it (degrees; 0 = at rest).
   const pointerFlap = useSharedValue(0);
@@ -536,27 +639,26 @@ export default function SpinWheelScreen() {
   // A real photo of the prize (when it maps to a menu category) makes the
   // reveal feel like an actual prize instead of a text label -- see
   // lib/wheelPrizes.ts's categoryName/itemNamePatterns and
-  // fetchPrizeShowcaseImage.
-  useEffect(() => {
-    if (!result || result.index < 0) {
-      setPrizeImageUrl(null);
-      return;
+  // fetchPrizeShowcaseImage. Started as soon as the prize is known (before
+  // the wheel even starts turning) and preloaded, so the photo is ready and
+  // nothing is still loading while the card animates in.
+  const loadPrizeImage = (index: number) => {
+    const segment = WHEEL_SEGMENTS[index];
+    const show = (url: string | null) => {
+      setPrizeImageUrl(url);
+      if (url) Image.prefetch(url).catch(() => {});
+    };
+    if (!segment) return show(null);
+    if (segment.imageFile) {
+      return show(supabase.storage.from('menu-images').getPublicUrl(segment.imageFile).data.publicUrl);
     }
-    const segment = WHEEL_SEGMENTS[result.index];
-    if (segment?.imageFile) {
-      setPrizeImageUrl(supabase.storage.from('menu-images').getPublicUrl(segment.imageFile).data.publicUrl);
-      return;
-    }
-    if (!segment?.categoryName) {
-      setPrizeImageUrl(null);
-      return;
-    }
+    if (!segment.categoryName) return show(null);
     setImageLoading(true);
     fetchPrizeShowcaseImage(segment.categoryName, segment.itemNamePatterns)
-      .then(setPrizeImageUrl)
-      .catch(() => setPrizeImageUrl(null))
+      .then(show)
+      .catch(() => show(null))
       .finally(() => setImageLoading(false));
-  }, [result]);
+  };
 
   useEffect(() => {
     return () => {
@@ -588,9 +690,6 @@ export default function SpinWheelScreen() {
     transform: [{ translateX: shakeX.value }, { translateY: shakeY.value }],
   }));
   const stageDimStyle = useAnimatedStyle(() => ({ opacity: stageDim.value }));
-  const hubFlipStyle = useAnimatedStyle(() => ({
-    transform: [{ perspective: 800 }, { rotateY: `${hubFlip.value}deg` }],
-  }));
   const shineStyle = useAnimatedStyle(() => ({
     opacity: shineSweep.value > 0 && shineSweep.value < 1 ? 1 : 0,
     transform: [{ translateX: -WHEEL_SIZE * 0.7 + shineSweep.value * WHEEL_SIZE * 1.9 }, { rotate: '20deg' }],
@@ -627,17 +726,14 @@ export default function SpinWheelScreen() {
   }));
   // The jackpot card's gold border glows and pulses in time with the rim
   // lights (the same clock) -- a smooth swell rather than an on/off flash.
-  const cardGlowStyle = useAnimatedStyle(() => {
-    const beat = 0.5 + 0.5 * Math.sin(lightsPhase.value * Math.PI * 2);
-    return {
-      borderColor: interpolateColor(beat, [0, 1], [GOLD_DEEP, GOLD_LIGHT]),
-      shadowOpacity: 0.45 + beat * 0.55,
-      shadowRadius: 22 + beat * 22,
-    };
-  });
+  // (Only an overlay border's opacity animates -- animating the card's own
+  // shadow every frame was expensive and part of the stutter.)
+  const cardGlowStyle = useAnimatedStyle(() => ({
+    opacity: 0.5 + 0.5 * Math.sin(lightsPhase.value * Math.PI * 2),
+  }));
 
   // The wheel has stopped: the winning wedge under the pointer flashes gold
-  // twice while the rim lights go jackpot, and a beat later the reveal
+  // (a quick double blink) while the rim lights go jackpot, and a beat later the reveal
   // takes over -- so the landing is seen first and the card doesn't jump in
   // on top of it.
   const handleSpinFinished = useCallback(
@@ -646,11 +742,9 @@ export default function SpinWheelScreen() {
       lightsCelebrate.value = 1;
       if (prize.index >= 0) {
         winGlow.value = withSequence(
-          withTiming(1, { duration: 110 }),
-          withTiming(0.3, { duration: 150 }),
-          withTiming(1, { duration: 110 }),
-          withTiming(0.3, { duration: 150 }),
-          withTiming(1, { duration: 110 })
+          withTiming(1, { duration: 70 }),
+          withTiming(0.35, { duration: 90 }),
+          withTiming(1, { duration: 70 })
         );
       }
       revealTimeout.current = setTimeout(
@@ -658,7 +752,7 @@ export default function SpinWheelScreen() {
           setSpinning(false);
           setResult(prize);
         },
-        prize.index >= 0 ? 700 : 0
+        prize.index >= 0 ? 320 : 0
       );
     },
     [lightsCelebrate, winGlow]
@@ -715,6 +809,7 @@ export default function SpinWheelScreen() {
       }
 
       const prize: PrizeResult = { index: data.index, title: data.title, code: data.code };
+      loadPrizeImage(prize.index);
       const baseOffset =
         (((-(prize.index * WHEEL_SEGMENT_ANGLE + WHEEL_SEGMENT_ANGLE / 2)) % 360) + 360) % 360;
       const target = EXTRA_SPINS * 360 + baseOffset;
@@ -783,7 +878,7 @@ export default function SpinWheelScreen() {
         <Text style={styles.kicker}>★ WELCOME BONUS ★</Text>
         <View style={{ flexDirection: 'row' }}>
           {TITLE_TEXT.split('').map((char, i) => (
-            <MarqueeLetter key={i} char={char} index={i} reveal={titleReveal} phase={titlePhase} />
+            <MarqueeLetterMemo key={i} char={char} index={i} reveal={titleReveal} phase={titlePhase} />
           ))}
         </View>
         <Text className="text-[#FFF4D6] text-center text-xs mt-0.5 max-w-[300px] font-inter-semibold leading-4">
@@ -808,18 +903,18 @@ export default function SpinWheelScreen() {
         />
         <View pointerEvents="none" style={{ position: 'absolute', top: 22, width: RING_SIZE, height: RING_SIZE, zIndex: 2 }}>
           {Array.from({ length: SPARK_COUNT }, (_, i) => (
-            <Spark key={i} index={i} progress={sparkProgress} />
+            <SparkMemo key={i} index={i} progress={sparkProgress} />
           ))}
         </View>
 
         <Animated.View style={[styles.pointer, pointerAnimatedStyle]}>
-          <Pointer />
+          <PointerMemo />
         </Animated.View>
 
         <Animated.View style={[entranceWheelStyle, { width: RING_SIZE, height: RING_SIZE, marginTop: 22 }]}>
           {/* A gold glow that breathes around the rim (soft halo on iPhone). */}
           <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.haloGlow, haloStyle]} />
-          <GoldRim phase={lightsPhase} boost={lightsBoost} celebrate={lightsCelebrate} powered={lightsPowered} />
+          <GoldRimMemo phase={lightsPhase} boost={lightsBoost} celebrate={lightsCelebrate} powered={lightsPowered} />
 
           <Animated.View
             style={[
@@ -833,88 +928,7 @@ export default function SpinWheelScreen() {
               animatedWheelStyle,
             ]}
           >
-            <Svg width={WHEEL_SIZE} height={WHEEL_SIZE}>
-              <Defs>
-                {WHEEL_SEGMENTS.map((seg) => {
-                  // Black can't get darker at the hub, so it just gets a
-                  // subtle glossy lift towards the rim instead.
-                  const isBlack = parseInt(seg.color.slice(1), 16) < 0x333333;
-                  return (
-                    <RadialGradient
-                      key={seg.index}
-                      id={`seg${seg.index}`}
-                      cx={R}
-                      cy={R}
-                      r={R}
-                      gradientUnits="userSpaceOnUse"
-                    >
-                      <Stop offset="0" stopColor={isBlack ? seg.color : shade(seg.color, -0.35)} />
-                      <Stop offset="0.55" stopColor={seg.color} />
-                      <Stop offset="1" stopColor={shade(seg.color, isBlack ? 0.16 : 0.22)} />
-                    </RadialGradient>
-                  );
-                })}
-              </Defs>
-              {WHEEL_SEGMENTS.map((seg, i) => (
-                <Path
-                  key={seg.index}
-                  d={describeSlice(R, R, R - 2, i * WHEEL_SEGMENT_ANGLE, (i + 1) * WHEEL_SEGMENT_ANGLE)}
-                  fill={`url(#seg${seg.index})`}
-                  stroke={GOLD_LIGHT}
-                  strokeWidth={2}
-                />
-              ))}
-              {/* A gold rivet at the outer tip of each divider */}
-              {WHEEL_SEGMENTS.map((_, i) => {
-                const { x, y } = polarToCartesian(R, R, R - 6, i * WHEEL_SEGMENT_ANGLE);
-                return <Circle key={`rivet-${i}`} cx={x} cy={y} r={3} fill={GOLD} stroke="#5C4003" strokeWidth={0.8} />;
-              })}
-              <Circle cx={R} cy={R} r={R - 2} fill="none" stroke={GOLD_LIGHT} strokeWidth={3} />
-            </Svg>
-
-            {WHEEL_SEGMENTS.map((seg, i) => {
-              const midAngle = i * WHEEL_SEGMENT_ANGLE + WHEEL_SEGMENT_ANGLE / 2;
-              const { x, y } = polarToCartesian(R, R, LABEL_RADIUS, midAngle);
-              const lineCount = seg.label.split('\n').length;
-              const labelHeight = lineCount * LABEL_LINE_HEIGHT;
-              return (
-                <View
-                  key={seg.index}
-                  style={{
-                    position: 'absolute',
-                    left: x - LABEL_WIDTH / 2,
-                    top: y - labelHeight / 2,
-                    width: LABEL_WIDTH,
-                    transform: [{ rotate: `${midAngle}deg` }],
-                  }}
-                >
-                  {/* Deep red on the gold Grand Prize wedge -- white on gold is hard to read. */}
-                  <Text style={[styles.segmentLabel, i === GRAND_PRIZE_INDEX && styles.grandPrizeLabel]}>
-                    {seg.label}
-                  </Text>
-                </View>
-              );
-            })}
-
-            <Animated.View
-              style={[
-                hubFlipStyle,
-                styles.centerHub,
-                {
-                  width: HUB_SIZE,
-                  height: HUB_SIZE,
-                  borderRadius: HUB_SIZE / 2,
-                  left: R - HUB_SIZE / 2,
-                  top: R - HUB_SIZE / 2,
-                },
-              ]}
-            >
-              <Image
-                source={require('../../assets/logo.jpg')}
-                style={{ width: HUB_SIZE - 8, height: HUB_SIZE - 8, borderRadius: (HUB_SIZE - 8) / 2 }}
-                resizeMode="cover"
-              />
-            </Animated.View>
+            <WheelFace hubFlip={hubFlip} />
           </Animated.View>
 
           {/* Glass shine across the top of the wheel -- stays put while the
@@ -985,13 +999,19 @@ export default function SpinWheelScreen() {
           dimmed (not hidden) wheel, so the rim lights keep flashing around
           it. No prize code shown: code prizes already appear on the Deals
           tab and in the cart's deals list (tap to apply), and on Profile. */}
-      {result && (
-        <View style={StyleSheet.absoluteFill} className="justify-center items-center px-4">
+      {/* Mounted (hidden) as soon as the wheel is ready, rather than at the
+          moment of winning -- so the reveal is only animation, not also
+          building the card and its confetti in the same instant. */}
+      {uiReady && (
+        <View pointerEvents={result ? 'auto' : 'none'} style={StyleSheet.absoluteFill} className="justify-center items-center px-4">
           <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.6)' }, backdropStyle]} />
           <Animated.View pointerEvents="none" style={[styles.bloom, bloomStyle]} />
-          <ConfettiBurst count={isBigWin ? 160 : 90} colors={CONFETTI_COLORS} />
+          <ConfettiBurst count={90} colors={CONFETTI_COLORS} playing={!!result} />
+          {/* Extra confetti for the Grand Prize */}
+          <ConfettiBurst count={70} colors={CONFETTI_COLORS} playing={isBigWin} />
 
-          <Animated.View style={[styles.jackpotStage, cardAnimatedStyle, cardGlowStyle]}>
+          <Animated.View style={[styles.jackpotStage, cardAnimatedStyle]}>
+            <Animated.View pointerEvents="none" style={[styles.cardGlowBorder, cardGlowStyle]} />
             <View style={styles.winnerRibbon}>
               <Ionicons name={isBigWin ? 'trophy' : 'sparkles'} size={15} color={GOLD_LIGHT} style={{ marginRight: 6 }} />
               <Text style={styles.winnerRibbonText}>{isBigWin ? 'JACKPOT WINNER!' : 'CONGRATULATIONS!'}</Text>
@@ -1045,18 +1065,18 @@ export default function SpinWheelScreen() {
 
             <View className="items-center mb-5 mt-1 px-2">
               <Text style={styles.prizeTitle} numberOfLines={2}>
-                {result.title}
+                {result?.title}
               </Text>
 
               <View className="bg-[#85140E] px-3.5 py-1 rounded-full mt-2.5 flex-row items-center border border-[#FFC72C]/40">
                 <Ionicons name={isBigWin ? 'trophy-outline' : 'gift-outline'} size={12} color="#F4ECE1" />
                 <Text className="text-[#F4ECE1] text-[10px] font-inter-bold ml-1.5 uppercase tracking-widest">
-                  {isBigWin ? 'Grand Prize Winner' : result.code ? 'Gift Added to Deals' : 'Added to Your Account'}
+                  {isBigWin ? 'Grand Prize Winner' : result?.code ? 'Gift Added to Deals' : 'Added to Your Account'}
                 </Text>
               </View>
 
               <Text className="text-stone-300 text-xs text-center mt-2 px-2 leading-4 font-inter-medium">
-                {result.code
+                {result?.code
                   ? "It's waiting on the Deals tab and in your cart's deals list. Redeem it whenever you're ready -- it never expires."
                   : "We've deposited it into your account -- ready to use on your next order."}
               </Text>
@@ -1239,6 +1259,16 @@ const styles = StyleSheet.create({
     shadowRadius: 36,
     shadowOffset: { width: 0, height: 0 },
     elevation: 20,
+  },
+  cardGlowBorder: {
+    position: 'absolute',
+    top: -3,
+    left: -3,
+    right: -3,
+    bottom: -3,
+    borderRadius: 36,
+    borderWidth: 3,
+    borderColor: GOLD_LIGHT,
   },
   winnerRibbon: {
     flexDirection: 'row',
