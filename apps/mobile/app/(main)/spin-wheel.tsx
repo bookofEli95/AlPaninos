@@ -104,17 +104,22 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 // loop regardless of LIGHT_COUNT. While the wheel spins (boost 0 -> 1) the
 // bulbs swell and the lit head tightens, on top of the clock running 4x
 // faster. Once a prize is won (celebrate = 1) every other bulb flashes in
-// turn, like a jackpot. Each bulb has a soft glow disc behind it.
+// turn, like a jackpot. Each bulb has a soft glow disc behind it. On the way
+// in, the bulbs switch on one by one around the rim (powered counts up from
+// 0 to LIGHT_COUNT), the newest one flaring bright, like a machine powering
+// up.
 function RimLight({
   index,
   phase,
   boost,
   celebrate,
+  powered,
 }: {
   index: number;
   phase: SharedValue<number>;
   boost: SharedValue<number>;
   celebrate: SharedValue<number>;
+  powered: SharedValue<number>;
 }) {
   const angle = (360 / LIGHT_COUNT) * index;
   const { x, y } = polarToCartesian(RING_SIZE / 2, RING_SIZE / 2, RING_SIZE / 2 - RING_MARGIN / 2, angle);
@@ -123,6 +128,8 @@ function RimLight({
 
   const brightness = (phaseValue: number, boostValue: number, celebrateValue: number) => {
     'worklet';
+    if (index >= powered.value) return 0.05;
+    if (powered.value < LIGHT_COUNT && index >= powered.value - 1.5) return 1;
     if (celebrateValue > 0.5) {
       const flip = Math.floor(phaseValue * 6) % 2;
       return (index + flip) % 2 === 0 ? 1 : 0.25;
@@ -156,10 +163,12 @@ function GoldRim({
   phase,
   boost,
   celebrate,
+  powered,
 }: {
   phase: SharedValue<number>;
   boost: SharedValue<number>;
   celebrate: SharedValue<number>;
+  powered: SharedValue<number>;
 }) {
   const c = RING_SIZE / 2;
   const bandRadius = c - RING_MARGIN / 2;
@@ -177,7 +186,7 @@ function GoldRim({
       <Circle cx={c} cy={c} r={c - 1.5} fill="none" stroke="#5C4003" strokeWidth={1.5} />
       <Circle cx={c} cy={c} r={c - RING_MARGIN + 1} fill="none" stroke="#5C4003" strokeWidth={1.5} />
       {Array.from({ length: LIGHT_COUNT }, (_, i) => (
-        <RimLight key={i} index={i} phase={phase} boost={boost} celebrate={celebrate} />
+        <RimLight key={i} index={i} phase={phase} boost={boost} celebrate={celebrate} powered={powered} />
       ))}
     </Svg>
   );
@@ -202,6 +211,50 @@ function Pointer() {
   );
 }
 
+// One of the gold sparks that fly out from the rim when the wheel slams
+// down. All of them ride one shared progress clock (0 -> 1).
+const SPARK_COUNT = 18;
+function Spark({ index, progress }: { index: number; progress: SharedValue<number> }) {
+  const angle = ((index * (360 / SPARK_COUNT) + (index % 2) * 9 - 90) * Math.PI) / 180;
+  const startRadius = RING_SIZE / 2 - 6;
+  const travel = 60 + (index % 3) * 26;
+  const size = index % 3 === 0 ? 9 : 6;
+  const color = index % 3 === 0 ? GOLD_LIGHT : index % 3 === 1 ? GOLD : '#FFFFFF';
+  const style = useAnimatedStyle(() => {
+    const p = progress.value;
+    const r = startRadius + travel * p;
+    return {
+      opacity: p <= 0 ? 0 : p < 0.1 ? p * 10 : 1 - p,
+      transform: [
+        { translateX: Math.cos(angle) * r },
+        { translateY: Math.sin(angle) * r },
+        { rotate: '45deg' },
+        { scale: 1 - p * 0.5 },
+      ],
+    };
+  });
+  return (
+    <Animated.View
+      style={[
+        {
+          position: 'absolute',
+          left: RING_SIZE / 2 - size / 2,
+          top: RING_SIZE / 2 - size / 2,
+          width: size,
+          height: size,
+          backgroundColor: color,
+          borderRadius: 1.5,
+          shadowColor: GOLD,
+          shadowOpacity: 1,
+          shadowRadius: 6,
+          shadowOffset: { width: 0, height: 0 },
+        },
+        style,
+      ]}
+    />
+  );
+}
+
 type PrizeResult = {
   index: number;
   title: string;
@@ -216,21 +269,41 @@ export default function SpinWheelScreen() {
   const [prizeImageUrl, setPrizeImageUrl] = useState<string | null>(null);
   const [imageLoading, setImageLoading] = useState(false);
 
-  // Entrance: the wheel lands from 3.2x while untwisting from -55deg,
-  // overshoots to 0.88x and springs back, with a gold shockwave ring
-  // bursting out at the moment it hits. The pointer drops in and the header
-  // and button fade in after.
+  // Entrance, about 1.25s in all:
+  //   * thrown onto the stage -- the wheel spins in (1.5 turns) while
+  //     zooming down from 3.2x, and slams to 0.88x;
+  //   * impact -- heavy thud, the screen shakes, a gold then a red
+  //     shockwave ring blast out, gold sparks fly off the rim, the stage
+  //     lights up and the spotlight beams flare on;
+  //   * the rim bulbs power up one by one, the logo flips like a coin and
+  //     a shine sweeps across the glass;
+  //   * the pointer drops in, the title drops from above and the Spin
+  //     button bounces up from below.
   const entranceScale = useSharedValue(3.2);
-  const entranceRotation = useSharedValue(-55);
+  const entranceRotation = useSharedValue(-540);
   const entranceOpacity = useSharedValue(0.1);
   const shockwaveScale = useSharedValue(0.6);
   const shockwaveOpacity = useSharedValue(0);
-  const uiOpacity = useSharedValue(0);
+  const shockwave2Scale = useSharedValue(0.6);
+  const shockwave2Opacity = useSharedValue(0);
+  const shakeX = useSharedValue(0);
+  const shakeY = useSharedValue(0);
+  const sparkProgress = useSharedValue(0);
+  const stageDim = useSharedValue(0.55);
+  const beamsOpacity = useSharedValue(0);
+  const lightsPowered = useSharedValue(0);
+  const hubFlip = useSharedValue(0);
+  const shineSweep = useSharedValue(0);
+  const headerOpacity = useSharedValue(0);
+  const headerY = useSharedValue(-140);
+  const buttonOpacity = useSharedValue(0);
+  const buttonY = useSharedValue(140);
+  const entranceTimeouts = useRef<ReturnType<typeof setTimeout>[]>([]);
   const pointerDropY = useSharedValue(-50);
   // Its own fade, so the pointer isn't left hanging in mid-air before the
   // wheel lands -- it appears as it drops.
   const pointerOpacity = useSharedValue(0);
-  // The button is invisible until the header fades in -- it ignores taps
+  // The button is invisible until it has bounced in -- it ignores taps
   // until then, so a quick tap can't start a spin mid-landing.
   const [uiReady, setUiReady] = useState(false);
 
@@ -272,49 +345,99 @@ export default function SpinWheelScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
   };
 
+  // The JS-side half of the impact: the thud, and a light tick as the rim
+  // bulbs power up.
+  const onImpact = () => {
+    triggerImpactThud();
+    entranceTimeouts.current = Array.from({ length: 7 }, (_, k) =>
+      setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}), 80 + k * 75)
+    );
+  };
+
   useEffect(() => {
-    const landing = { duration: 380, easing: Easing.bezier(0.12, 1, 0.2, 1) };
+    const landing = { duration: 520, easing: Easing.bezier(0.12, 1, 0.2, 1) };
     entranceOpacity.value = withTiming(1, { duration: 120 });
-    // The entrance twist is on the assembly, not the wheel disk itself
+    // The entrance spin is on the assembly, not the wheel disk itself
     // (that's `rotation`), so it can never throw off where a spin lands.
     entranceRotation.value = withTiming(0, landing);
     entranceScale.value = withTiming(0.88, landing, (finished) => {
       if (!finished) return;
-      // The thud and the shockwave land at the moment of peak compression.
-      runOnJS(triggerImpactThud)();
-      shockwaveScale.value = withTiming(1.6, { duration: 400, easing: Easing.out(Easing.quad) });
-      shockwaveOpacity.value = withSequence(
-        withTiming(0.9, { duration: 40 }),
-        withTiming(0, { duration: 360, easing: Easing.out(Easing.cubic) })
+      runOnJS(onImpact)();
+      // Screen shake
+      shakeX.value = withSequence(
+        withTiming(12, { duration: 40 }),
+        withTiming(-10, { duration: 50 }),
+        withTiming(7, { duration: 50 }),
+        withTiming(-4, { duration: 50 }),
+        withTiming(0, { duration: 50 })
       );
+      shakeY.value = withSequence(
+        withTiming(-6, { duration: 40 }),
+        withTiming(5, { duration: 50 }),
+        withTiming(-3, { duration: 50 }),
+        withTiming(0, { duration: 60 })
+      );
+      // Gold shockwave, then a red one right behind it
+      shockwaveScale.value = withTiming(1.6, { duration: 420, easing: Easing.out(Easing.quad) });
+      shockwaveOpacity.value = withSequence(
+        withTiming(0.95, { duration: 40 }),
+        withTiming(0, { duration: 380, easing: Easing.out(Easing.cubic) })
+      );
+      shockwave2Scale.value = withDelay(90, withTiming(1.9, { duration: 480, easing: Easing.out(Easing.quad) }));
+      shockwave2Opacity.value = withDelay(
+        90,
+        withSequence(withTiming(0.8, { duration: 40 }), withTiming(0, { duration: 440, easing: Easing.out(Easing.cubic) }))
+      );
+      // Sparks fly, the stage lights up, the beams flare on and settle
+      sparkProgress.value = withTiming(1, { duration: 700, easing: Easing.out(Easing.quad) });
+      stageDim.value = withTiming(0, { duration: 250 });
+      beamsOpacity.value = withSequence(withTiming(1, { duration: 80 }), withTiming(0.5, { duration: 800 }));
       entranceScale.value = withSpring(1, { damping: 12, stiffness: 150, mass: 0.85 });
+      // Bulbs power up around the rim
+      lightsPowered.value = withDelay(60, withTiming(LIGHT_COUNT, { duration: 520, easing: Easing.linear }));
+      // Coin flip on the logo, then a shine across the glass
+      hubFlip.value = withDelay(200, withTiming(360, { duration: 650, easing: Easing.out(Easing.cubic) }));
+      shineSweep.value = withDelay(450, withTiming(1, { duration: 600, easing: Easing.inOut(Easing.quad) }));
+      // Pointer, title and button land in turn
+      pointerOpacity.value = withDelay(100, withTiming(1, { duration: 120 }));
+      pointerDropY.value = withDelay(120, withSpring(0, { damping: 10, stiffness: 140 }));
+      headerOpacity.value = withDelay(260, withTiming(1, { duration: 120 }));
+      headerY.value = withDelay(260, withSpring(0, { damping: 9, stiffness: 120 }));
+      buttonY.value = withDelay(520, withSpring(0, { damping: 9, stiffness: 130 }));
+      buttonOpacity.value = withDelay(
+        520,
+        withTiming(1, { duration: 200 }, (done) => {
+          if (done) runOnJS(setUiReady)(true);
+        })
+      );
     });
-    pointerOpacity.value = withDelay(320, withTiming(1, { duration: 120 }));
-    pointerDropY.value = withDelay(340, withSpring(0, { damping: 10, stiffness: 140 }));
-    uiOpacity.value = withDelay(
-      420,
-      withTiming(1, { duration: 280 }, (finished) => {
-        if (finished) runOnJS(setUiReady)(true);
-      })
-    );
     // The gold glow behind the rim breathes, the spotlight beams turn, and
     // the title pulses -- all from the start.
     haloPulse.value = withRepeat(withTiming(0.75, { duration: 1100, easing: Easing.inOut(Easing.ease) }), -1, true);
     beamsRotation.value = withRepeat(withTiming(360, { duration: 40000, easing: Easing.linear }), -1, false);
     titleGlow.value = withRepeat(withTiming(1.06, { duration: 900, easing: Easing.inOut(Easing.ease) }), -1, true);
-  }, [
-    entranceOpacity,
-    entranceRotation,
-    entranceScale,
-    shockwaveScale,
-    shockwaveOpacity,
-    pointerDropY,
-    pointerOpacity,
-    uiOpacity,
-    haloPulse,
-    beamsRotation,
-    titleGlow,
-  ]);
+
+    // Safety net: if the entrance ever gets interrupted, everything still
+    // shows up and the button still works.
+    const fallback = setTimeout(() => {
+      stageDim.value = 0;
+      beamsOpacity.value = 0.5;
+      lightsPowered.value = LIGHT_COUNT;
+      pointerOpacity.value = 1;
+      pointerDropY.value = 0;
+      headerOpacity.value = 1;
+      headerY.value = 0;
+      buttonOpacity.value = 1;
+      buttonY.value = 0;
+      setUiReady(true);
+    }, 2500);
+    return () => {
+      clearTimeout(fallback);
+      entranceTimeouts.current.forEach(clearTimeout);
+    };
+    // Runs once, on mount -- shared values never change identity.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Chasing rim lights run continuously from mount -- a casino wheel's
   // marquee lights don't wait for anything -- race while it spins, and
@@ -414,7 +537,33 @@ export default function SpinWheelScreen() {
     transform: [{ scale: shockwaveScale.value }],
   }));
   const haloStyle = useAnimatedStyle(() => ({ opacity: haloPulse.value }));
-  const beamsStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${beamsRotation.value}deg` }] }));
+  const beamsStyle = useAnimatedStyle(() => ({
+    opacity: beamsOpacity.value,
+    transform: [{ rotate: `${beamsRotation.value}deg` }],
+  }));
+  const shockwave2Style = useAnimatedStyle(() => ({
+    opacity: shockwave2Opacity.value,
+    transform: [{ scale: shockwave2Scale.value }],
+  }));
+  const shakeStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: shakeX.value }, { translateY: shakeY.value }],
+  }));
+  const stageDimStyle = useAnimatedStyle(() => ({ opacity: stageDim.value }));
+  const hubFlipStyle = useAnimatedStyle(() => ({
+    transform: [{ perspective: 800 }, { rotateY: `${hubFlip.value}deg` }],
+  }));
+  const shineStyle = useAnimatedStyle(() => ({
+    opacity: shineSweep.value > 0 && shineSweep.value < 1 ? 1 : 0,
+    transform: [{ translateX: -WHEEL_SIZE * 0.7 + shineSweep.value * WHEEL_SIZE * 1.9 }, { rotate: '20deg' }],
+  }));
+  const headerStyle = useAnimatedStyle(() => ({
+    opacity: headerOpacity.value,
+    transform: [{ translateY: headerY.value }],
+  }));
+  const buttonEntranceStyle = useAnimatedStyle(() => ({
+    opacity: buttonOpacity.value,
+    transform: [{ translateY: buttonY.value }],
+  }));
   const titleStyle = useAnimatedStyle(() => ({ transform: [{ scale: titleGlow.value }] }));
   const winFlashStyle = useAnimatedStyle(() => ({ opacity: winFlash.value }));
   const pointerAnimatedStyle = useAnimatedStyle(() => ({
@@ -423,7 +572,6 @@ export default function SpinWheelScreen() {
   }));
   const sunburstStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${sunburstRotation.value}deg` }] }));
   const prizePopStyle = useAnimatedStyle(() => ({ transform: [{ scale: prizePopScale.value }] }));
-  const uiFadeStyle = useAnimatedStyle(() => ({ opacity: uiOpacity.value }));
   const cardAnimatedStyle = useAnimatedStyle(() => ({
     opacity: cardOpacity.value,
     transform: [{ scale: cardScale.value }],
@@ -550,15 +698,20 @@ export default function SpinWheelScreen() {
                 key={i}
                 d={`M100 100 L${100 + 100 * Math.cos(a1)} ${100 + 100 * Math.sin(a1)} L${100 + 100 * Math.cos(a2)} ${100 + 100 * Math.sin(a2)} Z`}
                 fill={i % 2 === 0 ? GOLD : '#E11D2E'}
-                opacity={0.1}
+                opacity={0.2}
               />
             );
           })}
         </Svg>
       </Animated.View>
 
-      {/* Screen Header (fades in as the wheel lands) */}
-      <Animated.View style={uiFadeStyle} className="items-center mb-3">
+      {/* The stage starts dark and lights up on impact */}
+      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: '#000' }, stageDimStyle]} />
+
+      {/* Everything on stage shakes together on impact */}
+      <Animated.View style={[{ alignItems: 'center' }, shakeStyle]}>
+      {/* Screen Header -- drops in from above after the wheel lands */}
+      <Animated.View style={headerStyle} className="items-center mb-3">
         <Text style={styles.kicker}>★ WELCOME BONUS ★</Text>
         <Animated.Text style={[styles.title, titleStyle]}>SPIN TO WIN!</Animated.Text>
         <Text className="text-[#FFF4D6] text-center text-xs mt-0.5 max-w-[300px] font-inter-semibold leading-4">
@@ -573,6 +726,19 @@ export default function SpinWheelScreen() {
           pointerEvents="none"
           style={[styles.shockwaveRing, { width: RING_SIZE, height: RING_SIZE, top: 22 }, shockwaveStyle]}
         />
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.shockwaveRing,
+            { width: RING_SIZE, height: RING_SIZE, top: 22, borderColor: '#E11D2E', borderWidth: 5 },
+            shockwave2Style,
+          ]}
+        />
+        <View pointerEvents="none" style={{ position: 'absolute', top: 22, width: RING_SIZE, height: RING_SIZE, zIndex: 2 }}>
+          {Array.from({ length: SPARK_COUNT }, (_, i) => (
+            <Spark key={i} index={i} progress={sparkProgress} />
+          ))}
+        </View>
 
         <Animated.View style={[styles.pointer, pointerAnimatedStyle]}>
           <Pointer />
@@ -581,7 +747,7 @@ export default function SpinWheelScreen() {
         <Animated.View style={[entranceWheelStyle, { width: RING_SIZE, height: RING_SIZE, marginTop: 22 }]}>
           {/* A gold glow that breathes around the rim (soft halo on iPhone). */}
           <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.haloGlow, haloStyle]} />
-          <GoldRim phase={lightsPhase} boost={lightsBoost} celebrate={lightsCelebrate} />
+          <GoldRim phase={lightsPhase} boost={lightsBoost} celebrate={lightsCelebrate} powered={lightsPowered} />
 
           <Animated.View
             style={[
@@ -658,8 +824,9 @@ export default function SpinWheelScreen() {
               );
             })}
 
-            <View
+            <Animated.View
               style={[
+                hubFlipStyle,
                 styles.centerHub,
                 {
                   width: HUB_SIZE,
@@ -675,7 +842,7 @@ export default function SpinWheelScreen() {
                 style={{ width: HUB_SIZE - 8, height: HUB_SIZE - 8, borderRadius: (HUB_SIZE - 8) / 2 }}
                 resizeMode="cover"
               />
-            </View>
+            </Animated.View>
           </Animated.View>
 
           {/* Glass shine across the top of the wheel -- stays put while the
@@ -688,6 +855,11 @@ export default function SpinWheelScreen() {
           >
             <Ellipse cx={R} cy={R * 0.52} rx={R * 0.78} ry={R * 0.42} fill="#FFFFFF" opacity={0.13} />
           </Svg>
+
+          {/* The one-off shine that sweeps across the glass on the way in */}
+          <View pointerEvents="none" style={styles.shineClip}>
+            <Animated.View style={[styles.shineBand, shineStyle]} />
+          </View>
         </Animated.View>
       </View>
 
@@ -699,7 +871,8 @@ export default function SpinWheelScreen() {
 
       {/* Spin Button -- polished gold */}
       {!result && (
-        <Animated.View style={[pulseStyle, uiFadeStyle]} className="mt-4">
+        <Animated.View style={buttonEntranceStyle} className="mt-4">
+        <Animated.View style={pulseStyle}>
           <TouchableOpacity
             onPress={handleSpin}
             disabled={spinning || !uiReady}
@@ -715,7 +888,9 @@ export default function SpinWheelScreen() {
             </View>
           </TouchableOpacity>
         </Animated.View>
+        </Animated.View>
       )}
+      </Animated.View>
 
       {/* The jackpot card -- punches into the middle of the screen over a
           dimmed (not hidden) wheel, so the rim lights keep flashing around
@@ -858,6 +1033,23 @@ const styles = StyleSheet.create({
     shadowOpacity: 1,
     shadowRadius: 30,
     shadowOffset: { width: 0, height: 0 },
+  },
+  shineClip: {
+    position: 'absolute',
+    left: RING_MARGIN,
+    top: RING_MARGIN,
+    width: WHEEL_SIZE,
+    height: WHEEL_SIZE,
+    borderRadius: WHEEL_SIZE / 2,
+    overflow: 'hidden',
+  },
+  shineBand: {
+    position: 'absolute',
+    top: -WHEEL_SIZE * 0.25,
+    left: 0,
+    width: WHEEL_SIZE * 0.28,
+    height: WHEEL_SIZE * 1.5,
+    backgroundColor: 'rgba(255,255,255,0.35)',
   },
   shockwaveRing: {
     position: 'absolute',
