@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
-import Svg, { Path, Circle, Line } from 'react-native-svg';
+import Svg, { Path, Circle, Line, Ellipse, Defs, RadialGradient, LinearGradient, Stop, Rect } from 'react-native-svg';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -32,36 +32,44 @@ import { WHEEL_SEGMENTS, WHEEL_SEGMENT_ANGLE } from '../../lib/wheelPrizes';
 import { fetchPrizeShowcaseImage } from '../../lib/prizeRedemption';
 import ConfettiBurst from '../../components/ConfettiBurst';
 
-// RING_MARGIN reserves room for the brass rim and its chasing light bulbs
-// outside the wheel's own edge -- baked into WHEEL_SIZE's cap (not just
-// RING_SIZE) so the whole assembly, bulbs included, still fits the same
-// width-80 safety margin the plain wheel used to reserve on its own.
-const RING_MARGIN = 22;
-const WHEEL_SIZE = Math.min(280, Dimensions.get('window').width - 80 - RING_MARGIN * 2);
+const SCREEN = Dimensions.get('window');
+
+// RING_MARGIN is the thick gold rim and its bulbs outside the wheel's own
+// edge. The wheel takes nearly the full screen width (12px each side), capped
+// on big phones and by screen height so the header and Spin button still fit
+// on short phones.
+const RING_MARGIN = 26;
+const WHEEL_SIZE = Math.min(340, SCREEN.width - 24 - RING_MARGIN * 2, SCREEN.height * 0.42);
 const RING_SIZE = WHEEL_SIZE + RING_MARGIN * 2;
 const R = WHEEL_SIZE / 2;
 // With 7 segments each wedge is only ~51deg wide, so a label box has to stay
 // noticeably narrower than its radius or its corners poke past the wedge's
 // edge into the next segment once rotated into place -- LABEL_WIDTH is kept
 // well under what the wedge is actually wide at LABEL_RADIUS (see the
-// tan(halfAngle) math this is based on) rather than matching it.
+// tan(halfAngle) math this is based on) rather than matching it. The text
+// grows with the wheel.
 const LABEL_RADIUS = R * 0.68;
 const LABEL_WIDTH = R * 0.5;
-const LABEL_FONT_SIZE = 9;
-const LABEL_LINE_HEIGHT = 11;
+const LABEL_FONT_SIZE = Math.max(9, Math.round(R / 15));
+const LABEL_LINE_HEIGHT = LABEL_FONT_SIZE + 2;
 const HUB_SIZE = WHEEL_SIZE * 0.24;
 const EXTRA_SPINS = 6;
 const SPIN_DURATION = 4200;
 // The pull-back before a spin launches.
 const WIND_UP_MS = 130;
-const LIGHT_COUNT = 20;
-const BRASS = '#D4A017';
+const LIGHT_COUNT = 28;
+const GOLD = '#FFC72C';
+const GOLD_DEEP = '#D4A017';
+const GOLD_LIGHT = '#FFE58A';
 // Matches the GRAND PRIZE segment in lib/wheelPrizes.ts (prize_index 3 in
 // the spin_wheel migration) -- the one win that gets the bigger celebration.
 const GRAND_PRIZE_INDEX = 3;
 // The win reveal's prize photo frame and the gold rays around it.
 const PRIZE_FRAME_SIZE = 116;
 const SUNBURST_SIZE = 170;
+// The slowly turning spotlight beams behind everything.
+const BEAMS_SIZE = Math.max(SCREEN.width, SCREEN.height) * 1.5;
+const CONFETTI_COLORS = ['#FFC72C', '#E11D2E', '#2563EB', '#16A34A', '#9333EA', '#F97316', '#FFFFFF'];
 
 function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
   const angleRad = ((angleDeg - 90) * Math.PI) / 180;
@@ -74,45 +82,119 @@ function describeSlice(cx: number, cy: number, r: number, startAngle: number, en
   return [`M ${cx} ${cy}`, `L ${start.x} ${start.y}`, `A ${r} ${r} 0 0 0 ${end.x} ${end.y}`, 'Z'].join(' ');
 }
 
+// Lightens (amount > 0) or darkens (< 0) a #RRGGBB colour, for each wedge's
+// shading: darker at the hub, brighter at the rim.
+function shade(hex: string, amount: number) {
+  const n = parseInt(hex.slice(1), 16);
+  const mix = (c: number) => Math.round(amount >= 0 ? c + (255 - c) * amount : c * (1 + amount));
+  const r = mix((n >> 16) & 255);
+  const g = mix((n >> 8) & 255);
+  const b = mix(n & 255);
+  return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`;
+}
+
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 // A ring of bulbs around the wheel with a single "chase head" (marquee-light
 // style) sweeping around them -- driven by one shared clock (phase) rather
 // than each bulb animating independently, so there's exactly one animation
 // loop regardless of LIGHT_COUNT. While the wheel spins (boost 0 -> 1) the
-// bulbs swell slightly and the lit head gets tighter, on top of the clock
-// itself running 4x faster.
-function RimLight({ index, phase, boost }: { index: number; phase: SharedValue<number>; boost: SharedValue<number> }) {
+// bulbs swell and the lit head tightens, on top of the clock running 4x
+// faster. Once a prize is won (celebrate = 1) every other bulb flashes in
+// turn, like a jackpot. Each bulb has a soft glow disc behind it.
+function RimLight({
+  index,
+  phase,
+  boost,
+  celebrate,
+}: {
+  index: number;
+  phase: SharedValue<number>;
+  boost: SharedValue<number>;
+  celebrate: SharedValue<number>;
+}) {
   const angle = (360 / LIGHT_COUNT) * index;
-  const { x, y } = polarToCartesian(RING_SIZE / 2, RING_SIZE / 2, RING_SIZE / 2 - 11, angle);
-  const baseRadius = index % 2 === 0 ? 4.5 : 3.5;
-  const animatedProps = useAnimatedProps(() => {
-    const head = phase.value * LIGHT_COUNT;
+  const { x, y } = polarToCartesian(RING_SIZE / 2, RING_SIZE / 2, RING_SIZE / 2 - RING_MARGIN / 2, angle);
+  const baseRadius = index % 2 === 0 ? 4.2 : 3.4;
+  const color = index % 2 === 0 ? GOLD_LIGHT : '#FFFFFF';
+
+  const brightness = (phaseValue: number, boostValue: number, celebrateValue: number) => {
+    'worklet';
+    if (celebrateValue > 0.5) {
+      const flip = Math.floor(phaseValue * 4) % 2;
+      return (index + flip) % 2 === 0 ? 1 : 0.2;
+    }
+    const head = phaseValue * LIGHT_COUNT;
     let dist = Math.abs(head - index);
     dist = Math.min(dist, LIGHT_COUNT - dist);
-    const glow = Math.max(0, 1 - dist / (2.4 - boost.value * 0.9));
-    return { opacity: 0.25 + glow * 0.75, r: baseRadius + boost.value * 0.8 };
-  });
+    const glow = Math.max(0, 1 - dist / (3 - boostValue * 1.2));
+    return 0.3 + glow * 0.7;
+  };
+
+  const bulbProps = useAnimatedProps(() => ({
+    opacity: brightness(phase.value, boost.value, celebrate.value),
+    r: baseRadius + boost.value * 0.9,
+  }));
+  const glowProps = useAnimatedProps(() => ({
+    opacity: brightness(phase.value, boost.value, celebrate.value) * 0.45,
+    r: baseRadius + 4 + boost.value * 1.5,
+  }));
+
   return (
-    <AnimatedCircle
-      cx={x}
-      cy={y}
-      r={baseRadius}
-      fill={index % 2 === 0 ? '#E7E5E4' : '#F4ECE1'}
-      animatedProps={animatedProps}
-    />
+    <>
+      <AnimatedCircle cx={x} cy={y} r={baseRadius + 4} fill={color} animatedProps={glowProps} />
+      <AnimatedCircle cx={x} cy={y} r={baseRadius} fill={color} animatedProps={bulbProps} />
+    </>
   );
 }
 
-// The brass rim around the wheel with the chasing lights inside it.
-function BrassRim({ phase, boost }: { phase: SharedValue<number>; boost: SharedValue<number> }) {
+// The thick polished-gold rim around the wheel with the bulbs set into it.
+function GoldRim({
+  phase,
+  boost,
+  celebrate,
+}: {
+  phase: SharedValue<number>;
+  boost: SharedValue<number>;
+  celebrate: SharedValue<number>;
+}) {
   const c = RING_SIZE / 2;
+  const bandRadius = c - RING_MARGIN / 2;
   return (
     <Svg width={RING_SIZE} height={RING_SIZE} style={StyleSheet.absoluteFill}>
-      <Circle cx={c} cy={c} r={c - 3} fill="none" stroke={BRASS} strokeWidth={2.5} />
+      <Defs>
+        <LinearGradient id="rimGold" x1="0" y1="0" x2="1" y2="1">
+          <Stop offset="0" stopColor={GOLD_LIGHT} />
+          <Stop offset="0.45" stopColor={GOLD} />
+          <Stop offset="0.75" stopColor={GOLD_DEEP} />
+          <Stop offset="1" stopColor="#8A6508" />
+        </LinearGradient>
+      </Defs>
+      <Circle cx={c} cy={c} r={bandRadius} fill="none" stroke="url(#rimGold)" strokeWidth={RING_MARGIN - 2} />
+      <Circle cx={c} cy={c} r={c - 1.5} fill="none" stroke="#5C4003" strokeWidth={1.5} />
+      <Circle cx={c} cy={c} r={c - RING_MARGIN + 1} fill="none" stroke="#5C4003" strokeWidth={1.5} />
       {Array.from({ length: LIGHT_COUNT }, (_, i) => (
-        <RimLight key={i} index={i} phase={phase} boost={boost} />
+        <RimLight key={i} index={i} phase={phase} boost={boost} celebrate={celebrate} />
       ))}
+    </Svg>
+  );
+}
+
+// The pointer: a gold arrow with a ruby set in its top, drawn rather than an
+// icon so it reads as part of the machine.
+function Pointer() {
+  return (
+    <Svg width={46} height={56} viewBox="0 0 46 56">
+      <Defs>
+        <LinearGradient id="pointerGold" x1="0" y1="0" x2="1" y2="0">
+          <Stop offset="0" stopColor={GOLD_DEEP} />
+          <Stop offset="0.5" stopColor={GOLD_LIGHT} />
+          <Stop offset="1" stopColor={GOLD_DEEP} />
+        </LinearGradient>
+      </Defs>
+      <Path d="M4 14 Q23 2 42 14 L23 54 Z" fill="url(#pointerGold)" stroke="#5C4003" strokeWidth={2} strokeLinejoin="round" />
+      <Circle cx={23} cy={16} r={7} fill="#E11D2E" stroke="#7A0E0A" strokeWidth={1.5} />
+      <Circle cx={21} cy={14} r={2.2} fill="#FFFFFF" opacity={0.85} />
     </Svg>
   );
 }
@@ -132,7 +214,7 @@ export default function SpinWheelScreen() {
   const [imageLoading, setImageLoading] = useState(false);
 
   // Entrance: the wheel lands from 3.2x while untwisting from -55deg,
-  // overshoots to 0.88x and springs back, with a brass shockwave ring
+  // overshoots to 0.88x and springs back, with a gold shockwave ring
   // bursting out at the moment it hits. The pointer drops in and the header
   // and button fade in after.
   const entranceScale = useSharedValue(3.2);
@@ -150,9 +232,14 @@ export default function SpinWheelScreen() {
   const [uiReady, setUiReady] = useState(false);
 
   const rotation = useSharedValue(0);
-  const haloPulse = useSharedValue(0.15);
+  const haloPulse = useSharedValue(0.3);
   const lightsPhase = useSharedValue(0);
   const lightsBoost = useSharedValue(0);
+  const lightsCelebrate = useSharedValue(0);
+  const beamsRotation = useSharedValue(0);
+  const titleGlow = useSharedValue(1);
+  // A white flash across the screen the moment the wheel stops on a prize.
+  const winFlash = useSharedValue(0);
   // The pointer's flick as each peg passes it (degrees; 0 = at rest).
   const pointerFlap = useSharedValue(0);
   // Win reveal: gold rays turning slowly behind the prize photo, which pops in.
@@ -185,7 +272,7 @@ export default function SpinWheelScreen() {
     const landing = { duration: 380, easing: Easing.bezier(0.12, 1, 0.2, 1) };
     entranceOpacity.value = withTiming(1, { duration: 120 });
     // The entrance twist is on the assembly, not the wheel disk itself
-    // (that's \`rotation\`), so it can never throw off where a spin lands.
+    // (that's `rotation`), so it can never throw off where a spin lands.
     entranceRotation.value = withTiming(0, landing);
     entranceScale.value = withTiming(0.88, landing, (finished) => {
       if (!finished) return;
@@ -193,7 +280,7 @@ export default function SpinWheelScreen() {
       runOnJS(triggerImpactThud)();
       shockwaveScale.value = withTiming(1.6, { duration: 400, easing: Easing.out(Easing.quad) });
       shockwaveOpacity.value = withSequence(
-        withTiming(0.8, { duration: 40 }),
+        withTiming(0.9, { duration: 40 }),
         withTiming(0, { duration: 360, easing: Easing.out(Easing.cubic) })
       );
       entranceScale.value = withSpring(1, { damping: 12, stiffness: 150, mass: 0.85 });
@@ -206,23 +293,40 @@ export default function SpinWheelScreen() {
         if (finished) runOnJS(setUiReady)(true);
       })
     );
-    // The gold glow behind the rim breathes slowly from the start.
-    haloPulse.value = withRepeat(withTiming(0.35, { duration: 1500, easing: Easing.inOut(Easing.ease) }), -1, true);
-  }, [entranceOpacity, entranceRotation, entranceScale, shockwaveScale, shockwaveOpacity, pointerDropY, pointerOpacity, uiOpacity, haloPulse]);
+    // The gold glow behind the rim breathes, the spotlight beams turn, and
+    // the title pulses -- all from the start.
+    haloPulse.value = withRepeat(withTiming(0.75, { duration: 1100, easing: Easing.inOut(Easing.ease) }), -1, true);
+    beamsRotation.value = withRepeat(withTiming(360, { duration: 40000, easing: Easing.linear }), -1, false);
+    titleGlow.value = withRepeat(withTiming(1.06, { duration: 900, easing: Easing.inOut(Easing.ease) }), -1, true);
+  }, [
+    entranceOpacity,
+    entranceRotation,
+    entranceScale,
+    shockwaveScale,
+    shockwaveOpacity,
+    pointerDropY,
+    pointerOpacity,
+    uiOpacity,
+    haloPulse,
+    beamsRotation,
+    titleGlow,
+  ]);
 
   // Chasing rim lights run continuously from mount -- a casino wheel's
-  // marquee lights don't wait for anything -- and race while it spins.
-  // (Restarting the clock from 0 on each switch is a one-frame jump nobody
-  // can see in a chase of blinking bulbs.)
+  // marquee lights don't wait for anything -- race while it spins, and
+  // flash jackpot-style once there's a prize. (Restarting the clock from 0
+  // on each switch is a one-frame jump nobody can see in blinking bulbs.)
   useEffect(() => {
+    const fast = spinning || !!result;
     lightsPhase.value = 0;
     lightsPhase.value = withRepeat(
-      withTiming(1, { duration: spinning ? 350 : 1400, easing: Easing.linear }),
+      withTiming(1, { duration: fast ? 350 : 1400, easing: Easing.linear }),
       -1,
       false
     );
     lightsBoost.value = withTiming(spinning ? 1 : 0, { duration: 300 });
-  }, [spinning, lightsPhase, lightsBoost]);
+    lightsCelebrate.value = result ? 1 : 0;
+  }, [spinning, result, lightsPhase, lightsBoost, lightsCelebrate]);
 
   // The win reveal: the rays start turning and the prize photo pops in with
   // a little overshoot.
@@ -232,7 +336,7 @@ export default function SpinWheelScreen() {
     sunburstRotation.value = withRepeat(withTiming(360, { duration: 10000, easing: Easing.linear }), -1, false);
     prizePopScale.value = 0.1;
     prizePopScale.value = withDelay(
-      200,
+      550,
       withSequence(
         withTiming(1.15, { duration: 400, easing: Easing.bezier(0.16, 1, 0.3, 1) }),
         withSpring(1, { damping: 10, stiffness: 120 })
@@ -247,7 +351,7 @@ export default function SpinWheelScreen() {
     if (spinning || result) {
       pulseScale.value = withTiming(1, { duration: 200 });
     } else {
-      pulseScale.value = withRepeat(withTiming(1.05, { duration: 750, easing: Easing.inOut(Easing.ease) }), -1, true);
+      pulseScale.value = withRepeat(withTiming(1.07, { duration: 650, easing: Easing.inOut(Easing.ease) }), -1, true);
     }
   }, [spinning, result, pulseScale]);
 
@@ -276,14 +380,18 @@ export default function SpinWheelScreen() {
       .finally(() => setImageLoading(false));
   }, [result]);
 
-  // The result panel slides up from the bottom rather than just appearing.
+  // The result panel slides up from the bottom rather than just appearing
+  // -- a beat after the win flash, so the wheel's landing is seen first.
   useEffect(() => {
     if (result) {
-      sheetTranslateY.value = withTiming(0, {
-        duration: 450,
-        easing: Easing.bezier(0.16, 1, 0.3, 1),
-      });
-      sheetOpacity.value = withTiming(1, { duration: 250 });
+      sheetTranslateY.value = withDelay(
+        350,
+        withTiming(0, {
+          duration: 450,
+          easing: Easing.bezier(0.16, 1, 0.3, 1),
+        })
+      );
+      sheetOpacity.value = withDelay(350, withTiming(1, { duration: 250 }));
     } else {
       sheetTranslateY.value = 400;
       sheetOpacity.value = 0;
@@ -309,6 +417,9 @@ export default function SpinWheelScreen() {
     transform: [{ scale: shockwaveScale.value }],
   }));
   const haloStyle = useAnimatedStyle(() => ({ opacity: haloPulse.value }));
+  const beamsStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${beamsRotation.value}deg` }] }));
+  const titleStyle = useAnimatedStyle(() => ({ transform: [{ scale: titleGlow.value }] }));
+  const winFlashStyle = useAnimatedStyle(() => ({ opacity: winFlash.value }));
   const pointerAnimatedStyle = useAnimatedStyle(() => ({
     opacity: pointerOpacity.value,
     transform: [{ translateY: pointerDropY.value }, { rotate: `${pointerFlap.value}deg` }],
@@ -321,11 +432,15 @@ export default function SpinWheelScreen() {
     transform: [{ translateY: sheetTranslateY.value }],
   }));
 
-  const handleSpinFinished = useCallback((prize: PrizeResult) => {
-    setSpinning(false);
-    setResult(prize);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-  }, []);
+  const handleSpinFinished = useCallback(
+    (prize: PrizeResult) => {
+      setSpinning(false);
+      setResult(prize);
+      winFlash.value = withSequence(withTiming(0.85, { duration: 70 }), withTiming(0, { duration: 550 }));
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    },
+    [winFlash]
+  );
 
   // A peg knocking the pointer: it flicks sideways (the wheel turns
   // clockwise, so the tip is pushed right -- a counter-clockwise turn about
@@ -404,7 +519,7 @@ export default function SpinWheelScreen() {
   };
 
   return (
-    <View className="flex-1 bg-[#0F0D0C] items-center justify-center px-6">
+    <View className="flex-1 bg-[#12060A] items-center justify-center px-3">
       <VideoView
         player={videoPlayer}
         style={StyleSheet.absoluteFill}
@@ -413,43 +528,53 @@ export default function SpinWheelScreen() {
         pointerEvents="none"
       />
       <View
-        style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(15,13,12,0.72)' }]}
+        style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(40,6,10,0.62)' }]}
         pointerEvents="none"
       />
 
+      {/* Spotlight beams turning slowly behind everything */}
+      <Animated.View pointerEvents="none" style={[styles.beams, beamsStyle]}>
+        <Svg width={BEAMS_SIZE} height={BEAMS_SIZE} viewBox="0 0 200 200">
+          {Array.from({ length: 16 }, (_, i) => {
+            const a1 = ((i * 22.5 - 5) * Math.PI) / 180;
+            const a2 = ((i * 22.5 + 5) * Math.PI) / 180;
+            return (
+              <Path
+                key={i}
+                d={`M100 100 L${100 + 100 * Math.cos(a1)} ${100 + 100 * Math.sin(a1)} L${100 + 100 * Math.cos(a2)} ${100 + 100 * Math.sin(a2)} Z`}
+                fill={i % 2 === 0 ? GOLD : '#E11D2E'}
+                opacity={0.1}
+              />
+            );
+          })}
+        </Svg>
+      </Animated.View>
+
       {/* Screen Header (fades in as the wheel lands) */}
-      <Animated.View style={uiFadeStyle} className="items-center mb-6">
-        <View className="flex-row items-center bg-[#85140E]/80 border border-[#D4A017]/40 px-3.5 py-1 rounded-full mb-2">
-          <Ionicons name="sparkles" size={12} color="#F4ECE1" />
-          <Text className="text-[#F4ECE1] font-inter-bold text-[10px] uppercase tracking-widest ml-1.5">
-            Member Welcome Privilege
-          </Text>
-        </View>
-        <Text className="text-[#F4ECE1] text-2xl font-display-bold text-center tracking-tight">
-          Welcome to Al Paninos
-        </Text>
-        <Text className="text-[#F4ECE1]/70 text-center text-xs mt-1 max-w-[280px] font-inter-medium leading-4">
-          One complimentary turn on the house. Your prize is automatically banked into your account.
+      <Animated.View style={uiFadeStyle} className="items-center mb-3">
+        <Text style={styles.kicker}>★ WELCOME BONUS ★</Text>
+        <Animated.Text style={[styles.title, titleStyle]}>SPIN TO WIN!</Animated.Text>
+        <Text className="text-[#FFF4D6] text-center text-xs mt-0.5 max-w-[300px] font-inter-semibold leading-4">
+          Welcome to Al Paninos! One free spin, and every prize is a winner.
         </Text>
       </Animated.View>
 
       {/* Wheel Assembly. The pointer and shockwave sit outside the zooming,
           twisting part, so the pointer stays upright as it drops in. */}
-      <View style={{ width: RING_SIZE, height: RING_SIZE + 30, alignItems: 'center' }}>
+      <View style={{ width: RING_SIZE, height: RING_SIZE + 34, alignItems: 'center' }}>
         <Animated.View
           pointerEvents="none"
-          style={[styles.shockwaveRing, { width: RING_SIZE, height: RING_SIZE, top: 18 }, shockwaveStyle]}
+          style={[styles.shockwaveRing, { width: RING_SIZE, height: RING_SIZE, top: 22 }, shockwaveStyle]}
         />
 
         <Animated.View style={[styles.pointer, pointerAnimatedStyle]}>
-          <Ionicons name="caret-down" size={34} color={BRASS} />
+          <Pointer />
         </Animated.View>
 
-        <Animated.View style={[entranceWheelStyle, { width: RING_SIZE, height: RING_SIZE, marginTop: 18 }]}>
-          {/* A faint gold band that breathes behind the lights (and a soft
-              glow around the rim on iPhone). */}
+        <Animated.View style={[entranceWheelStyle, { width: RING_SIZE, height: RING_SIZE, marginTop: 22 }]}>
+          {/* A gold glow that breathes around the rim (soft halo on iPhone). */}
           <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.haloGlow, haloStyle]} />
-          <BrassRim phase={lightsPhase} boost={lightsBoost} />
+          <GoldRim phase={lightsPhase} boost={lightsBoost} celebrate={lightsCelebrate} />
 
           <Animated.View
             style={[
@@ -464,21 +589,37 @@ export default function SpinWheelScreen() {
             ]}
           >
             <Svg width={WHEEL_SIZE} height={WHEEL_SIZE}>
+              <Defs>
+                {WHEEL_SEGMENTS.map((seg) => (
+                  <RadialGradient
+                    key={seg.index}
+                    id={`seg${seg.index}`}
+                    cx={R}
+                    cy={R}
+                    r={R}
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <Stop offset="0" stopColor={shade(seg.color, -0.35)} />
+                    <Stop offset="0.55" stopColor={seg.color} />
+                    <Stop offset="1" stopColor={shade(seg.color, 0.25)} />
+                  </RadialGradient>
+                ))}
+              </Defs>
               {WHEEL_SEGMENTS.map((seg, i) => (
                 <Path
                   key={seg.index}
                   d={describeSlice(R, R, R - 2, i * WHEEL_SEGMENT_ANGLE, (i + 1) * WHEEL_SEGMENT_ANGLE)}
-                  fill={seg.color}
-                  stroke={BRASS}
-                  strokeWidth={1.5}
+                  fill={`url(#seg${seg.index})`}
+                  stroke={GOLD_LIGHT}
+                  strokeWidth={2}
                 />
               ))}
-              {/* A brass rivet at the outer tip of each divider */}
+              {/* A gold rivet at the outer tip of each divider */}
               {WHEEL_SEGMENTS.map((_, i) => {
-                const { x, y } = polarToCartesian(R, R, R - 5, i * WHEEL_SEGMENT_ANGLE);
-                return <Circle key={`rivet-${i}`} cx={x} cy={y} r={2.5} fill={BRASS} stroke="#1C1917" strokeWidth={0.8} />;
+                const { x, y } = polarToCartesian(R, R, R - 6, i * WHEEL_SEGMENT_ANGLE);
+                return <Circle key={`rivet-${i}`} cx={x} cy={y} r={3} fill={GOLD} stroke="#5C4003" strokeWidth={0.8} />;
               })}
-              <Circle cx={R} cy={R} r={R - 2} fill="none" stroke={BRASS} strokeWidth={2.5} />
+              <Circle cx={R} cy={R} r={R - 2} fill="none" stroke={GOLD_LIGHT} strokeWidth={3} />
             </Svg>
 
             {WHEEL_SEGMENTS.map((seg, i) => {
@@ -497,8 +638,8 @@ export default function SpinWheelScreen() {
                     transform: [{ rotate: `${midAngle}deg` }],
                   }}
                 >
-                  {/* Dark text on the gold Grand Prize wedge -- cream on gold is hard to read. */}
-                  <Text style={[styles.segmentLabel, i === GRAND_PRIZE_INDEX && { color: '#1C1917' }]}>
+                  {/* Deep red on the gold Grand Prize wedge -- white on gold is hard to read. */}
+                  <Text style={[styles.segmentLabel, i === GRAND_PRIZE_INDEX && styles.grandPrizeLabel]}>
                     {seg.label}
                   </Text>
                 </View>
@@ -519,38 +660,53 @@ export default function SpinWheelScreen() {
             >
               <Image
                 source={require('../../assets/logo.jpg')}
-                style={{ width: HUB_SIZE - 6, height: HUB_SIZE - 6, borderRadius: (HUB_SIZE - 6) / 2 }}
+                style={{ width: HUB_SIZE - 8, height: HUB_SIZE - 8, borderRadius: (HUB_SIZE - 8) / 2 }}
                 resizeMode="cover"
               />
             </View>
           </Animated.View>
+
+          {/* Glass shine across the top of the wheel -- stays put while the
+              wheel turns under it. */}
+          <Svg
+            pointerEvents="none"
+            width={WHEEL_SIZE}
+            height={WHEEL_SIZE}
+            style={{ position: 'absolute', left: RING_MARGIN, top: RING_MARGIN }}
+          >
+            <Ellipse cx={R} cy={R * 0.52} rx={R * 0.78} ry={R * 0.42} fill="#FFFFFF" opacity={0.13} />
+          </Svg>
         </Animated.View>
       </View>
 
       {errorMessage && (
-        <Text className="text-[#F4ECE1] bg-[#85140E] px-4 py-2 rounded-xl mt-6 text-center text-xs font-inter-semibold">
+        <Text className="text-[#F4ECE1] bg-[#85140E] px-4 py-2 rounded-xl mt-3 text-center text-xs font-inter-semibold">
           {errorMessage}
         </Text>
       )}
 
-      {/* Spin Button */}
+      {/* Spin Button -- polished gold */}
       {!result && (
-        <Animated.View style={[pulseStyle, uiFadeStyle]} className="mt-8">
+        <Animated.View style={[pulseStyle, uiFadeStyle]} className="mt-4">
           <TouchableOpacity
             onPress={handleSpin}
             disabled={spinning || !uiReady}
-            activeOpacity={0.88}
-            // The gold glow is a style object, not a shadow-* class (see lib/shadows.ts).
-            style={styles.spinButtonGlow}
-            className={`px-14 py-4 rounded-full items-center border border-[#D4A017]/60 ${
-              spinning ? 'bg-stone-800' : 'bg-[#85140E] active:bg-[#6B110B]'
-            }`}
+            activeOpacity={0.85}
+            style={[styles.spinButton, spinning && { opacity: 0.8 }]}
           >
+            <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 100 100">
+              <Defs>
+                <LinearGradient id="spinGold" x1="0" y1="0" x2="0" y2="1">
+                  <Stop offset="0" stopColor={GOLD_LIGHT} />
+                  <Stop offset="0.5" stopColor={GOLD} />
+                  <Stop offset="1" stopColor={GOLD_DEEP} />
+                </LinearGradient>
+              </Defs>
+              <Rect x="0" y="0" width="100" height="100" fill="url(#spinGold)" />
+            </Svg>
             <View className="flex-row items-center">
-              <Ionicons name={spinning ? 'sync-outline' : 'sparkles'} size={16} color="#F4ECE1" style={{ marginRight: 8 }} />
-              <Text className="text-[#F4ECE1] font-display-bold text-lg tracking-widest">
-                {spinning ? 'SPINNING...' : 'TAP TO SPIN'}
-              </Text>
+              <Ionicons name={spinning ? 'sync-outline' : 'sparkles'} size={20} color="#7A0E0A" style={{ marginRight: 8 }} />
+              <Text style={styles.spinText}>{spinning ? 'GOOD LUCK!' : 'SPIN!'}</Text>
             </View>
           </TouchableOpacity>
         </Animated.View>
@@ -560,18 +716,18 @@ export default function SpinWheelScreen() {
           code prizes already appear on the Deals tab (tap to apply) and
           on Profile ("Redeem Now"), so there's nothing to copy down here. */}
       {result && (
-        <View style={StyleSheet.absoluteFill} className="justify-end bg-black/75">
-          <ConfettiBurst count={isBigWin ? 70 : 24} />
+        <View style={StyleSheet.absoluteFill} className="justify-end">
+          <ConfettiBurst count={isBigWin ? 140 : 70} colors={CONFETTI_COLORS} />
 
           <Animated.View
             style={[styles.resultSheet, sheetAnimatedStyle]}
-            className="bg-[#FAF6F0] rounded-t-[36px] p-6 pb-10 items-center shadow-2xl border-t-2 border-[#D4A017]"
+            className="bg-[#FAF6F0] rounded-t-[36px] p-6 pb-10 items-center shadow-2xl border-t-4 border-[#FFC72C]"
           >
-            <View className="w-10 h-1 bg-stone-300 rounded-full mb-5" />
+            <View className="w-10 h-1 bg-stone-300 rounded-full mb-4" />
 
-            {/* Prize photo in a round brass frame, popping in over slowly
-                turning gold rays */}
-            <View className="items-center justify-center mb-3" style={{ width: SUNBURST_SIZE, height: SUNBURST_SIZE }}>
+            {/* Prize photo in a round gold frame, popping in over slowly
+                turning gold-and-red rays */}
+            <View className="items-center justify-center mb-2" style={{ width: SUNBURST_SIZE, height: SUNBURST_SIZE }}>
               <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, sunburstStyle]}>
                 <Svg width={SUNBURST_SIZE} height={SUNBURST_SIZE} viewBox="0 0 100 100">
                   {Array.from({ length: 12 }, (_, i) => {
@@ -583,9 +739,9 @@ export default function SpinWheelScreen() {
                         y1={50 + 30 * Math.sin(a)}
                         x2={50 + 48 * Math.cos(a)}
                         y2={50 + 48 * Math.sin(a)}
-                        stroke={BRASS}
+                        stroke={i % 2 === 0 ? GOLD : '#E11D2E'}
                         strokeWidth={3.5}
-                        strokeOpacity={0.45}
+                        strokeOpacity={0.55}
                         strokeDasharray="4, 4"
                         strokeLinecap="round"
                       />
@@ -609,25 +765,25 @@ export default function SpinWheelScreen() {
                   />
                 ) : (
                   <View className="w-full h-full rounded-full bg-[#1C1917] items-center justify-center">
-                    <Ionicons name={isBigWin ? 'trophy' : 'gift'} size={36} color={BRASS} />
+                    <Ionicons name={isBigWin ? 'trophy' : 'gift'} size={36} color={GOLD} />
                   </View>
                 )}
               </Animated.View>
             </View>
 
             <View className="items-center mb-6">
-              <View className="bg-[#85140E] px-3.5 py-1 rounded-full mb-2 flex-row items-center">
+              <Text style={styles.youWon}>{isBigWin ? 'JACKPOT!' : 'YOU WON!'}</Text>
+              <Text className="text-2xl font-display-bold text-[#1C1917] text-center tracking-tight mt-0.5">
+                {result.title}
+              </Text>
+              <View className="bg-[#85140E] px-3.5 py-1 rounded-full mt-2 flex-row items-center">
                 <Ionicons name={isBigWin ? 'trophy-outline' : 'gift-outline'} size={12} color="#F4ECE1" />
                 <Text className="text-[#F4ECE1] text-[10px] font-inter-bold ml-1.5 uppercase tracking-widest">
                   {isBigWin ? 'Grand Prize Winner' : result.code ? 'Gift Added to Deals' : 'Added to Your Account'}
                 </Text>
               </View>
 
-              <Text className="text-2xl font-display-bold text-[#1C1917] text-center tracking-tight">
-                {result.title}
-              </Text>
-
-              <Text className="text-stone-500 text-xs text-center mt-1 px-4 leading-4">
+              <Text className="text-stone-500 text-xs text-center mt-2 px-4 leading-4">
                 {result.code
                   ? "It's waiting for you on the Deals tab and on your Profile -- redeem it whenever you're ready. It never expires."
                   : "It's already been added to your account -- no code needed."}
@@ -636,70 +792,124 @@ export default function SpinWheelScreen() {
 
             <TouchableOpacity
               onPress={handleContinue}
-              className="bg-[#85140E] py-4 rounded-2xl items-center w-full shadow-md flex-row justify-center active:bg-[#6B110B]"
+              className="bg-[#E11D2E] py-4 rounded-2xl items-center w-full shadow-md flex-row justify-center active:bg-[#B3121F]"
               activeOpacity={0.9}
             >
-              <Text className="text-[#F4ECE1] font-inter-bold text-base mr-2">Start Ordering</Text>
-              <Ionicons name="arrow-forward" size={18} color="#F4ECE1" />
+              <Text className="text-white font-inter-bold text-base mr-2">Start Ordering</Text>
+              <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
             </TouchableOpacity>
           </Animated.View>
         </View>
       )}
+
+      {/* The win flash -- above everything, never blocks a tap */}
+      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: '#FFF7D6' }, winFlashStyle]} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  beams: {
+    position: 'absolute',
+    width: BEAMS_SIZE,
+    height: BEAMS_SIZE,
+    left: (SCREEN.width - BEAMS_SIZE) / 2,
+    top: (SCREEN.height - BEAMS_SIZE) / 2,
+  },
+  kicker: {
+    color: GOLD_LIGHT,
+    fontFamily: 'Inter_800ExtraBold',
+    fontSize: 11,
+    letterSpacing: 3,
+    textShadowColor: 'rgba(255,140,0,0.9)',
+    textShadowRadius: 8,
+  },
+  title: {
+    color: GOLD,
+    fontFamily: 'PlusJakartaSans_800ExtraBold',
+    fontSize: 38,
+    letterSpacing: 1,
+    marginTop: 2,
+    textShadowColor: '#FF6A00',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 16,
+  },
   pointer: {
     position: 'absolute',
-    top: -8,
+    top: -6,
     zIndex: 30,
     // Flicks swing about its top, like a real pointer on a pin.
     transformOrigin: 'top center',
     shadowColor: '#000',
-    shadowOpacity: 0.6,
+    shadowOpacity: 0.7,
     shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 3 },
   },
   haloGlow: {
     borderRadius: RING_SIZE / 2,
-    backgroundColor: BRASS,
-    shadowColor: BRASS,
-    shadowOpacity: 0.9,
-    shadowRadius: 18,
+    backgroundColor: GOLD,
+    transform: [{ scale: 1.04 }],
+    shadowColor: GOLD,
+    shadowOpacity: 1,
+    shadowRadius: 30,
     shadowOffset: { width: 0, height: 0 },
   },
   shockwaveRing: {
     position: 'absolute',
     borderRadius: RING_SIZE / 2,
-    borderWidth: 3,
-    borderColor: BRASS,
+    borderWidth: 4,
+    borderColor: GOLD_LIGHT,
     zIndex: 1,
   },
   segmentLabel: {
-    color: '#F4ECE1',
-    // SemiBold rather than Bold: each label sits in a fixed-width box inside
-    // a narrow wedge, and the heavier weight is noticeably wider.
-    fontFamily: 'PlusJakartaSans_600SemiBold',
+    color: '#FFFFFF',
+    fontFamily: 'PlusJakartaSans_800ExtraBold',
     fontSize: LABEL_FONT_SIZE,
     textAlign: 'center',
     lineHeight: LABEL_LINE_HEIGHT,
+    textShadowColor: 'rgba(0,0,0,0.55)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  grandPrizeLabel: {
+    color: '#7A0E0A',
+    textShadowColor: 'rgba(255,255,255,0.6)',
   },
   centerHub: {
     position: 'absolute',
     backgroundColor: '#1C1917',
-    borderWidth: 2.5,
-    borderColor: BRASS,
+    borderWidth: 4,
+    borderColor: GOLD,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  spinButtonGlow: {
-    shadowColor: BRASS,
-    shadowOpacity: 0.45,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 8,
+  spinButton: {
+    paddingHorizontal: 56,
+    paddingVertical: 16,
+    borderRadius: 999,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: '#FFF4D6',
+    shadowColor: GOLD,
+    shadowOpacity: 0.8,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 12,
+  },
+  spinText: {
+    color: '#7A0E0A',
+    fontFamily: 'PlusJakartaSans_800ExtraBold',
+    fontSize: 24,
+    letterSpacing: 2,
+  },
+  youWon: {
+    color: '#E11D2E',
+    fontFamily: 'PlusJakartaSans_800ExtraBold',
+    fontSize: 16,
+    letterSpacing: 3,
   },
   resultSheet: {
     width: '100%',
@@ -708,13 +918,13 @@ const styles = StyleSheet.create({
     width: PRIZE_FRAME_SIZE,
     height: PRIZE_FRAME_SIZE,
     borderRadius: PRIZE_FRAME_SIZE / 2,
-    borderWidth: 3,
-    borderColor: BRASS,
+    borderWidth: 4,
+    borderColor: GOLD,
     backgroundColor: '#FAF6F0',
     padding: 3,
-    shadowColor: BRASS,
-    shadowOpacity: 0.5,
-    shadowRadius: 16,
+    shadowColor: GOLD,
+    shadowOpacity: 0.7,
+    shadowRadius: 18,
     shadowOffset: { width: 0, height: 4 },
     elevation: 10,
   },

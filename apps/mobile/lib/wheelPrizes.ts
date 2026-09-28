@@ -22,23 +22,26 @@ export type WheelSegment = {
   imageFile?: string;
 };
 
+// Bright casino colours, every neighbour different, with the Grand Prize
+// the only gold wedge. (The wheel screen shades each one for depth.)
+//
 // Each line is kept short (roughly 10 characters or fewer) since the wedges
 // are narrow (~51deg) -- a long unbroken word here is what was overflowing
 // past the segment's edge into its neighbor.
 export const WHEEL_SEGMENTS: WheelSegment[] = [
-  { index: 0, label: '25% OFF\nNEXT ORDER', color: '#A61C14' },
-  { index: 1, label: 'FREE\nCHOICE\nOF POP', color: '#1C1917', categoryName: 'Drinks', imageFile: 'drinks.jpg' },
-  { index: 2, label: 'FREE MOB\nSANDWICH', color: '#A61C14', categoryName: 'The Mob' },
-  { index: 3, label: 'GRAND\nPRIZE', color: '#D4A017' },
+  { index: 0, label: '25% OFF\nNEXT ORDER', color: '#E11D2E' },
+  { index: 1, label: 'FREE\nCHOICE\nOF POP', color: '#2563EB', categoryName: 'Drinks', imageFile: 'drinks.jpg' },
+  { index: 2, label: 'FREE MOB\nSANDWICH', color: '#16A34A', categoryName: 'The Mob' },
+  { index: 3, label: 'GRAND\nPRIZE', color: '#FFC72C' },
   {
     index: 4,
     label: 'FREE\nSPECIALTY\nFRIES',
-    color: '#1C1917',
+    color: '#9333EA',
     categoryName: 'Sides',
     itemNamePatterns: ['Greek Fries', 'Philly Fries', 'Fries N Gravy', 'Pulled Pork Fries'],
   },
-  { index: 5, label: 'FREE\nFRIES', color: '#A61C14', categoryName: 'Sides', itemNamePatterns: ['Fries'] },
-  { index: 6, label: '1000\nPANINO\nPOINTS', color: '#1C1917' },
+  { index: 5, label: 'FREE\nFRIES', color: '#F97316', categoryName: 'Sides', itemNamePatterns: ['Fries'] },
+  { index: 6, label: '1000\nPANINO\nPOINTS', color: '#0891B2' },
 ];
 
 export const WHEEL_SEGMENT_ANGLE = 360 / WHEEL_SEGMENTS.length;

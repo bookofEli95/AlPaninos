@@ -11,7 +11,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const COLORS = ['#D4A017', '#F4ECE1', '#A61C14', '#FFFFFF'];
+const DEFAULT_COLORS = ['#D4A017', '#F4ECE1', '#A61C14', '#FFFFFF'];
 const TOTAL_DURATION = 1600;
 const FALL_DURATION = 1200;
 
@@ -27,12 +27,12 @@ type Particle = {
   delay: number;
 };
 
-function buildParticles(count: number): Particle[] {
+function buildParticles(count: number, colors: string[]): Particle[] {
   return Array.from({ length: count }, (_, i) => {
     const startX = (Math.random() - 0.5) * SCREEN_WIDTH * 0.7;
     return {
       id: i,
-      color: COLORS[i % COLORS.length],
+      color: colors[i % colors.length],
       size: 6 + Math.random() * 6,
       startX,
       driftX: startX + (Math.random() - 0.5) * 160,
@@ -82,8 +82,8 @@ function ConfettiPiece({ particle, progress }: { particle: Particle; progress: S
 
 // Mount this only while it should be visible (e.g. `{result && <ConfettiBurst />}`)
 // -- it plays once on mount and doesn't loop or need to be told to stop.
-export default function ConfettiBurst({ count = 36 }: { count?: number }) {
-  const particles = useMemo(() => buildParticles(count), [count]);
+export default function ConfettiBurst({ count = 36, colors = DEFAULT_COLORS }: { count?: number; colors?: string[] }) {
+  const particles = useMemo(() => buildParticles(count, colors), [count, colors]);
   const progress = useSharedValue(0);
 
   useEffect(() => {
