@@ -85,7 +85,11 @@ export default function ProfileScreen() {
           params: { promoCode: promo.code, promoTitle: promo.title },
         });
       } else if (locationId) {
-        addFreeItem({ menuItemId: target.id, name: target.name, basePrice: target.base_price }, locationId, promo.code);
+        addFreeItem(
+          { menuItemId: target.id, name: target.name, basePrice: target.base_price, imageUrl: target.image_url },
+          locationId,
+          promo.code
+        );
         Alert.alert('Added!', `${target.name} was added to your cart -- it's free.`);
       }
     });
