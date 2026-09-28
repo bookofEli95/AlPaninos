@@ -65,6 +65,10 @@ const GOLD_LIGHT = '#FFE58A';
 // Matches the GRAND PRIZE segment in lib/wheelPrizes.ts (prize_index 3 in
 // the spin_wheel migration) -- the one win that gets the bigger celebration.
 const GRAND_PRIZE_INDEX = 3;
+// The Grand Prize's value, for the jackpot counter -- must match
+// prize_max_discount for prize_index 3 in claim_wheel_prize() (the
+// wheel_prize_limits migration).
+const GRAND_PRIZE_VALUE = 150;
 // The win reveal's big prize photo and the gold rays around it -- a bit
 // smaller on short phones so the whole jackpot card (ribbon, photo, prize,
 // button) still fits on screen.
@@ -379,6 +383,47 @@ const WheelFace = memo(function WheelFace({ hubFlip }: { hubFlip: SharedValue<nu
   );
 });
 
+// The jackpot's "$0 -> $150" count-up, with a light tick on every $10 and a
+// heavy thud when it lands. Only this little component re-renders while it
+// counts.
+function JackpotCounter({ run }: { run: boolean }) {
+  const [value, setValue] = useState(0);
+  useEffect(() => {
+    if (!run) return;
+    let frame = 0;
+    let lastTen = 0;
+    let startAt: number | null = null;
+    const delay = setTimeout(() => {
+      const tick = (t: number) => {
+        if (startAt == null) startAt = t;
+        const p = Math.min(1, (t - startAt) / 1500);
+        const next = Math.round(GRAND_PRIZE_VALUE * (1 - Math.pow(1 - p, 3)));
+        setValue(next);
+        const ten = Math.floor(next / 10);
+        if (ten > lastTen) {
+          lastTen = ten;
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+        }
+        if (p < 1) frame = requestAnimationFrame(tick);
+        else Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      };
+      frame = requestAnimationFrame(tick);
+    }, 450);
+    return () => {
+      clearTimeout(delay);
+      cancelAnimationFrame(frame);
+    };
+  }, [run]);
+  return (
+    <View className="items-center justify-center">
+      <Text style={styles.jackpotAmount} numberOfLines={1} adjustsFontSizeToFit>
+        ${value}
+      </Text>
+      <Text style={styles.jackpotAmountLabel}>FREE ORDER</Text>
+    </View>
+  );
+}
+
 // Memoised so the screen's own state changes (spinning, the result...) don't
 // re-render the wheel's many animated parts -- that re-render is what made
 // the reveal stutter.
@@ -622,7 +667,11 @@ export default function SpinWheelScreen() {
     bloom.value = 0;
     bloom.value = withTiming(1, { duration: 900, easing: Easing.out(Easing.cubic) });
     sunburstRotation.value = 0;
-    sunburstRotation.value = withRepeat(withTiming(360, { duration: 10000, easing: Easing.linear }), -1, false);
+    sunburstRotation.value = withRepeat(
+      withTiming(360, { duration: result.index === GRAND_PRIZE_INDEX ? 4000 : 10000, easing: Easing.linear }),
+      -1,
+      false
+    );
     cardScale.value = 0.82;
     cardOpacity.value = 0;
     cardScale.value = withDelay(120, withTiming(1, { duration: 620, easing: Easing.out(Easing.exp) }));
@@ -747,15 +796,51 @@ export default function SpinWheelScreen() {
           withTiming(1, { duration: 70 })
         );
       }
+      // The Grand Prize gets the full show on landing: a triple thud, the
+      // screen shakes, the gold and red shockwaves and sparks fire again
+      // off the wheel and the spotlight beams flare -- and a slightly
+      // longer beat before the card, so all of that is seen.
+      const jackpot = prize.index === GRAND_PRIZE_INDEX;
+      if (jackpot) {
+        [0, 130, 260].forEach((ms) =>
+          setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {}), ms)
+        );
+        shakeX.value = withSequence(
+          withTiming(14, { duration: 40 }),
+          withTiming(-12, { duration: 50 }),
+          withTiming(9, { duration: 50 }),
+          withTiming(-6, { duration: 50 }),
+          withTiming(3, { duration: 50 }),
+          withTiming(0, { duration: 50 })
+        );
+        shakeY.value = withSequence(
+          withTiming(-8, { duration: 40 }),
+          withTiming(7, { duration: 50 }),
+          withTiming(-4, { duration: 50 }),
+          withTiming(0, { duration: 60 })
+        );
+        shockwaveScale.value = 0.6;
+        shockwaveScale.value = withTiming(1.8, { duration: 480, easing: Easing.out(Easing.quad) });
+        shockwaveOpacity.value = withSequence(withTiming(1, { duration: 40 }), withTiming(0, { duration: 440 }));
+        shockwave2Scale.value = 0.6;
+        shockwave2Scale.value = withDelay(100, withTiming(2.2, { duration: 520, easing: Easing.out(Easing.quad) }));
+        shockwave2Opacity.value = withDelay(
+          100,
+          withSequence(withTiming(0.9, { duration: 40 }), withTiming(0, { duration: 480 }))
+        );
+        sparkProgress.value = 0;
+        sparkProgress.value = withTiming(1, { duration: 750, easing: Easing.out(Easing.quad) });
+        beamsOpacity.value = withSequence(withTiming(1, { duration: 80 }), withTiming(0.5, { duration: 900 }));
+      }
       revealTimeout.current = setTimeout(
         () => {
           setSpinning(false);
           setResult(prize);
         },
-        prize.index >= 0 ? 320 : 0
+        prize.index < 0 ? 0 : jackpot ? 650 : 320
       );
     },
-    [lightsCelebrate, winGlow]
+    [lightsCelebrate, winGlow, shakeX, shakeY, shockwaveScale, shockwaveOpacity, shockwave2Scale, shockwave2Opacity, sparkProgress, beamsOpacity]
   );
 
   // A peg knocking the pointer: it flicks sideways (the wheel turns
@@ -1043,7 +1128,11 @@ export default function SpinWheelScreen() {
               </Animated.View>
 
               <Animated.View style={[styles.heroPrizeFrame, prizePopStyle]}>
-                {imageLoading ? (
+                {isBigWin ? (
+                  <View className="w-full h-full rounded-full bg-[#1C1917] items-center justify-center px-3">
+                    <JackpotCounter run={isBigWin} />
+                  </View>
+                ) : imageLoading ? (
                   <View className="w-full h-full rounded-full bg-stone-900 items-center justify-center">
                     <ActivityIndicator color={GOLD} size="large" />
                   </View>
@@ -1064,8 +1153,8 @@ export default function SpinWheelScreen() {
             </View>
 
             <View className="items-center mb-5 mt-1 px-2">
-              <Text style={styles.prizeTitle} numberOfLines={2}>
-                {result?.title}
+              <Text style={isBigWin ? styles.jackpotTitle : styles.prizeTitle} numberOfLines={2}>
+                {isBigWin ? `A FREE $${GRAND_PRIZE_VALUE} ORDER!` : result?.title}
               </Text>
 
               <View className="bg-[#85140E] px-3.5 py-1 rounded-full mt-2.5 flex-row items-center border border-[#FFC72C]/40">
@@ -1076,7 +1165,9 @@ export default function SpinWheelScreen() {
               </View>
 
               <Text className="text-stone-300 text-xs text-center mt-2 px-2 leading-4 font-inter-medium">
-                {result?.code
+                {isBigWin
+                  ? `You hit the jackpot! Load up your cart -- sandwiches, fries, drinks, the whole crew's order -- and we'll take up to $${GRAND_PRIZE_VALUE} off, on the house. It's waiting on the Deals tab and in your cart's deals list, and it never expires.`
+                  : result?.code
                   ? "It's waiting on the Deals tab and in your cart's deals list. Redeem it whenever you're ready -- it never expires."
                   : "We've deposited it into your account -- ready to use on your next order."}
               </Text>
@@ -1085,7 +1176,9 @@ export default function SpinWheelScreen() {
             <TouchableOpacity onPress={handleContinue} activeOpacity={0.88} style={styles.claimButton}>
               <View pointerEvents="none" style={styles.spinButtonShine} />
               <View className="flex-row items-center">
-                <Text style={styles.claimButtonText}>CLAIM & START ORDER</Text>
+                <Text style={styles.claimButtonText}>
+                  {isBigWin ? `CLAIM MY $${GRAND_PRIZE_VALUE} ORDER` : 'CLAIM & START ORDER'}
+                </Text>
                 <Ionicons name="arrow-forward" size={18} color="#7A0E0A" style={{ marginLeft: 6 }} />
               </View>
             </TouchableOpacity>
@@ -1331,6 +1424,33 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 10,
     marginTop: 4,
+  },
+  jackpotAmount: {
+    color: GOLD,
+    fontFamily: 'PlusJakartaSans_800ExtraBold',
+    fontSize: Math.round(PRIZE_FRAME_SIZE * 0.32),
+    letterSpacing: -1,
+    textShadowColor: '#FF6A00',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 18,
+  },
+  jackpotAmountLabel: {
+    color: GOLD_LIGHT,
+    fontFamily: 'Inter_800ExtraBold',
+    fontSize: 12,
+    letterSpacing: 3,
+    marginTop: -2,
+  },
+  jackpotTitle: {
+    color: GOLD,
+    fontFamily: 'PlusJakartaSans_800ExtraBold',
+    fontSize: 28,
+    textAlign: 'center',
+    letterSpacing: 0.5,
+    lineHeight: 32,
+    textShadowColor: '#FF6A00',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 14,
   },
   claimButtonText: {
     color: '#7A0E0A',
