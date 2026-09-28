@@ -255,6 +255,35 @@ function Spark({ index, progress }: { index: number; progress: SharedValue<numbe
   );
 }
 
+// "SPIN TO WIN!" as a marquee sign: each letter is a bulb. On the way in
+// they light up one after another (reveal 0 -> 1); after that a wave of
+// white-hot light keeps running along the word (phase loops 0 -> 1).
+const TITLE_TEXT = 'SPIN TO WIN!';
+function MarqueeLetter({
+  char,
+  index,
+  reveal,
+  phase,
+}: {
+  char: string;
+  index: number;
+  reveal: SharedValue<number>;
+  phase: SharedValue<number>;
+}) {
+  const count = TITLE_TEXT.length;
+  const style = useAnimatedStyle(() => {
+    const on = Math.min(1, Math.max(0, reveal.value * (count + 2) - index));
+    const pos = phase.value * (count + 8) - 4;
+    const wave = Math.max(0, 1 - Math.abs(pos - index) / 1.6);
+    return {
+      opacity: 0.12 + on * 0.88,
+      color: interpolateColor(wave, [0, 1], [GOLD, '#FFFBE6']),
+      transform: [{ scale: 1 + (1 - on) * 0.4 + wave * 0.06 }],
+    };
+  });
+  return <Animated.Text style={[styles.title, style]}>{char === ' ' ? '\u00A0' : char}</Animated.Text>;
+}
+
 type PrizeResult = {
   index: number;
   title: string;
@@ -295,9 +324,15 @@ export default function SpinWheelScreen() {
   const hubFlip = useSharedValue(0);
   const shineSweep = useSharedValue(0);
   const headerOpacity = useSharedValue(0);
-  const headerY = useSharedValue(-140);
-  const buttonOpacity = useSharedValue(0);
-  const buttonY = useSharedValue(140);
+  const titleReveal = useSharedValue(0);
+  const titlePhase = useSharedValue(0);
+  // The Spin button stretches open from the middle (0 -> 1); while it's
+  // waiting to be tapped a gold ring ripples out of it and a shine sweeps
+  // across it -- idle fades those out while the wheel is spinning.
+  const buttonReveal = useSharedValue(0);
+  const buttonRing = useSharedValue(0);
+  const buttonShine = useSharedValue(0);
+  const buttonIdle = useSharedValue(1);
   const entranceTimeouts = useRef<ReturnType<typeof setTimeout>[]>([]);
   const pointerDropY = useSharedValue(-50);
   // Its own fade, so the pointer isn't left hanging in mid-air before the
@@ -313,15 +348,17 @@ export default function SpinWheelScreen() {
   const lightsBoost = useSharedValue(0);
   const lightsCelebrate = useSharedValue(0);
   const beamsRotation = useSharedValue(0);
-  const titleGlow = useSharedValue(1);
-  // A white flash across the screen the moment the wheel stops on a prize.
-  const winFlash = useSharedValue(0);
+  // The win: the winning wedge glows under the pointer, then the backdrop
+  // dims in and a gold bloom opens out behind the jackpot card.
+  const winGlow = useSharedValue(0);
+  const backdrop = useSharedValue(0);
+  const bloom = useSharedValue(0);
+  const revealTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   // The pointer's flick as each peg passes it (degrees; 0 = at rest).
   const pointerFlap = useSharedValue(0);
   // Win reveal: gold rays turning slowly behind the prize photo, which pops in.
   const sunburstRotation = useSharedValue(0);
   const prizePopScale = useSharedValue(0.1);
-  const pulseScale = useSharedValue(1);
   // The jackpot card punching into the middle of the screen.
   const cardScale = useSharedValue(0.3);
   const cardOpacity = useSharedValue(0);
@@ -401,12 +438,11 @@ export default function SpinWheelScreen() {
       // Pointer, title and button land in turn
       pointerOpacity.value = withDelay(100, withTiming(1, { duration: 120 }));
       pointerDropY.value = withDelay(120, withSpring(0, { damping: 10, stiffness: 140 }));
-      headerOpacity.value = withDelay(260, withTiming(1, { duration: 120 }));
-      headerY.value = withDelay(260, withSpring(0, { damping: 9, stiffness: 120 }));
-      buttonY.value = withDelay(520, withSpring(0, { damping: 9, stiffness: 130 }));
-      buttonOpacity.value = withDelay(
-        520,
-        withTiming(1, { duration: 200 }, (done) => {
+      headerOpacity.value = withDelay(200, withTiming(1, { duration: 150 }));
+      titleReveal.value = withDelay(260, withTiming(1, { duration: 650, easing: Easing.linear }));
+      buttonReveal.value = withDelay(
+        560,
+        withTiming(1, { duration: 520, easing: Easing.out(Easing.exp) }, (done) => {
           if (done) runOnJS(setUiReady)(true);
         })
       );
@@ -415,7 +451,25 @@ export default function SpinWheelScreen() {
     // the title pulses -- all from the start.
     haloPulse.value = withRepeat(withTiming(0.75, { duration: 1100, easing: Easing.inOut(Easing.ease) }), -1, true);
     beamsRotation.value = withRepeat(withTiming(360, { duration: 40000, easing: Easing.linear }), -1, false);
-    titleGlow.value = withRepeat(withTiming(1.06, { duration: 900, easing: Easing.inOut(Easing.ease) }), -1, true);
+    titlePhase.value = withDelay(
+      1000,
+      withRepeat(withTiming(1, { duration: 2200, easing: Easing.linear }), -1, false)
+    );
+    buttonRing.value = withDelay(
+      1200,
+      withRepeat(withTiming(1, { duration: 1700, easing: Easing.out(Easing.quad) }), -1, false)
+    );
+    buttonShine.value = withDelay(
+      1400,
+      withRepeat(
+        withSequence(
+          withTiming(1, { duration: 650, easing: Easing.inOut(Easing.quad) }),
+          withTiming(1, { duration: 1600 })
+        ),
+        -1,
+        false
+      )
+    );
 
     // Safety net: if the entrance ever gets interrupted, everything still
     // shows up and the button still works.
@@ -426,14 +480,14 @@ export default function SpinWheelScreen() {
       pointerOpacity.value = 1;
       pointerDropY.value = 0;
       headerOpacity.value = 1;
-      headerY.value = 0;
-      buttonOpacity.value = 1;
-      buttonY.value = 0;
+      titleReveal.value = 1;
+      buttonReveal.value = 1;
       setUiReady(true);
     }, 2500);
     return () => {
       clearTimeout(fallback);
       entranceTimeouts.current.forEach(clearTimeout);
+      if (revealTimeout.current) clearTimeout(revealTimeout.current);
     };
     // Runs once, on mount -- shared values never change identity.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -455,43 +509,29 @@ export default function SpinWheelScreen() {
     lightsCelebrate.value = result ? 1 : 0;
   }, [spinning, result, lightsPhase, lightsBoost, lightsCelebrate]);
 
-  // The win reveal: just after the flash, the jackpot card punches into the
-  // middle of the screen (0.3 -> 1.08 -> 1), the rays start turning, and the
-  // big prize photo pops forward a beat later.
+  // The reveal, once the winning wedge has had its moment: the backdrop dims
+  // in, a gold bloom opens out, and the jackpot card glides up and grows
+  // into place (one smooth ease, no overshoot), with the prize photo settling
+  // in just after it and the rays starting to turn.
   useEffect(() => {
     if (!result) return;
+    backdrop.value = withTiming(1, { duration: 380, easing: Easing.out(Easing.quad) });
+    bloom.value = 0;
+    bloom.value = withTiming(1, { duration: 900, easing: Easing.out(Easing.cubic) });
     sunburstRotation.value = 0;
     sunburstRotation.value = withRepeat(withTiming(360, { duration: 10000, easing: Easing.linear }), -1, false);
-    cardScale.value = 0.3;
+    cardScale.value = 0.82;
     cardOpacity.value = 0;
-    cardScale.value = withDelay(
-      280,
-      withSequence(
-        withTiming(1.08, { duration: 380, easing: Easing.bezier(0.12, 1, 0.2, 1) }),
-        withSpring(1, { damping: 11, stiffness: 140 })
-      )
-    );
-    cardOpacity.value = withDelay(260, withTiming(1, { duration: 200 }));
-    prizePopScale.value = 0.1;
-    prizePopScale.value = withDelay(
-      420,
-      withSequence(
-        withTiming(1.15, { duration: 380, easing: Easing.bezier(0.16, 1, 0.3, 1) }),
-        withSpring(1, { damping: 10, stiffness: 130 })
-      )
-    );
-  }, [result, sunburstRotation, cardScale, cardOpacity, prizePopScale]);
+    cardScale.value = withDelay(120, withTiming(1, { duration: 620, easing: Easing.out(Easing.exp) }));
+    cardOpacity.value = withDelay(120, withTiming(1, { duration: 320 }));
+    prizePopScale.value = 0.6;
+    prizePopScale.value = withDelay(320, withSpring(1, { damping: 16, stiffness: 140 }));
+  }, [result, backdrop, bloom, sunburstRotation, cardScale, cardOpacity, prizePopScale]);
 
-  // The spin button pulses to draw the eye while idle, and settles down
-  // once the wheel is actually moving (or the prize is showing) rather than
-  // pulsing behind the disabled state.
+  // The button's ring and shine only run while it's waiting to be tapped.
   useEffect(() => {
-    if (spinning || result) {
-      pulseScale.value = withTiming(1, { duration: 200 });
-    } else {
-      pulseScale.value = withRepeat(withTiming(1.07, { duration: 650, easing: Easing.inOut(Easing.ease) }), -1, true);
-    }
-  }, [spinning, result, pulseScale]);
+    buttonIdle.value = withTiming(spinning || result ? 0 : 1, { duration: 200 });
+  }, [spinning, result, buttonIdle]);
 
   // A real photo of the prize (when it maps to a menu category) makes the
   // reveal feel like an actual prize instead of a text label -- see
@@ -527,7 +567,6 @@ export default function SpinWheelScreen() {
   const animatedWheelStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${rotation.value}deg` }],
   }));
-  const pulseStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulseScale.value }] }));
   const entranceWheelStyle = useAnimatedStyle(() => ({
     opacity: entranceOpacity.value,
     transform: [{ scale: entranceScale.value }, { rotate: `${entranceRotation.value}deg` }],
@@ -556,16 +595,26 @@ export default function SpinWheelScreen() {
     opacity: shineSweep.value > 0 && shineSweep.value < 1 ? 1 : 0,
     transform: [{ translateX: -WHEEL_SIZE * 0.7 + shineSweep.value * WHEEL_SIZE * 1.9 }, { rotate: '20deg' }],
   }));
-  const headerStyle = useAnimatedStyle(() => ({
-    opacity: headerOpacity.value,
-    transform: [{ translateY: headerY.value }],
-  }));
+  const headerStyle = useAnimatedStyle(() => ({ opacity: headerOpacity.value }));
   const buttonEntranceStyle = useAnimatedStyle(() => ({
-    opacity: buttonOpacity.value,
-    transform: [{ translateY: buttonY.value }],
+    opacity: Math.min(1, buttonReveal.value * 2.5),
+    transform: [{ scaleX: 0.12 + buttonReveal.value * 0.88 }, { scaleY: 0.7 + buttonReveal.value * 0.3 }],
   }));
-  const titleStyle = useAnimatedStyle(() => ({ transform: [{ scale: titleGlow.value }] }));
-  const winFlashStyle = useAnimatedStyle(() => ({ opacity: winFlash.value }));
+  const buttonLabelStyle = useAnimatedStyle(() => ({ opacity: Math.max(0, (buttonReveal.value - 0.55) / 0.45) }));
+  const buttonRingStyle = useAnimatedStyle(() => ({
+    opacity: (1 - buttonRing.value) * 0.8 * buttonIdle.value * buttonReveal.value,
+    transform: [{ scaleX: 1 + buttonRing.value * 0.14 }, { scaleY: 1 + buttonRing.value * 0.5 }],
+  }));
+  const buttonShineStyle = useAnimatedStyle(() => ({
+    opacity: buttonIdle.value,
+    transform: [{ translateX: -90 + buttonShine.value * 420 }, { rotate: '20deg' }],
+  }));
+  const winGlowStyle = useAnimatedStyle(() => ({ opacity: winGlow.value }));
+  const backdropStyle = useAnimatedStyle(() => ({ opacity: backdrop.value }));
+  const bloomStyle = useAnimatedStyle(() => ({
+    opacity: (1 - bloom.value) * 0.75,
+    transform: [{ scale: 0.3 + bloom.value * 3.2 }],
+  }));
   const pointerAnimatedStyle = useAnimatedStyle(() => ({
     opacity: pointerOpacity.value,
     transform: [{ translateY: pointerDropY.value }, { rotate: `${pointerFlap.value}deg` }],
@@ -587,14 +636,32 @@ export default function SpinWheelScreen() {
     };
   });
 
+  // The wheel has stopped: the winning wedge under the pointer flashes gold
+  // twice while the rim lights go jackpot, and a beat later the reveal
+  // takes over -- so the landing is seen first and the card doesn't jump in
+  // on top of it.
   const handleSpinFinished = useCallback(
     (prize: PrizeResult) => {
-      setSpinning(false);
-      setResult(prize);
-      winFlash.value = withSequence(withTiming(0.95, { duration: 70 }), withTiming(0, { duration: 520 }));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      lightsCelebrate.value = 1;
+      if (prize.index >= 0) {
+        winGlow.value = withSequence(
+          withTiming(1, { duration: 110 }),
+          withTiming(0.3, { duration: 150 }),
+          withTiming(1, { duration: 110 }),
+          withTiming(0.3, { duration: 150 }),
+          withTiming(1, { duration: 110 })
+        );
+      }
+      revealTimeout.current = setTimeout(
+        () => {
+          setSpinning(false);
+          setResult(prize);
+        },
+        prize.index >= 0 ? 700 : 0
+      );
     },
-    [winFlash]
+    [lightsCelebrate, winGlow]
   );
 
   // A peg knocking the pointer: it flicks sideways (the wheel turns
@@ -710,10 +777,15 @@ export default function SpinWheelScreen() {
 
       {/* Everything on stage shakes together on impact */}
       <Animated.View style={[{ alignItems: 'center' }, shakeStyle]}>
-      {/* Screen Header -- drops in from above after the wheel lands */}
+      {/* Screen Header -- the title lights up letter by letter like a
+          marquee sign once the wheel lands */}
       <Animated.View style={headerStyle} className="items-center mb-3">
         <Text style={styles.kicker}>★ WELCOME BONUS ★</Text>
-        <Animated.Text style={[styles.title, titleStyle]}>SPIN TO WIN!</Animated.Text>
+        <View style={{ flexDirection: 'row' }}>
+          {TITLE_TEXT.split('').map((char, i) => (
+            <MarqueeLetter key={i} char={char} index={i} reveal={titleReveal} phase={titlePhase} />
+          ))}
+        </View>
         <Text className="text-[#FFF4D6] text-center text-xs mt-0.5 max-w-[300px] font-inter-semibold leading-4">
           Welcome to Al Paninos! One free spin, and every prize is a winner.
         </Text>
@@ -856,6 +928,22 @@ export default function SpinWheelScreen() {
             <Ellipse cx={R} cy={R * 0.52} rx={R * 0.78} ry={R * 0.42} fill="#FFFFFF" opacity={0.13} />
           </Svg>
 
+          {/* The winning wedge, lit up under the pointer when the wheel stops */}
+          <Animated.View
+            pointerEvents="none"
+            style={[{ position: 'absolute', left: RING_MARGIN, top: RING_MARGIN }, winGlowStyle]}
+          >
+            <Svg width={WHEEL_SIZE} height={WHEEL_SIZE}>
+              <Path
+                d={describeSlice(R, R, R - 2, -WHEEL_SEGMENT_ANGLE / 2, WHEEL_SEGMENT_ANGLE / 2)}
+                fill="rgba(255,229,138,0.35)"
+                stroke="#FFFFFF"
+                strokeWidth={3}
+                strokeLinejoin="round"
+              />
+            </Svg>
+          </Animated.View>
+
           {/* The one-off shine that sweeps across the glass on the way in */}
           <View pointerEvents="none" style={styles.shineClip}>
             <Animated.View style={[styles.shineBand, shineStyle]} />
@@ -872,7 +960,8 @@ export default function SpinWheelScreen() {
       {/* Spin Button -- polished gold */}
       {!result && (
         <Animated.View style={buttonEntranceStyle} className="mt-4">
-        <Animated.View style={pulseStyle}>
+          {/* Gold ring rippling out of the button while it waits */}
+          <Animated.View pointerEvents="none" style={[styles.spinRing, buttonRingStyle]} />
           <TouchableOpacity
             onPress={handleSpin}
             disabled={spinning || !uiReady}
@@ -882,12 +971,12 @@ export default function SpinWheelScreen() {
             {/* A plain colour fills the whole button (an SVG gradient didn't
                 always stretch to it); the lighter top half gives the shine. */}
             <View pointerEvents="none" style={styles.spinButtonShine} />
-            <View className="flex-row items-center">
+            <Animated.View pointerEvents="none" style={[styles.spinButtonSweep, buttonShineStyle]} />
+            <Animated.View style={buttonLabelStyle} className="flex-row items-center">
               <Ionicons name={spinning ? 'sync-outline' : 'sparkles'} size={20} color="#7A0E0A" style={{ marginRight: 8 }} />
               <Text style={styles.spinText}>{spinning ? 'GOOD LUCK!' : 'SPIN!'}</Text>
-            </View>
+            </Animated.View>
           </TouchableOpacity>
-        </Animated.View>
         </Animated.View>
       )}
       </Animated.View>
@@ -897,7 +986,9 @@ export default function SpinWheelScreen() {
           it. No prize code shown: code prizes already appear on the Deals
           tab and in the cart's deals list (tap to apply), and on Profile. */}
       {result && (
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.6)' }]} className="justify-center items-center px-4">
+        <View style={StyleSheet.absoluteFill} className="justify-center items-center px-4">
+          <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.6)' }, backdropStyle]} />
+          <Animated.View pointerEvents="none" style={[styles.bloom, bloomStyle]} />
           <ConfettiBurst count={isBigWin ? 160 : 90} colors={CONFETTI_COLORS} />
 
           <Animated.View style={[styles.jackpotStage, cardAnimatedStyle, cardGlowStyle]}>
@@ -982,8 +1073,6 @@ export default function SpinWheelScreen() {
         </View>
       )}
 
-      {/* The win flash -- above everything, never blocks a tap */}
-      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: '#FFF7D6' }, winFlashStyle]} />
     </View>
   );
 }
@@ -1104,6 +1193,31 @@ const styles = StyleSheet.create({
     right: 0,
     height: '50%',
     backgroundColor: 'rgba(255,255,255,0.28)',
+  },
+  spinRing: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 999,
+    borderWidth: 3,
+    borderColor: GOLD_LIGHT,
+  },
+  spinButtonSweep: {
+    position: 'absolute',
+    top: -30,
+    left: 0,
+    width: 36,
+    height: 140,
+    backgroundColor: 'rgba(255,255,255,0.55)',
+  },
+  bloom: {
+    position: 'absolute',
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: GOLD_LIGHT,
   },
   spinText: {
     color: '#7A0E0A',
