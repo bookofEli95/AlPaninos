@@ -12,6 +12,7 @@ import { useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import Svg, { Path, Circle, Line, Ellipse, Defs, RadialGradient, LinearGradient, Stop } from 'react-native-svg';
 import Animated, {
+  interpolateColor,
   useSharedValue,
   useAnimatedStyle,
   useAnimatedProps,
@@ -64,9 +65,11 @@ const GOLD_LIGHT = '#FFE58A';
 // Matches the GRAND PRIZE segment in lib/wheelPrizes.ts (prize_index 3 in
 // the spin_wheel migration) -- the one win that gets the bigger celebration.
 const GRAND_PRIZE_INDEX = 3;
-// The win reveal's prize photo frame and the gold rays around it.
-const PRIZE_FRAME_SIZE = 116;
-const SUNBURST_SIZE = 170;
+// The win reveal's big prize photo and the gold rays around it -- a bit
+// smaller on short phones so the whole jackpot card (ribbon, photo, prize,
+// button) still fits on screen.
+const PRIZE_FRAME_SIZE = Math.round(Math.min(210, SCREEN.height * 0.25));
+const SUNBURST_SIZE = Math.round(PRIZE_FRAME_SIZE * 1.38);
 // The slowly turning spotlight beams behind everything.
 const BEAMS_SIZE = Math.max(SCREEN.width, SCREEN.height) * 1.5;
 const CONFETTI_COLORS = ['#FFC72C', '#E11D2E', '#FFE58A', '#FFFFFF', '#B3121F'];
@@ -121,8 +124,8 @@ function RimLight({
   const brightness = (phaseValue: number, boostValue: number, celebrateValue: number) => {
     'worklet';
     if (celebrateValue > 0.5) {
-      const flip = Math.floor(phaseValue * 4) % 2;
-      return (index + flip) % 2 === 0 ? 1 : 0.2;
+      const flip = Math.floor(phaseValue * 6) % 2;
+      return (index + flip) % 2 === 0 ? 1 : 0.25;
     }
     const head = phaseValue * LIGHT_COUNT;
     let dist = Math.abs(head - index);
@@ -246,8 +249,9 @@ export default function SpinWheelScreen() {
   const sunburstRotation = useSharedValue(0);
   const prizePopScale = useSharedValue(0.1);
   const pulseScale = useSharedValue(1);
-  const sheetTranslateY = useSharedValue(400);
-  const sheetOpacity = useSharedValue(0);
+  // The jackpot card punching into the middle of the screen.
+  const cardScale = useSharedValue(0.3);
+  const cardOpacity = useSharedValue(0);
   const tickTimeouts = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const videoPlayer = useVideoPlayer(require('../../assets/videos/wheel-background.mp4'), (player) => {
@@ -320,7 +324,7 @@ export default function SpinWheelScreen() {
     const fast = spinning || !!result;
     lightsPhase.value = 0;
     lightsPhase.value = withRepeat(
-      withTiming(1, { duration: fast ? 350 : 1400, easing: Easing.linear }),
+      withTiming(1, { duration: fast ? 280 : 1400, easing: Easing.linear }),
       -1,
       false
     );
@@ -328,21 +332,32 @@ export default function SpinWheelScreen() {
     lightsCelebrate.value = result ? 1 : 0;
   }, [spinning, result, lightsPhase, lightsBoost, lightsCelebrate]);
 
-  // The win reveal: the rays start turning and the prize photo pops in with
-  // a little overshoot.
+  // The win reveal: just after the flash, the jackpot card punches into the
+  // middle of the screen (0.3 -> 1.08 -> 1), the rays start turning, and the
+  // big prize photo pops forward a beat later.
   useEffect(() => {
     if (!result) return;
     sunburstRotation.value = 0;
     sunburstRotation.value = withRepeat(withTiming(360, { duration: 10000, easing: Easing.linear }), -1, false);
-    prizePopScale.value = 0.1;
-    prizePopScale.value = withDelay(
-      550,
+    cardScale.value = 0.3;
+    cardOpacity.value = 0;
+    cardScale.value = withDelay(
+      280,
       withSequence(
-        withTiming(1.15, { duration: 400, easing: Easing.bezier(0.16, 1, 0.3, 1) }),
-        withSpring(1, { damping: 10, stiffness: 120 })
+        withTiming(1.08, { duration: 380, easing: Easing.bezier(0.12, 1, 0.2, 1) }),
+        withSpring(1, { damping: 11, stiffness: 140 })
       )
     );
-  }, [result, sunburstRotation, prizePopScale]);
+    cardOpacity.value = withDelay(260, withTiming(1, { duration: 200 }));
+    prizePopScale.value = 0.1;
+    prizePopScale.value = withDelay(
+      420,
+      withSequence(
+        withTiming(1.15, { duration: 380, easing: Easing.bezier(0.16, 1, 0.3, 1) }),
+        withSpring(1, { damping: 10, stiffness: 130 })
+      )
+    );
+  }, [result, sunburstRotation, cardScale, cardOpacity, prizePopScale]);
 
   // The spin button pulses to draw the eye while idle, and settles down
   // once the wheel is actually moving (or the prize is showing) rather than
@@ -380,24 +395,6 @@ export default function SpinWheelScreen() {
       .finally(() => setImageLoading(false));
   }, [result]);
 
-  // The result panel slides up from the bottom rather than just appearing
-  // -- a beat after the win flash, so the wheel's landing is seen first.
-  useEffect(() => {
-    if (result) {
-      sheetTranslateY.value = withDelay(
-        350,
-        withTiming(0, {
-          duration: 450,
-          easing: Easing.bezier(0.16, 1, 0.3, 1),
-        })
-      );
-      sheetOpacity.value = withDelay(350, withTiming(1, { duration: 250 }));
-    } else {
-      sheetTranslateY.value = 400;
-      sheetOpacity.value = 0;
-    }
-  }, [result, sheetTranslateY, sheetOpacity]);
-
   useEffect(() => {
     return () => {
       tickTimeouts.current.forEach(clearTimeout);
@@ -427,16 +424,26 @@ export default function SpinWheelScreen() {
   const sunburstStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${sunburstRotation.value}deg` }] }));
   const prizePopStyle = useAnimatedStyle(() => ({ transform: [{ scale: prizePopScale.value }] }));
   const uiFadeStyle = useAnimatedStyle(() => ({ opacity: uiOpacity.value }));
-  const sheetAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: sheetOpacity.value,
-    transform: [{ translateY: sheetTranslateY.value }],
+  const cardAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: cardOpacity.value,
+    transform: [{ scale: cardScale.value }],
   }));
+  // The jackpot card's gold border glows and pulses in time with the rim
+  // lights (the same clock) -- a smooth swell rather than an on/off flash.
+  const cardGlowStyle = useAnimatedStyle(() => {
+    const beat = 0.5 + 0.5 * Math.sin(lightsPhase.value * Math.PI * 2);
+    return {
+      borderColor: interpolateColor(beat, [0, 1], [GOLD_DEEP, GOLD_LIGHT]),
+      shadowOpacity: 0.45 + beat * 0.55,
+      shadowRadius: 22 + beat * 22,
+    };
+  });
 
   const handleSpinFinished = useCallback(
     (prize: PrizeResult) => {
       setSpinning(false);
       setResult(prize);
-      winFlash.value = withSequence(withTiming(0.85, { duration: 70 }), withTiming(0, { duration: 550 }));
+      winFlash.value = withSequence(withTiming(0.95, { duration: 70 }), withTiming(0, { duration: 520 }));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     },
     [winFlash]
@@ -710,37 +717,38 @@ export default function SpinWheelScreen() {
         </Animated.View>
       )}
 
-      {/* Result panel -- slides up from the bottom. No prize code shown:
-          code prizes already appear on the Deals tab (tap to apply) and
-          on Profile ("Redeem Now"), so there's nothing to copy down here. */}
+      {/* The jackpot card -- punches into the middle of the screen over a
+          dimmed (not hidden) wheel, so the rim lights keep flashing around
+          it. No prize code shown: code prizes already appear on the Deals
+          tab and in the cart's deals list (tap to apply), and on Profile. */}
       {result && (
-        <View style={StyleSheet.absoluteFill} className="justify-end">
-          <ConfettiBurst count={isBigWin ? 140 : 70} colors={CONFETTI_COLORS} />
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.6)' }]} className="justify-center items-center px-4">
+          <ConfettiBurst count={isBigWin ? 160 : 90} colors={CONFETTI_COLORS} />
 
-          <Animated.View
-            style={[styles.resultSheet, sheetAnimatedStyle]}
-            className="bg-[#FAF6F0] rounded-t-[36px] p-6 pb-10 items-center shadow-2xl border-t-4 border-[#FFC72C]"
-          >
-            <View className="w-10 h-1 bg-stone-300 rounded-full mb-4" />
+          <Animated.View style={[styles.jackpotStage, cardAnimatedStyle, cardGlowStyle]}>
+            <View style={styles.winnerRibbon}>
+              <Ionicons name={isBigWin ? 'trophy' : 'sparkles'} size={15} color={GOLD_LIGHT} style={{ marginRight: 6 }} />
+              <Text style={styles.winnerRibbonText}>{isBigWin ? 'JACKPOT WINNER!' : 'CONGRATULATIONS!'}</Text>
+            </View>
 
-            {/* Prize photo in a round gold frame, popping in over slowly
-                turning gold-and-red rays */}
-            <View className="items-center justify-center mb-2" style={{ width: SUNBURST_SIZE, height: SUNBURST_SIZE }}>
+            {/* The prize photo, popping forward over slowly turning
+                gold-and-red rays */}
+            <View className="items-center justify-center my-2" style={{ width: SUNBURST_SIZE, height: SUNBURST_SIZE }}>
               <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, sunburstStyle]}>
                 <Svg width={SUNBURST_SIZE} height={SUNBURST_SIZE} viewBox="0 0 100 100">
-                  {Array.from({ length: 12 }, (_, i) => {
-                    const a = (i * 30 * Math.PI) / 180;
+                  {Array.from({ length: 16 }, (_, i) => {
+                    const a = (i * 22.5 * Math.PI) / 180;
                     return (
                       <Line
                         key={i}
-                        x1={50 + 30 * Math.cos(a)}
-                        y1={50 + 30 * Math.sin(a)}
-                        x2={50 + 48 * Math.cos(a)}
-                        y2={50 + 48 * Math.sin(a)}
+                        x1={50 + 26 * Math.cos(a)}
+                        y1={50 + 26 * Math.sin(a)}
+                        x2={50 + 49 * Math.cos(a)}
+                        y2={50 + 49 * Math.sin(a)}
                         stroke={i % 2 === 0 ? GOLD : '#E11D2E'}
-                        strokeWidth={3.5}
-                        strokeOpacity={0.55}
-                        strokeDasharray="4, 4"
+                        strokeWidth={3.2}
+                        strokeOpacity={0.65}
+                        strokeDasharray="4, 3"
                         strokeLinecap="round"
                       />
                     );
@@ -748,53 +756,52 @@ export default function SpinWheelScreen() {
                 </Svg>
               </Animated.View>
 
-              <Animated.View style={[styles.prizeFrame, prizePopStyle]}>
+              <Animated.View style={[styles.heroPrizeFrame, prizePopStyle]}>
                 {imageLoading ? (
-                  <View className="w-full h-full rounded-full bg-stone-200 items-center justify-center">
-                    <ActivityIndicator color="#85140E" size="small" />
+                  <View className="w-full h-full rounded-full bg-stone-900 items-center justify-center">
+                    <ActivityIndicator color={GOLD} size="large" />
                   </View>
                 ) : prizeImageUrl ? (
                   <Image
                     source={{ uri: prizeImageUrl }}
-                    className="w-full h-full rounded-full bg-stone-100"
+                    className="w-full h-full rounded-full"
                     resizeMode="cover"
-                    // A missing file shows the gift icon rather than an empty frame.
+                    // A missing file shows the icon rather than an empty frame.
                     onError={() => setPrizeImageUrl(null)}
                   />
                 ) : (
                   <View className="w-full h-full rounded-full bg-[#1C1917] items-center justify-center">
-                    <Ionicons name={isBigWin ? 'trophy' : 'gift'} size={36} color={GOLD} />
+                    <Ionicons name={isBigWin ? 'trophy' : 'gift'} size={64} color={GOLD} />
                   </View>
                 )}
               </Animated.View>
             </View>
 
-            <View className="items-center mb-6">
-              <Text style={styles.youWon}>{isBigWin ? 'JACKPOT!' : 'YOU WON!'}</Text>
-              <Text className="text-2xl font-display-bold text-[#1C1917] text-center tracking-tight mt-0.5">
+            <View className="items-center mb-5 mt-1 px-2">
+              <Text style={styles.prizeTitle} numberOfLines={2}>
                 {result.title}
               </Text>
-              <View className="bg-[#85140E] px-3.5 py-1 rounded-full mt-2 flex-row items-center">
+
+              <View className="bg-[#85140E] px-3.5 py-1 rounded-full mt-2.5 flex-row items-center border border-[#FFC72C]/40">
                 <Ionicons name={isBigWin ? 'trophy-outline' : 'gift-outline'} size={12} color="#F4ECE1" />
                 <Text className="text-[#F4ECE1] text-[10px] font-inter-bold ml-1.5 uppercase tracking-widest">
                   {isBigWin ? 'Grand Prize Winner' : result.code ? 'Gift Added to Deals' : 'Added to Your Account'}
                 </Text>
               </View>
 
-              <Text className="text-stone-500 text-xs text-center mt-2 px-4 leading-4">
+              <Text className="text-stone-300 text-xs text-center mt-2 px-2 leading-4 font-inter-medium">
                 {result.code
-                  ? "It's waiting for you on the Deals tab and on your Profile -- redeem it whenever you're ready. It never expires."
-                  : "It's already been added to your account -- no code needed."}
+                  ? "It's waiting on the Deals tab and in your cart's deals list. Redeem it whenever you're ready -- it never expires."
+                  : "We've deposited it into your account -- ready to use on your next order."}
               </Text>
             </View>
 
-            <TouchableOpacity
-              onPress={handleContinue}
-              className="bg-[#E11D2E] py-4 rounded-2xl items-center w-full shadow-md flex-row justify-center active:bg-[#B3121F]"
-              activeOpacity={0.9}
-            >
-              <Text className="text-white font-inter-bold text-base mr-2">Start Ordering</Text>
-              <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+            <TouchableOpacity onPress={handleContinue} activeOpacity={0.88} style={styles.claimButton}>
+              <View pointerEvents="none" style={styles.spinButtonShine} />
+              <View className="flex-row items-center">
+                <Text style={styles.claimButtonText}>CLAIM & START ORDER</Text>
+                <Ionicons name="arrow-forward" size={18} color="#7A0E0A" style={{ marginLeft: 6 }} />
+              </View>
             </TouchableOpacity>
           </Animated.View>
         </View>
@@ -912,27 +919,87 @@ const styles = StyleSheet.create({
     fontSize: 24,
     letterSpacing: 2,
   },
-  youWon: {
-    color: '#E11D2E',
+  jackpotStage: {
+    width: Math.min(360, SCREEN.width - 24),
+    backgroundColor: '#160E11',
+    borderRadius: 36,
+    paddingVertical: 24,
+    paddingHorizontal: 18,
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: GOLD,
+    shadowColor: GOLD,
+    shadowOpacity: 0.65,
+    shadowRadius: 36,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 20,
+  },
+  winnerRibbon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E11D2E',
+    borderWidth: 1.5,
+    borderColor: GOLD,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 999,
+    marginBottom: 4,
+    shadowColor: '#E11D2E',
+    shadowOpacity: 0.6,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  winnerRibbonText: {
+    color: '#FFFFFF',
     fontFamily: 'PlusJakartaSans_800ExtraBold',
-    fontSize: 16,
-    letterSpacing: 3,
+    fontSize: 13,
+    letterSpacing: 2,
   },
-  resultSheet: {
-    width: '100%',
-  },
-  prizeFrame: {
+  heroPrizeFrame: {
     width: PRIZE_FRAME_SIZE,
     height: PRIZE_FRAME_SIZE,
     borderRadius: PRIZE_FRAME_SIZE / 2,
-    borderWidth: 4,
+    borderWidth: 4.5,
     borderColor: GOLD,
-    backgroundColor: '#FAF6F0',
-    padding: 3,
+    backgroundColor: '#1C1917',
+    padding: 4,
+    shadowColor: GOLD,
+    shadowOpacity: 0.9,
+    shadowRadius: 28,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 18,
+  },
+  prizeTitle: {
+    color: '#F4ECE1',
+    fontFamily: 'PlusJakartaSans_800ExtraBold',
+    fontSize: 26,
+    textAlign: 'center',
+    letterSpacing: -0.5,
+    lineHeight: 30,
+    textShadowColor: 'rgba(255, 199, 44, 0.4)',
+    textShadowRadius: 12,
+  },
+  claimButton: {
+    width: '100%',
+    paddingVertical: 16,
+    borderRadius: 999,
+    overflow: 'hidden',
+    backgroundColor: GOLD,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2.5,
+    borderColor: '#FFF4D6',
     shadowColor: GOLD,
     shadowOpacity: 0.7,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 2 },
     elevation: 10,
+    marginTop: 4,
+  },
+  claimButtonText: {
+    color: '#7A0E0A',
+    fontFamily: 'PlusJakartaSans_800ExtraBold',
+    fontSize: 15,
+    letterSpacing: 1.5,
   },
 });
