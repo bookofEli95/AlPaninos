@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
-import Svg, { Path, Circle, Line, Ellipse, Defs, RadialGradient, LinearGradient, Stop, Rect } from 'react-native-svg';
+import Svg, { Path, Circle, Line, Ellipse, Defs, RadialGradient, LinearGradient, Stop } from 'react-native-svg';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -69,7 +69,7 @@ const PRIZE_FRAME_SIZE = 116;
 const SUNBURST_SIZE = 170;
 // The slowly turning spotlight beams behind everything.
 const BEAMS_SIZE = Math.max(SCREEN.width, SCREEN.height) * 1.5;
-const CONFETTI_COLORS = ['#FFC72C', '#E11D2E', '#2563EB', '#16A34A', '#9333EA', '#F97316', '#FFFFFF'];
+const CONFETTI_COLORS = ['#FFC72C', '#E11D2E', '#FFE58A', '#FFFFFF', '#B3121F'];
 
 function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
   const angleRad = ((angleDeg - 90) * Math.PI) / 180;
@@ -590,20 +590,25 @@ export default function SpinWheelScreen() {
           >
             <Svg width={WHEEL_SIZE} height={WHEEL_SIZE}>
               <Defs>
-                {WHEEL_SEGMENTS.map((seg) => (
-                  <RadialGradient
-                    key={seg.index}
-                    id={`seg${seg.index}`}
-                    cx={R}
-                    cy={R}
-                    r={R}
-                    gradientUnits="userSpaceOnUse"
-                  >
-                    <Stop offset="0" stopColor={shade(seg.color, -0.35)} />
-                    <Stop offset="0.55" stopColor={seg.color} />
-                    <Stop offset="1" stopColor={shade(seg.color, 0.25)} />
-                  </RadialGradient>
-                ))}
+                {WHEEL_SEGMENTS.map((seg) => {
+                  // Black can't get darker at the hub, so it just gets a
+                  // subtle glossy lift towards the rim instead.
+                  const isBlack = parseInt(seg.color.slice(1), 16) < 0x333333;
+                  return (
+                    <RadialGradient
+                      key={seg.index}
+                      id={`seg${seg.index}`}
+                      cx={R}
+                      cy={R}
+                      r={R}
+                      gradientUnits="userSpaceOnUse"
+                    >
+                      <Stop offset="0" stopColor={isBlack ? seg.color : shade(seg.color, -0.35)} />
+                      <Stop offset="0.55" stopColor={seg.color} />
+                      <Stop offset="1" stopColor={shade(seg.color, isBlack ? 0.16 : 0.22)} />
+                    </RadialGradient>
+                  );
+                })}
               </Defs>
               {WHEEL_SEGMENTS.map((seg, i) => (
                 <Path
@@ -692,18 +697,11 @@ export default function SpinWheelScreen() {
             onPress={handleSpin}
             disabled={spinning || !uiReady}
             activeOpacity={0.85}
-            style={[styles.spinButton, spinning && { opacity: 0.8 }]}
+            style={styles.spinButton}
           >
-            <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 100 100">
-              <Defs>
-                <LinearGradient id="spinGold" x1="0" y1="0" x2="0" y2="1">
-                  <Stop offset="0" stopColor={GOLD_LIGHT} />
-                  <Stop offset="0.5" stopColor={GOLD} />
-                  <Stop offset="1" stopColor={GOLD_DEEP} />
-                </LinearGradient>
-              </Defs>
-              <Rect x="0" y="0" width="100" height="100" fill="url(#spinGold)" />
-            </Svg>
+            {/* A plain colour fills the whole button (an SVG gradient didn't
+                always stretch to it); the lighter top half gives the shine. */}
+            <View pointerEvents="none" style={styles.spinButtonShine} />
             <View className="flex-row items-center">
               <Ionicons name={spinning ? 'sync-outline' : 'sparkles'} size={20} color="#7A0E0A" style={{ marginRight: 8 }} />
               <Text style={styles.spinText}>{spinning ? 'GOOD LUCK!' : 'SPIN!'}</Text>
@@ -889,6 +887,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 999,
     overflow: 'hidden',
+    backgroundColor: GOLD,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
@@ -898,6 +897,14 @@ const styles = StyleSheet.create({
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 0 },
     elevation: 12,
+  },
+  spinButtonShine: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    backgroundColor: 'rgba(255,255,255,0.28)',
   },
   spinText: {
     color: '#7A0E0A',
