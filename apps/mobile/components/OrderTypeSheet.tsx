@@ -17,17 +17,20 @@ type Props = {
   // Called after the customer switches store here (the menu uses it to
   // show the new store's menu).
   onStoreChanged?: (locationId: string) => void;
+  // The store to show as selected when neither the cart nor the menu has
+  // one yet -- Home's pre-picked (e.g. nearest) store.
+  fallbackLocationId?: string | null;
 };
 
 // Pickup / Delivery + delivery address, as a bottom sheet over the current
 // screen. Shared by the menu's order-type pill and the cart's fulfillment
 // strip, so the address can be set (or changed) from either place.
 // Render it last inside a full-screen View -- it's an absolute overlay.
-export default function OrderTypeSheet({ visible, onClose, onStoreChanged }: Props) {
+export default function OrderTypeSheet({ visible, onClose, onStoreChanged, fallbackLocationId }: Props) {
   const { orderType, setOrderType, deliveryAddress, setDeliveryAddress } = useCartStore();
   const cartLocationId = useCartStore((state) => (state.items.length > 0 ? state.locationId : null));
   const browsingLocationId = useLocationStore((state) => state.locationId);
-  const currentLocationId = cartLocationId ?? browsingLocationId;
+  const currentLocationId = cartLocationId ?? browsingLocationId ?? fallbackLocationId ?? null;
   const { data: locations } = useLocations();
   const [switchingTo, setSwitchingTo] = useState<string | null>(null);
 
