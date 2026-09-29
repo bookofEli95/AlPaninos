@@ -12,6 +12,10 @@ import CateringPlanner from '../../components/CateringPlanner';
 import FanFavourites from '../../components/FanFavourites';
 import { useFanFavourites } from '../../hooks/useFanFavourites';
 import { isDropVisible } from '../../lib/drops';
+import { useAuthStore } from '../../store/authStore';
+import { usePromoStore } from '../../store/promoStore';
+import { isBundleDeal, useDealBuilderStore } from '../../store/dealBuilderStore';
+import { dealValue } from '../../components/DealCard';
 
 export default function MenuCategoryScreen() {
   const { categoryId, categoryName, locationId } = useLocalSearchParams<{
@@ -59,6 +63,36 @@ export default function MenuCategoryScreen() {
   const isSecret = !!category?.is_secret;
   const { data: favourites } = useFanFavourites(isSecret ? locationId : null);
   const hasFavourites = isSecret && !!favourites?.length;
+
+  // Deals on this category, as a banner at the top -- the deal is seen right
+  // where the food is picked. Same list (and cache) as the Menu screen's.
+  const userId = useAuthStore((state) => state.session?.user?.id);
+  const appliedCode = usePromoStore((state) => state.appliedPromo?.code);
+  const { data: promotions } = useQuery({
+    queryKey: ['promotions', locationId, userId],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('promotions')
+        .select('*')
+        .eq('is_active', true)
+        .or(`location_id.eq.${locationId},location_id.is.null`);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!locationId,
+  });
+  const categoryDeal = useMemo(() => {
+    const name = String(categoryName ?? '').trim().toLowerCase();
+    return (
+      (promotions || []).find((p: any) => {
+        if (p.user_id || Number(p.discount_percent) >= 100) return false;
+        const names = [...(p.category_names ?? []), p.category_name]
+          .filter(Boolean)
+          .map((n: string) => n.trim().toLowerCase());
+        return p.category_id === categoryId || names.includes(name);
+      }) ?? null
+    );
+  }, [promotions, categoryId, categoryName]);
 
   // The catering category gets the "how many are you feeding" planner.
   const plannerPackages = useMemo(
@@ -113,6 +147,41 @@ export default function MenuCategoryScreen() {
           )}
         </TouchableOpacity>
       </View>
+
+      {!!categoryDeal && (
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => {
+            // A Mix & Match opens its builder; any other deal opens Deals.
+            if (isBundleDeal(categoryDeal)) useDealBuilderStore.getState().start(categoryDeal);
+            router.push('/(main)/deals');
+          }}
+          className="mx-4 mb-3 bg-[#A61C14] rounded-2xl flex-row items-center px-3 py-2.5"
+        >
+          <View className="bg-[#FFC72C] rounded-xl px-2.5 py-1.5 mr-3">
+            <Text className="text-[#7A0E0A] font-inter-extrabold text-sm">
+              {`${dealValue(categoryDeal).big} ${dealValue(categoryDeal).small}`.trim()}
+            </Text>
+          </View>
+          <View className="flex-1 mr-2">
+            <Text className="text-[#F4ECE1] font-inter-bold text-sm" numberOfLines={1}>
+              {categoryDeal.title}
+            </Text>
+            <Text className="text-[#F4ECE1] opacity-80 text-xs font-inter-medium" numberOfLines={1}>
+              {appliedCode === categoryDeal.code
+                ? 'Applied -- the saving shows in your cart'
+                : isBundleDeal(categoryDeal)
+                ? 'Tap to build your deal'
+                : 'Tap to get this deal'}
+            </Text>
+          </View>
+          <Ionicons
+            name={appliedCode === categoryDeal.code ? 'checkmark-circle' : 'arrow-forward'}
+            size={20}
+            color="#FFC72C"
+          />
+        </TouchableOpacity>
+      )}
 
       {isLoading ? (
         <View className="flex-row flex-wrap px-2">

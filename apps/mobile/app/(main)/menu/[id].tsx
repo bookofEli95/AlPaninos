@@ -1,5 +1,8 @@
 import { useState, useMemo, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, Image, ScrollView, Dimensions, StyleSheet } from 'react-native';
+import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
+import { getDaypart } from '../../../lib/daypart';
+import { dealValue } from '../../../components/DealCard';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
@@ -117,6 +120,44 @@ export default function MenuScreen() {
     }
     return rows;
   }, [menuData]);
+
+  // A deal right on the category it's for ("20% OFF" on The Mob) -- seen
+  // where the food is picked, not only on the Deals tab. Store-wide deals
+  // (not personal prizes, not free items) only.
+  const dealTagFor = useCallback(
+    (category: any): string | null => {
+      const name = String(category.name).trim().toLowerCase();
+      const promo = (activePromotions || []).find((p: any) => {
+        if (p.user_id || Number(p.discount_percent) >= 100) return false;
+        const names = [...(p.category_names ?? []), p.category_name]
+          .filter(Boolean)
+          .map((n: string) => n.trim().toLowerCase());
+        return p.category_id === category.id || names.includes(name);
+      });
+      if (!promo) return null;
+      const value = dealValue(promo);
+      return `${value.big} ${value.small}`.trim();
+    },
+    [activePromotions]
+  );
+
+  // "Popular right now": what this store sells most at this time of day
+  // (same list and cache as Home's time-of-day picks).
+  const daypart = getDaypart();
+  const { data: popular } = useQuery({
+    queryKey: ['daypartPicks', locationId, daypart.daypart],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc('get_daypart_picks', {
+        p_location_id: locationId,
+        p_daypart: daypart.daypart,
+        p_limit: 6,
+      });
+      if (error) throw error;
+      return (data || []) as { id: string; name: string; base_price: number; image_url: string | null; location_id: string }[];
+    },
+    enabled: !!locationId,
+    staleTime: 5 * 60000,
+  });
 
   if (isLoading) {
     return (
@@ -290,43 +331,104 @@ export default function MenuScreen() {
       ) : categoryRows.length === 0 ? (
         <Text className="text-center text-[#78716C] mt-10 text-sm w-full font-inter-medium">No categories yet.</Text>
       ) : (
-        <View
-          className="flex-1 px-2"
-          style={{ paddingBottom: cartItems.length > 0 ? 100 : 12 }}
+        <ScrollView
+          className="flex-1"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: cartItems.length > 0 ? 110 : 24 }}
         >
-          {categoryRows.map((row, rowIndex) => (
-            <View key={rowIndex} className="flex-1 flex-row">
-              {row.map((cat) => (
-                <View key={cat.id} className="flex-1 p-2">
+          {/* Popular right now */}
+          {!!popular?.length && (
+            <View className="mb-5">
+              <View className="flex-row items-center px-4 mb-2.5">
+                <Ionicons name="flame" size={16} color="#A61C14" />
+                <Text className="text-[#1C1917] font-display-bold text-lg ml-1.5">Popular right now</Text>
+              </View>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
+              >
+                {popular.map((item) => (
                   <TouchableOpacity
-                    onPress={() =>
-                      router.push({
-                        pathname: '/(main)/menu-category',
-                        params: { categoryId: cat.id, categoryName: cat.name, locationId },
-                      })
-                    }
-                    className="flex-1 bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden"
-                    activeOpacity={0.7}
+                    key={item.id}
+                    activeOpacity={0.85}
+                    onPress={() => router.push({ pathname: `/(main)/item/${item.id}`, params: { returnTo: 'menu' } })}
+                    className="bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-sm"
+                    style={{ width: 148 }}
                   >
-                    {cat.image_url ? (
-                      <Image source={{ uri: cat.image_url }} className="w-full flex-1 bg-stone-200" resizeMode="cover" />
+                    {item.image_url ? (
+                      <Image source={{ uri: item.image_url }} style={{ width: 148, height: 110 }} resizeMode="cover" />
                     ) : (
-                      <View className="w-full flex-1 bg-[#FAF6F0] items-center justify-center">
-                        <Ionicons name="restaurant-outline" size={36} color="#A8A29E" />
+                      <View style={{ width: 148, height: 110 }} className="bg-[#FAF6F0] items-center justify-center">
+                        <Ionicons name="restaurant-outline" size={28} color="#A8A29E" />
                       </View>
                     )}
                     <View className="p-2.5">
-                      <Text className="text-[#1C1917] font-display-bold text-base text-center tracking-tight">
-                        {cat.name}
+                      <Text className="text-[#1C1917] font-inter-bold text-sm leading-5" numberOfLines={1}>
+                        {item.name}
+                      </Text>
+                      <Text className="text-stone-600 font-inter-semibold text-sm mt-0.5">
+                        ${Number(item.base_price).toFixed(2)}
                       </Text>
                     </View>
                   </TouchableOpacity>
-                </View>
-              ))}
-              {row.length === 1 && <View className="flex-1 p-2" />}
+                ))}
+              </ScrollView>
             </View>
-          ))}
-        </View>
+          )}
+
+          {/* The menu: full-photo tiles, the name over the food */}
+          <Text className="text-[#1C1917] font-display-bold text-lg px-4 mb-2.5">The Menu</Text>
+          <View className="px-4" style={{ gap: 12 }}>
+            {categoryRows.map((row, rowIndex) => (
+              <View key={rowIndex} className="flex-row" style={{ gap: 12 }}>
+                {row.map((cat) => {
+                  const tag = dealTagFor(cat);
+                  return (
+                    <TouchableOpacity
+                      key={cat.id}
+                      onPress={() =>
+                        router.push({
+                          pathname: '/(main)/menu-category',
+                          params: { categoryId: cat.id, categoryName: cat.name, locationId },
+                        })
+                      }
+                      activeOpacity={0.85}
+                      style={styles.tile}
+                    >
+                      {cat.image_url ? (
+                        <Image source={{ uri: cat.image_url }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                      ) : (
+                        <View style={[StyleSheet.absoluteFill, { backgroundColor: '#A61C14', alignItems: 'center', justifyContent: 'center' }]}>
+                          <Ionicons name="restaurant-outline" size={36} color="rgba(244,236,225,0.5)" />
+                        </View>
+                      )}
+                      <Svg pointerEvents="none" width={TILE} height={TILE_HEIGHT} style={StyleSheet.absoluteFill}>
+                        <Defs>
+                          <LinearGradient id={`tileFade-${cat.id}`} x1="0" y1="0" x2="0" y2="1">
+                            <Stop offset="0.45" stopColor="#000000" stopOpacity={0} />
+                            <Stop offset="1" stopColor="#0C0604" stopOpacity={0.85} />
+                          </LinearGradient>
+                        </Defs>
+                        <Rect x={0} y={0} width={TILE} height={TILE_HEIGHT} fill={`url(#tileFade-${cat.id})`} />
+                      </Svg>
+                      {!!tag && (
+                        <View style={styles.dealTag}>
+                          <Ionicons name="pricetag" size={11} color="#7A0E0A" />
+                          <Text style={styles.dealTagText}>{tag}</Text>
+                        </View>
+                      )}
+                      <Text style={styles.tileName} numberOfLines={2}>
+                        {cat.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+                {row.length === 1 && <View style={{ width: TILE }} />}
+              </View>
+            ))}
+          </View>
+        </ScrollView>
       )}
 
       <OrderTypeSheet
@@ -337,3 +439,45 @@ export default function MenuScreen() {
     </View>
   );
 }
+
+const TILE = (Dimensions.get('window').width - 16 * 2 - 12) / 2;
+const TILE_HEIGHT = Math.round(TILE * 1.05);
+
+const styles = StyleSheet.create({
+  tile: {
+    width: TILE,
+    height: TILE_HEIGHT,
+    borderRadius: 20,
+    overflow: 'hidden',
+    backgroundColor: '#1C1917',
+    justifyContent: 'flex-end',
+  },
+  tileName: {
+    color: '#FFFFFF',
+    fontFamily: 'PlusJakartaSans_800ExtraBold',
+    fontSize: 19,
+    lineHeight: 23,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 6,
+  },
+  dealTag: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFC72C',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  dealTagText: {
+    color: '#7A0E0A',
+    fontFamily: 'Inter_800ExtraBold',
+    fontSize: 11,
+    marginLeft: 4,
+  },
+});
