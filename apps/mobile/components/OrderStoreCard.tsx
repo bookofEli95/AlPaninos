@@ -16,7 +16,7 @@ export default function OrderStoreCard({
 
   return (
     <View className="bg-white p-4 rounded-3xl border border-stone-200 shadow-sm mb-4">
-      <Text className="text-xs font-inter-bold text-[#78716C] uppercase tracking-wider mb-2">
+      <Text className="text-[13px] font-inter-bold text-[#78716C] uppercase tracking-wider mb-2">
         {orderType === 'delivery' ? 'Coming From' : 'Pick Up At'}
       </Text>
       <View className="flex-row items-start">
@@ -37,7 +37,7 @@ export default function OrderStoreCard({
             className="flex-1 flex-row items-center justify-center bg-stone-100 py-2.5 rounded-xl active:bg-stone-200"
           >
             <Ionicons name="call-outline" size={15} color="#1C1917" />
-            <Text className="text-[#1C1917] font-inter-bold text-xs ml-1.5">Call Store</Text>
+            <Text className="text-[#1C1917] font-inter-bold text-[13px] ml-1.5">Call Store</Text>
           </TouchableOpacity>
         )}
         {!!location.address && (
@@ -46,7 +46,7 @@ export default function OrderStoreCard({
             className="flex-1 flex-row items-center justify-center bg-stone-100 py-2.5 rounded-xl active:bg-stone-200"
           >
             <Ionicons name="navigate-outline" size={15} color="#1C1917" />
-            <Text className="text-[#1C1917] font-inter-bold text-xs ml-1.5">Directions</Text>
+            <Text className="text-[#1C1917] font-inter-bold text-[13px] ml-1.5">Directions</Text>
           </TouchableOpacity>
         )}
       </View>

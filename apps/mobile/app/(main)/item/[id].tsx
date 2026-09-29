@@ -442,7 +442,7 @@ export default function ItemDetailScreen() {
         <Text className="text-[#A61C14] font-inter-bold text-lg mt-3 mb-1">
           {error ? 'Unable to load item' : 'Item not found'}
         </Text>
-        <Text className="text-stone-500 text-center text-xs mb-6">
+        <Text className="text-stone-500 text-center text-[13px] mb-6">
           {error ? error.message : 'This menu item is currently unavailable.'}
         </Text>
         <TouchableOpacity
@@ -477,7 +477,7 @@ export default function ItemDetailScreen() {
 
           {data.menu_categories?.name && (
             <View className="bg-white border border-stone-200 px-3 py-1 rounded-full">
-              <Text className="text-stone-600 font-inter-semibold text-xs uppercase tracking-wider">
+              <Text className="text-stone-600 font-inter-semibold text-[13px] uppercase tracking-wider">
                 {data.menu_categories.name}
               </Text>
             </View>
@@ -514,7 +514,7 @@ export default function ItemDetailScreen() {
         {data.is_catering && (
           <View className="flex-row items-center bg-white border border-stone-200 rounded-2xl p-3 mt-3">
             <Ionicons name="calendar-outline" size={18} color="#A61C14" />
-            <Text className="text-[#1C1917] text-xs font-inter-medium ml-2.5 flex-1">{CATERING_RULES_SUMMARY}</Text>
+            <Text className="text-[#1C1917] text-[13px] font-inter-medium ml-2.5 flex-1">{CATERING_RULES_SUMMARY}</Text>
           </View>
         )}
 
@@ -522,10 +522,10 @@ export default function ItemDetailScreen() {
           <View className="flex-row items-center bg-[#1C1917] rounded-2xl p-3 mt-3">
             <Ionicons name="flame" size={18} color="#F0B4AC" />
             <View className="ml-2.5 flex-1">
-              <Text className="text-[#F0B4AC] font-inter-bold text-[10px] uppercase tracking-wider">
+              <Text className="text-[#F0B4AC] font-inter-bold text-[11px] uppercase tracking-wider">
                 App-Only Drop
               </Text>
-              <Text className="text-[#F4ECE1] font-inter-semibold text-xs">{dropLabel(data as any)}</Text>
+              <Text className="text-[#F4ECE1] font-inter-semibold text-[13px]">{dropLabel(data as any)}</Text>
             </View>
           </View>
         )}
@@ -534,10 +534,10 @@ export default function ItemDetailScreen() {
           <View className="flex-row items-center bg-[#FAF6F0] border border-[#A61C14] rounded-2xl p-3 mt-3">
             <Ionicons name="gift" size={18} color="#A61C14" />
             <View className="ml-2.5 flex-1">
-              <Text className="text-[#A61C14] font-inter-bold text-xs uppercase tracking-wider">
+              <Text className="text-[#A61C14] font-inter-bold text-[13px] uppercase tracking-wider">
                 Reward Unlocked
               </Text>
-              <Text className="text-[#1C1917] font-inter-semibold text-xs">
+              <Text className="text-[#1C1917] font-inter-semibold text-[13px]">
                 {promoTitle || 'Free Reward Item'} • Modifiers Included
               </Text>
             </View>
@@ -557,7 +557,7 @@ export default function ItemDetailScreen() {
                   <Text className="text-lg font-inter-bold text-[#1C1917] mr-2">{group.name}</Text>
                   {minRequired > 0 && !isGroupSatisfied && (
                     <View className="bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-md">
-                      <Text className="text-amber-800 text-[11px] font-inter-bold uppercase">Required</Text>
+                      <Text className="text-amber-800 text-xs font-inter-bold uppercase">Required</Text>
                     </View>
                   )}
                 </View>
@@ -576,7 +576,7 @@ export default function ItemDetailScreen() {
               </View>
 
               {group.allow_quantity && group.modifier_options?.some((o: any) => o.dietary_tags?.length > 0) && (
-                <Text className="text-[11px] text-[#78716C] mb-2.5">{DIETARY_DISCLAIMER}</Text>
+                <Text className="text-xs text-[#78716C] mb-2.5">{DIETARY_DISCLAIMER}</Text>
               )}
 
               {/* Choices as chips (tap to pick), except count-able ones
@@ -603,12 +603,12 @@ export default function ItemDetailScreen() {
                             {option.name}
                           </Text>
                           {!promoCode && option.price_adjustment > 0 && (
-                            <Text className="text-xs font-inter-bold text-[#A61C14]">
+                            <Text className="text-[13px] font-inter-bold text-[#A61C14]">
                               +${option.price_adjustment.toFixed(2)} each
                             </Text>
                           )}
                           {!!option.description && (
-                            <Text className="text-xs text-stone-500 leading-4 mt-0.5" numberOfLines={3}>
+                            <Text className="text-[13px] text-stone-500 leading-4 mt-0.5" numberOfLines={3}>
                               {option.description}
                             </Text>
                           )}

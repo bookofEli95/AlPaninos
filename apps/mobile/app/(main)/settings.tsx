@@ -63,7 +63,7 @@ export default function SettingsScreen() {
         <View className="bg-white rounded-2xl border border-stone-200 shadow-sm p-4 flex-row items-center justify-between">
           <View className="flex-1 mr-4">
             <Text className="text-sm font-inter-semibold text-[#1C1917]">Push Notifications</Text>
-            <Text className="text-[#78716C] text-xs mt-1">Get notified when your order status changes.</Text>
+            <Text className="text-[#78716C] text-[13px] mt-1">Get notified when your order status changes.</Text>
           </View>
           <Switch
             value={pushEnabled}

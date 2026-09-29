@@ -59,7 +59,7 @@ export default function FanFavourites({ locationId }: { locationId: string }) {
         <Ionicons name="heart" size={15} color="#A61C14" />
         <Text className="text-base font-inter-bold text-[#1C1917] ml-1.5">Fan Favourites</Text>
       </View>
-      <Text className="text-xs text-stone-500 mb-2.5">How our regulars order them -- add it exactly their way.</Text>
+      <Text className="text-[13px] text-stone-500 mb-2.5">How our regulars order them -- add it exactly their way.</Text>
       <FlatList
         horizontal
         data={favourites}
@@ -81,10 +81,10 @@ export default function FanFavourites({ locationId }: { locationId: string }) {
                 <Text className="text-sm font-inter-bold text-[#1C1917]" numberOfLines={1}>
                   {fav.name}
                 </Text>
-                <Text className="text-[11px] text-stone-600 leading-4 mt-0.5" numberOfLines={2}>
+                <Text className="text-xs text-stone-600 leading-4 mt-0.5" numberOfLines={2}>
                   + {fav.option_names.join(', ')}
                 </Text>
-                <Text className="text-[10px] text-stone-400 mt-1">Ordered {fav.times_ordered} times</Text>
+                <Text className="text-[11px] text-stone-400 mt-1">Ordered {fav.times_ordered} times</Text>
                 <View className="flex-row items-center justify-between mt-2">
                   <Text className="text-sm font-inter-bold text-[#A61C14]" style={tabularNums}>
                     ${Number(fav.price).toFixed(2)}
@@ -97,7 +97,7 @@ export default function FanFavourites({ locationId }: { locationId: string }) {
                     {added ? (
                       <Ionicons name="checkmark" size={14} color="#F4ECE1" />
                     ) : (
-                      <Text className="text-[#F4ECE1] font-inter-bold text-xs">Add</Text>
+                      <Text className="text-[#F4ECE1] font-inter-bold text-[13px]">Add</Text>
                     )}
                   </TouchableOpacity>
                 </View>

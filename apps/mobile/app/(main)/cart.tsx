@@ -641,7 +641,7 @@ export default function CartScreen() {
             className="items-center px-2 py-1 mt-2 mr-3"
           >
             <Ionicons name="trash-outline" size={24} color="#A61C14" />
-            <Text className="text-[#A61C14] font-inter-semibold text-[11px] mt-0.5">Clear</Text>
+            <Text className="text-[#A61C14] font-inter-semibold text-xs mt-0.5">Clear</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -661,7 +661,7 @@ export default function CartScreen() {
                   className="flex-row items-center self-start"
                   hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                 >
-                  <Text className="text-[11px] font-inter-bold uppercase tracking-wider text-stone-500">
+                  <Text className="text-xs font-inter-bold uppercase tracking-wider text-stone-500">
                     {orderType === 'delivery' ? 'Delivery' : `Pickup${locationName ? ` • ${locationName}` : ''}`}
                   </Text>
                   <Ionicons name="chevron-down" size={11} color="#78716C" style={{ marginLeft: 3 }} />
@@ -682,17 +682,17 @@ export default function CartScreen() {
               onPress={() => setTimePickerVisible(true)}
               className="bg-[#FAF6F0] px-3 py-1.5 rounded-xl border border-stone-200"
             >
-              <Text className="text-xs font-inter-bold text-[#A61C14]">{isCateringOrder && !selectedSlot ? 'Choose' : 'Change'}</Text>
+              <Text className="text-[13px] font-inter-bold text-[#A61C14]">{isCateringOrder && !selectedSlot ? 'Choose' : 'Change'}</Text>
             </TouchableOpacity>
           </View>
           {orderType === 'delivery' && (
             <View className="mt-2.5 pt-2.5 border-t border-stone-100">
               <TouchableOpacity onPress={() => setOrderTypeSheetVisible(true)} activeOpacity={0.7}>
                 <View className="flex-row items-center justify-between mb-0.5">
-                  <Text className="text-[11px] font-inter-bold uppercase tracking-wider text-stone-500">
+                  <Text className="text-xs font-inter-bold uppercase tracking-wider text-stone-500">
                     Delivering To
                   </Text>
-                  <Text className="text-xs font-inter-bold text-[#A61C14]">{deliveryAddress ? 'Change' : 'Add'}</Text>
+                  <Text className="text-[13px] font-inter-bold text-[#A61C14]">{deliveryAddress ? 'Change' : 'Add'}</Text>
                 </View>
                 <Text className={`text-sm font-inter-semibold ${deliveryAddress ? 'text-[#1C1917]' : 'text-[#A61C14]'}`}>
                   {deliveryAddress || 'Tap to add your delivery address'}
@@ -701,7 +701,7 @@ export default function CartScreen() {
               {outOfCateringRange && (
                 <View className="flex-row items-start mt-1.5 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
                   <Ionicons name="warning-outline" size={13} color="#B45309" style={{ marginTop: 1 }} />
-                  <Text className="text-amber-800 text-xs font-inter-semibold ml-1.5 flex-1">
+                  <Text className="text-amber-800 text-[13px] font-inter-semibold ml-1.5 flex-1">
                     About {Math.round(cateringDistanceKm!)} km away -- catering delivery is up to {CATERING_MAX_DELIVERY_KM} km.
                     Switch to pickup, or use a closer address.
                   </Text>
@@ -751,25 +751,25 @@ export default function CartScreen() {
               <View className="mb-3 p-4 bg-white rounded-2xl border border-[#A61C14] shadow-sm">
                 <View className="flex-row items-center mb-1">
                   <Ionicons name="people" size={16} color="#A61C14" />
-                  <Text className="text-[#A61C14] font-inter-extrabold text-xs uppercase tracking-wider ml-1.5">
+                  <Text className="text-[#A61C14] font-inter-extrabold text-[13px] uppercase tracking-wider ml-1.5">
                     Catering Order
                   </Text>
                 </View>
                 <Text className="text-[#1C1917] text-sm">{CATERING_RULES_SUMMARY}</Text>
-                <Text className="text-[#78716C] text-xs mt-1">
+                <Text className="text-[#78716C] text-[13px] mt-1">
                   We'll call you to confirm before we start preparing it.
                 </Text>
                 {cateringShortfall > 0 && (
                   <>
                     <View className="flex-row items-center mt-2 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
                       <Ionicons name="lock-closed" size={12} color="#B45309" />
-                      <Text className="text-amber-800 text-xs font-inter-semibold ml-1.5 flex-1">
+                      <Text className="text-amber-800 text-[13px] font-inter-semibold ml-1.5 flex-1">
                         Add ${cateringShortfall.toFixed(2)} more to reach the ${CATERING_MIN_SUBTOTAL} catering minimum.
                       </Text>
                     </View>
                     {shortfallSuggestions.length > 0 && (
                       <View className="mt-2.5">
-                        <Text className="text-[11px] font-inter-bold uppercase tracking-wider text-stone-500 mb-1.5">
+                        <Text className="text-xs font-inter-bold uppercase tracking-wider text-stone-500 mb-1.5">
                           Add to your order
                         </Text>
                         <View className="flex-row flex-wrap">
@@ -780,7 +780,7 @@ export default function CartScreen() {
                               className="flex-row items-center bg-[#FAF6F0] border border-stone-300 rounded-full px-3 py-1.5 mr-2 mb-2"
                             >
                               <Ionicons name="add" size={13} color="#A61C14" />
-                              <Text className="text-[#1C1917] text-xs font-inter-semibold ml-1">
+                              <Text className="text-[#1C1917] text-[13px] font-inter-semibold ml-1">
                                 {m.name} <Text style={tabularNums}>${Number(m.base_price).toFixed(2)}</Text>
                               </Text>
                             </TouchableOpacity>
@@ -800,7 +800,7 @@ export default function CartScreen() {
                           className="flex-row items-center self-start"
                           hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                         >
-                          <Text className="text-[#A61C14] text-xs font-inter-bold">Browse all catering</Text>
+                          <Text className="text-[#A61C14] text-[13px] font-inter-bold">Browse all catering</Text>
                           <Ionicons name="chevron-forward" size={12} color="#A61C14" />
                         </TouchableOpacity>
                       </View>
@@ -825,7 +825,7 @@ export default function CartScreen() {
                       <Text className="text-base font-inter-bold text-[#1C1917]">{item.name}</Text>
                       {item.promoCode && (
                         <View className="bg-[#A61C14] rounded-full px-2 py-0.5 ml-2">
-                          <Text className="text-[#F4ECE1] text-[10px] font-inter-bold">FREE</Text>
+                          <Text className="text-[#F4ECE1] text-[11px] font-inter-bold">FREE</Text>
                         </View>
                       )}
                     </View>
@@ -835,7 +835,7 @@ export default function CartScreen() {
                     {isCateringOrder && !cateringItemIds?.has(item.menuItemId) && (
                       <View className="flex-row items-center self-start bg-[#FAF6F0] border border-[#F0B4AC] rounded-md px-2 py-0.5 mb-1.5">
                         <Ionicons name="calendar-outline" size={11} color="#A61C14" />
-                        <Text className="text-[#A61C14] text-[11px] font-inter-semibold ml-1">
+                        <Text className="text-[#A61C14] text-xs font-inter-semibold ml-1">
                           {selectedSlot
                             ? `Comes with your catering ${orderType === 'delivery' ? 'delivery' : 'pickup'}, ${formatDayAndTime(selectedSlot)}`
                             : 'Comes with your catering order'}
@@ -849,7 +849,7 @@ export default function CartScreen() {
                             key={mod.optionId}
                             className="bg-[#FAF6F0] border border-stone-200 rounded-md px-2 py-0.5 mr-1.5 mb-1.5"
                           >
-                            <Text className="text-stone-600 text-xs font-inter-medium">
+                            <Text className="text-stone-600 text-[13px] font-inter-medium">
                               + {count > 1 ? `${count}× ` : ''}{mod.name}
                               {!item.promoCode && mod.price > 0 ? ` ($${(mod.price * count).toFixed(2)})` : ''}
                             </Text>
@@ -858,7 +858,7 @@ export default function CartScreen() {
                       </View>
                     )}
                     {item.specialInstructions && (
-                      <Text className="text-stone-400 text-xs italic mt-0.5">
+                      <Text className="text-stone-400 text-[13px] italic mt-0.5">
                         "{item.specialInstructions}"
                       </Text>
                     )}
@@ -875,10 +875,10 @@ export default function CartScreen() {
                     }}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
-                    <Text className="text-stone-400 font-inter-medium text-xs">Remove</Text>
+                    <Text className="text-stone-400 font-inter-medium text-[13px]">Remove</Text>
                   </TouchableOpacity>
                   {item.promoCode ? (
-                    <Text className="text-xs font-inter-semibold text-stone-500">Qty: {item.quantity}</Text>
+                    <Text className="text-[13px] font-inter-semibold text-stone-500">Qty: {item.quantity}</Text>
                   ) : (
                     <View className="flex-row items-center bg-stone-100 rounded-lg p-1 border border-stone-200">
                       <TouchableOpacity
@@ -943,9 +943,9 @@ export default function CartScreen() {
               ) : (
                 <View>
                   <View className="flex-row items-center justify-between mb-2">
-                    <Text className="text-xs font-inter-bold text-stone-500 uppercase">Promo Code</Text>
+                    <Text className="text-[13px] font-inter-bold text-stone-500 uppercase">Promo Code</Text>
                     <TouchableOpacity onPress={() => setPromoInputOpen(false)}>
-                      <Text className="text-xs text-stone-400 font-inter-medium">Cancel</Text>
+                      <Text className="text-[13px] text-stone-400 font-inter-medium">Cancel</Text>
                     </TouchableOpacity>
                   </View>
                   <View className="flex-row">
@@ -967,7 +967,7 @@ export default function CartScreen() {
                       {applyingPromo ? (
                         <ActivityIndicator size="small" color="#F4ECE1" />
                       ) : (
-                        <Text className={`text-xs font-inter-bold ${!promoCode.trim() ? 'text-stone-500' : 'text-[#F4ECE1]'}`}>Apply</Text>
+                        <Text className={`text-[13px] font-inter-bold ${!promoCode.trim() ? 'text-stone-500' : 'text-[#F4ECE1]'}`}>Apply</Text>
                       )}
                     </TouchableOpacity>
                   </View>
@@ -1002,7 +1002,7 @@ export default function CartScreen() {
                   value={invoiceEmail}
                   onChangeText={setInvoiceEmail}
                 />
-                <Text className="text-[11px] text-[#78716C] mt-1.5">
+                <Text className="text-xs text-[#78716C] mt-1.5">
                   These go on your invoice -- email or save it as a PDF from the order screen.
                 </Text>
                 {orderType === 'delivery' && (
@@ -1024,7 +1024,7 @@ export default function CartScreen() {
                       multiline
                       textAlignVertical="top"
                     />
-                    <Text className="text-[11px] text-[#78716C] mt-1.5">
+                    <Text className="text-xs text-[#78716C] mt-1.5">
                       Catering delivery is available up to {CATERING_MAX_DELIVERY_KM} km from the store.
                     </Text>
                   </>
@@ -1037,7 +1037,7 @@ export default function CartScreen() {
                 <View className="flex-row items-center justify-between mb-3">
                   <Text className="text-base font-inter-bold text-[#1C1917]">Contact & Pickup Info</Text>
                   <View className="bg-stone-100 px-2 py-0.5 rounded-full">
-                    <Text className="text-[10px] font-inter-bold text-stone-500">GUEST CHECKOUT</Text>
+                    <Text className="text-[11px] font-inter-bold text-stone-500">GUEST CHECKOUT</Text>
                   </View>
                 </View>
 
@@ -1064,7 +1064,7 @@ export default function CartScreen() {
                     className="flex-row items-center bg-[#FAF6F0] border border-stone-300 rounded-xl px-2.5 mr-2"
                   >
                     <Text className="text-sm mr-1">{guestCountry.flag}</Text>
-                    <Text className="text-xs font-inter-semibold text-[#1C1917] mr-1">+{guestCountry.dialCode}</Text>
+                    <Text className="text-[13px] font-inter-semibold text-[#1C1917] mr-1">+{guestCountry.dialCode}</Text>
                     <Ionicons name="chevron-down" size={12} color="#A8A29E" />
                   </TouchableOpacity>
                   <TextInput
@@ -1090,11 +1090,11 @@ export default function CartScreen() {
                 {emailVerified ? (
                   <View className="flex-row items-center mt-2.5 px-1">
                     <Ionicons name="checkmark-circle" size={16} color="#16a34a" />
-                    <Text className="text-green-700 font-inter-semibold text-xs ml-1.5">Email verified</Text>
+                    <Text className="text-green-700 font-inter-semibold text-[13px] ml-1.5">Email verified</Text>
                   </View>
                 ) : otpSent ? (
                   <View className="mt-2.5 bg-stone-50 p-3 rounded-xl border border-stone-200">
-                    <Text className="text-stone-600 text-xs mb-2">
+                    <Text className="text-stone-600 text-[13px] mb-2">
                       Enter the 6-digit code we emailed to {guestEmail.trim()}.
                     </Text>
                     <View className="flex-row items-center">
@@ -1117,12 +1117,12 @@ export default function CartScreen() {
                         {verifyingOtp ? (
                           <ActivityIndicator size="small" color="#F4ECE1" />
                         ) : (
-                          <Text className="text-[#F4ECE1] font-inter-bold text-xs">Verify</Text>
+                          <Text className="text-[#F4ECE1] font-inter-bold text-[13px]">Verify</Text>
                         )}
                       </TouchableOpacity>
                     </View>
                     <TouchableOpacity onPress={handleSendCode} disabled={sendingOtp} className="mt-2 self-start">
-                      <Text className="text-[#A61C14] font-inter-semibold text-xs">Resend Code</Text>
+                      <Text className="text-[#A61C14] font-inter-semibold text-[13px]">Resend Code</Text>
                     </TouchableOpacity>
                   </View>
                 ) : (

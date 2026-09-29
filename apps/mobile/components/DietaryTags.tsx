@@ -14,7 +14,7 @@ export default function DietaryTags({ tags }: { tags: string[] | null | undefine
             label === 'Vegetarian' ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'
           }`}
         >
-          <Text className={`text-[10px] font-inter-bold ${label === 'Vegetarian' ? 'text-emerald-800' : 'text-amber-800'}`}>
+          <Text className={`text-[11px] font-inter-bold ${label === 'Vegetarian' ? 'text-emerald-800' : 'text-amber-800'}`}>
             {label}
           </Text>
         </View>

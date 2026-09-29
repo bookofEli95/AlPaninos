@@ -37,7 +37,7 @@ export default function BoxManifest({ orderItems, tagsById }: Props) {
           <Ionicons name="cube-outline" size={18} color="#A61C14" />
           <View className="ml-2 flex-1">
             <Text className="text-base font-inter-bold text-[#1C1917]">What's in Each Box</Text>
-            <Text className="text-xs text-[#78716C]">
+            <Text className="text-[13px] text-[#78716C]">
               {nextBox - 1} {nextBox - 1 === 1 ? 'box' : 'boxes'}, labeled to match
             </Text>
           </View>
@@ -62,7 +62,7 @@ export default function BoxManifest({ orderItems, tagsById }: Props) {
 
             return (
               <View key={item.id} className="border-t border-stone-100 pt-3 mt-1 mb-2">
-                <Text className="text-[11px] font-inter-extrabold uppercase tracking-wider text-[#A61C14]">
+                <Text className="text-xs font-inter-extrabold uppercase tracking-wider text-[#A61C14]">
                   {first === last ? `Box ${first}` : `Boxes ${first}-${last} (${last - first + 1} identical)`}
                 </Text>
                 <Text className="text-sm font-inter-bold text-[#1C1917] mb-1.5">{item.menu_items?.name}</Text>
@@ -85,7 +85,7 @@ export default function BoxManifest({ orderItems, tagsById }: Props) {
                     );
                   }
                   return (
-                    <Text key={group?.id ?? 'other'} className="text-xs text-[#57534E] mb-1">
+                    <Text key={group?.id ?? 'other'} className="text-[13px] text-[#57534E] mb-1">
                       <Text className="font-inter-bold">{group?.name ?? 'Options'}: </Text>
                       {picks.map(({ item: mod, count }) => `${count > 1 ? `${count}× ` : ''}${mod.modifier_options?.name}`).join(', ')}
                     </Text>
@@ -93,12 +93,12 @@ export default function BoxManifest({ orderItems, tagsById }: Props) {
                 })}
 
                 {!!item.special_instructions && (
-                  <Text className="text-xs text-[#78716C] italic">Note: {item.special_instructions}</Text>
+                  <Text className="text-[13px] text-[#78716C] italic">Note: {item.special_instructions}</Text>
                 )}
               </View>
             );
           })}
-          <Text className="text-[11px] text-[#78716C] mt-1">{DIETARY_DISCLAIMER}</Text>
+          <Text className="text-xs text-[#78716C] mt-1">{DIETARY_DISCLAIMER}</Text>
         </View>
       )}
     </View>

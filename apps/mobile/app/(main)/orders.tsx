@@ -142,7 +142,7 @@ export default function OrdersScreen() {
       <View className="flex-1 bg-[#FAF6F0] justify-center items-center px-6">
         <Ionicons name="alert-circle-outline" size={36} color="#A61C14" />
         <Text className="text-[#A61C14] font-inter-bold text-base mt-2 mb-1">Couldn't load your orders</Text>
-        <Text className="text-stone-500 text-center text-xs">{(error as Error).message}</Text>
+        <Text className="text-stone-500 text-center text-[13px]">{(error as Error).message}</Text>
       </View>
     );
   }
@@ -204,7 +204,7 @@ export default function OrdersScreen() {
                   {!isFinished && (
                     <View className="flex-row items-center bg-[#A61C14] rounded-full px-2 py-0.5 mr-2">
                       <View className="w-1.5 h-1.5 rounded-full bg-[#FFC72C] mr-1" />
-                      <Text className="text-[#F4ECE1] font-inter-extrabold text-[11px]">LIVE</Text>
+                      <Text className="text-[#F4ECE1] font-inter-extrabold text-xs">LIVE</Text>
                     </View>
                   )}
                   <Text className="text-stone-600 text-sm font-inter-semibold" numberOfLines={1}>
@@ -215,7 +215,7 @@ export default function OrdersScreen() {
                 </View>
                 {item.status && (
                   <View className={`${badge.bg} px-2.5 py-1 rounded-full`}>
-                    <Text className={`${badge.text} font-inter-bold text-xs`}>{badge.label}</Text>
+                    <Text className={`${badge.text} font-inter-bold text-[13px]`}>{badge.label}</Text>
                   </View>
                 )}
               </View>
@@ -242,7 +242,7 @@ export default function OrdersScreen() {
                   <View className="flex-row items-center">
                     {item.is_catering && (
                       <View className="bg-[#FAF6F0] border border-[#A61C14] px-2 py-0.5 rounded-full mr-1.5">
-                        <Text className="text-[#A61C14] text-[11px] font-inter-bold uppercase">Catering</Text>
+                        <Text className="text-[#A61C14] text-xs font-inter-bold uppercase">Catering</Text>
                       </View>
                     )}
                     <Text className="text-[#1C1917] font-inter-bold text-[15px] flex-1" numberOfLines={2}>

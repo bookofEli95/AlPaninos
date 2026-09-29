@@ -463,7 +463,7 @@ export default function OrderDetailScreen() {
               <View className="bg-white border border-[#A61C14] rounded-3xl p-4 mb-4 shadow-sm">
                 <View className="flex-row items-center">
                   <Ionicons name="people" size={16} color="#A61C14" />
-                  <Text className="text-[#A61C14] font-inter-extrabold text-xs uppercase tracking-wider ml-1.5">
+                  <Text className="text-[#A61C14] font-inter-extrabold text-[13px] uppercase tracking-wider ml-1.5">
                     Catering Order
                   </Text>
                 </View>
@@ -479,7 +479,7 @@ export default function OrderDetailScreen() {
                 )}
                 <View className="flex-row items-center mt-2 pt-2 border-t border-stone-100">
                   <Ionicons name="star" size={14} color="#A61C14" />
-                  <Text className="text-xs text-[#1C1917] font-inter-semibold ml-1.5 flex-1">
+                  <Text className="text-[13px] text-[#1C1917] font-inter-semibold ml-1.5 flex-1">
                     {isCompleted ? 'Earned' : 'Earns'}{' '}
                     {pointsForSubtotal(Number(order.subtotal_amount ?? order.total_amount)).toLocaleString()} PaninoPoints
                     {isCompleted ? '' : ' when completed'}
@@ -503,7 +503,7 @@ export default function OrderDetailScreen() {
                     Pick it up at the front counter{order.locations?.name ? ` at ${order.locations.name}` : ''}.
                   </Text>
                   {!!order.ready_at && (
-                    <Text className="text-[#F4ECE1] font-inter-semibold text-xs mt-0.5">Ready since {clock(order.ready_at)}</Text>
+                    <Text className="text-[#F4ECE1] font-inter-semibold text-[13px] mt-0.5">Ready since {clock(order.ready_at)}</Text>
                   )}
                 </View>
               </View>
@@ -513,7 +513,7 @@ export default function OrderDetailScreen() {
                   <Ionicons name="time-outline" size={20} color="#A61C14" />
                 </View>
                 <View className="flex-1">
-                  <Text className="text-xs font-inter-bold uppercase tracking-wider text-[#78716C]">
+                  <Text className="text-[13px] font-inter-bold uppercase tracking-wider text-[#78716C]">
                     {order.requested_ready_at ? 'Scheduled For' : 'Estimated Time'}
                   </Text>
                   <Text className="text-base font-inter-bold text-[#1C1917]">{etaText}</Text>
@@ -524,10 +524,10 @@ export default function OrderDetailScreen() {
             {/* Progress Tracker */}
             <View className="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm mb-4">
               <View className="flex-row justify-between items-center mb-4">
-                <Text className="text-xs font-inter-bold text-[#78716C] uppercase tracking-wider">
+                <Text className="text-[13px] font-inter-bold text-[#78716C] uppercase tracking-wider">
                   Order Status: {order.order_type?.toUpperCase()}
                 </Text>
-                <Text className="text-xs font-inter-semibold text-[#78716C]">#{order.id.slice(0, 8)}</Text>
+                <Text className="text-[13px] font-inter-semibold text-[#78716C]">#{order.id.slice(0, 8)}</Text>
               </View>
 
               {isCancelled ? (
@@ -559,11 +559,11 @@ export default function OrderDetailScreen() {
                           {isPassed ? (
                             <Ionicons name="checkmark" size={16} color="#F4ECE1" />
                           ) : (
-                            <Text className="text-[#78716C] font-inter-bold text-xs">{idx + 1}</Text>
+                            <Text className="text-[#78716C] font-inter-bold text-[13px]">{idx + 1}</Text>
                           )}
                         </View>
                         <Text
-                          className={`text-xs text-center mt-2 ${isCurrent ? 'font-inter-bold text-[#A61C14]' : isPassed ? 'text-[#1C1917] font-inter-medium' : 'text-[#78716C]'}`}
+                          className={`text-[13px] text-center mt-2 ${isCurrent ? 'font-inter-bold text-[#A61C14]' : isPassed ? 'text-[#1C1917] font-inter-medium' : 'text-[#78716C]'}`}
                           numberOfLines={2}
                         >
                           {step.label}
@@ -578,7 +578,7 @@ export default function OrderDetailScreen() {
                 <View className="bg-[#FAF6F0] rounded-2xl px-3 py-2.5 mt-4 items-center">
                   <Text className="text-[#1C1917] text-sm font-inter-semibold text-center">{statusText.text}</Text>
                   {!!statusText.time && (
-                    <Text className="text-[#78716C] text-xs font-inter-medium mt-0.5">{statusText.time}</Text>
+                    <Text className="text-[#78716C] text-[13px] font-inter-medium mt-0.5">{statusText.time}</Text>
                   )}
                 </View>
               )}
@@ -598,7 +598,7 @@ export default function OrderDetailScreen() {
                       ? `Nice! You earned ${orderPoints.toLocaleString()} PaninoPoints`
                       : `You'll earn ${orderPoints.toLocaleString()} PaninoPoints`}
                   </Text>
-                  <Text className="text-xs text-[#78716C] mt-0.5">
+                  <Text className="text-[13px] text-[#78716C] mt-0.5">
                     {isCompleted
                       ? pointsBalanceLine
                       : `Added the moment it's ${order.order_type === 'delivery' ? 'delivered' : 'picked up'}.`}
@@ -615,7 +615,7 @@ export default function OrderDetailScreen() {
                   <Ionicons name="shield-checkmark-outline" size={16} color="#A61C14" />
                   <Text className="text-sm font-inter-bold text-[#1C1917] ml-1.5 flex-1">Keep This Order & Your Points</Text>
                 </View>
-                <Text className="text-xs text-[#78716C] mb-3">
+                <Text className="text-[13px] text-[#78716C] mb-3">
                   Set a password to keep this order in your account and collect its{' '}
                   {pointsForSubtotal(Number(order.subtotal_amount ?? order.total_amount)).toLocaleString()} PaninoPoints
                   {isCompleted ? '.' : ' once it\'s picked up.'}
@@ -701,7 +701,7 @@ export default function OrderDetailScreen() {
                     ) : (
                       <>
                         <Ionicons name="mail-outline" size={15} color="#1C1917" />
-                        <Text className="text-[#1C1917] font-inter-bold text-xs ml-1.5">Email Invoice</Text>
+                        <Text className="text-[#1C1917] font-inter-bold text-[13px] ml-1.5">Email Invoice</Text>
                       </>
                     )}
                   </TouchableOpacity>
@@ -715,14 +715,14 @@ export default function OrderDetailScreen() {
                     ) : (
                       <>
                         <Ionicons name="document-text-outline" size={15} color="#1C1917" />
-                        <Text className="text-[#1C1917] font-inter-bold text-xs ml-1.5">Save as PDF</Text>
+                        <Text className="text-[#1C1917] font-inter-bold text-[13px] ml-1.5">Save as PDF</Text>
                       </>
                     )}
                   </TouchableOpacity>
                 </View>
               )}
               {!isCancelled && !!order.invoice_email && (
-                <Text className="text-[11px] text-[#78716C] mt-1.5 text-center">Invoice goes to {order.invoice_email}</Text>
+                <Text className="text-xs text-[#78716C] mt-1.5 text-center">Invoice goes to {order.invoice_email}</Text>
               )}
             </View>
 

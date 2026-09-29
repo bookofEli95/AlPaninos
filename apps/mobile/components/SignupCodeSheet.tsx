@@ -107,11 +107,11 @@ export default function SignupCodeSheet({ visible, email, onClose, intro }: Prop
         {notice && (
           <View className="flex-row items-center bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 mb-3">
             <Ionicons name="checkmark-circle" size={16} color="#047857" />
-            <Text className="text-emerald-800 text-xs font-inter-semibold ml-1.5 flex-1">{notice}</Text>
+            <Text className="text-emerald-800 text-[13px] font-inter-semibold ml-1.5 flex-1">{notice}</Text>
           </View>
         )}
 
-        <Text className="text-stone-500 text-xs mb-3">
+        <Text className="text-stone-500 text-[13px] mb-3">
           {intro ? `${intro} ` : ''}Enter the 6-digit code we emailed to {email.trim()}. Check your spam folder if you don't see it.
         </Text>
 
@@ -149,7 +149,7 @@ export default function SignupCodeSheet({ visible, email, onClose, intro }: Prop
           {resending ? (
             <ActivityIndicator color="#A61C14" size="small" />
           ) : (
-            <Text className={`text-xs font-inter-semibold ${cooldown > 0 ? 'text-stone-400' : 'text-[#A61C14]'}`}>
+            <Text className={`text-[13px] font-inter-semibold ${cooldown > 0 ? 'text-stone-400' : 'text-[#A61C14]'}`}>
               {cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
             </Text>
           )}

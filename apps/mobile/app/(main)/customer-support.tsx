@@ -85,13 +85,13 @@ export default function CustomerSupportScreen() {
             <Ionicons name="call" size={20} color="#A61C14" />
           </View>
           <View>
-            <Text className="text-xs text-[#78716C] uppercase font-inter-bold tracking-wider">Call Us</Text>
+            <Text className="text-[13px] text-[#78716C] uppercase font-inter-bold tracking-wider">Call Us</Text>
             <Text className="text-base font-inter-bold text-[#1C1917]">{SUPPORT_PHONE}</Text>
           </View>
         </TouchableOpacity>
 
         <Text className="text-base font-inter-bold text-[#1C1917] mb-1">Leave a Comment or Review</Text>
-        <Text className="text-xs text-[#78716C] mb-3">What's it about? (optional)</Text>
+        <Text className="text-[13px] text-[#78716C] mb-3">What's it about? (optional)</Text>
         <View className="flex-row flex-wrap mb-3">
           {TOPICS.map((t) => {
             const selected = topic === t.label;
@@ -104,7 +104,7 @@ export default function CustomerSupportScreen() {
                 }`}
               >
                 <Ionicons name={t.icon as any} size={14} color={selected ? '#F4ECE1' : '#78716C'} />
-                <Text className={`text-xs font-inter-semibold ml-1.5 ${selected ? 'text-[#F4ECE1]' : 'text-[#1C1917]'}`}>
+                <Text className={`text-[13px] font-inter-semibold ml-1.5 ${selected ? 'text-[#F4ECE1]' : 'text-[#1C1917]'}`}>
                   {t.label}
                 </Text>
               </TouchableOpacity>

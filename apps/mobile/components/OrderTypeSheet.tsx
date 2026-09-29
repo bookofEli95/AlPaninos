@@ -127,13 +127,13 @@ export default function OrderTypeSheet({ visible, onClose, onStoreChanged, fallb
                         {loc.name}
                       </Text>
                       {!!loc.address && (
-                        <Text className="text-[11px] text-stone-500" numberOfLines={1}>
+                        <Text className="text-xs text-stone-500" numberOfLines={1}>
                           {loc.address}
                         </Text>
                       )}
                       <View className="flex-row items-center mt-0.5">
                         <View className={`w-1.5 h-1.5 rounded-full mr-1 ${open ? 'bg-emerald-500' : 'bg-stone-300'}`} />
-                        <Text className={`text-[11px] font-inter-semibold ${open ? 'text-emerald-700' : 'text-stone-500'}`}>
+                        <Text className={`text-xs font-inter-semibold ${open ? 'text-emerald-700' : 'text-stone-500'}`}>
                           {open ? 'Open' : 'Closed'} • {getTodayHoursLabel(loc.hours)}
                         </Text>
                       </View>

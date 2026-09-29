@@ -154,10 +154,10 @@ export default function CartUpsellTray({
                       <View className="w-full h-20 bg-[#FAF6F0] items-center justify-center" />
                     )}
                     <View className="px-2.5 pt-2.5">
-                      <Text className="text-[#1C1917] font-inter-semibold text-xs" numberOfLines={2}>
+                      <Text className="text-[#1C1917] font-inter-semibold text-[13px]" numberOfLines={2}>
                         {upsellItem.name}
                       </Text>
-                      <Text className="text-[#A61C14] font-inter-bold text-xs mt-1">
+                      <Text className="text-[#A61C14] font-inter-bold text-[13px] mt-1">
                         +${upsellItem.base_price.toFixed(2)}
                       </Text>
                     </View>
@@ -170,7 +170,7 @@ export default function CartUpsellTray({
                         }
                         className="bg-[#A61C14] rounded-lg h-8 items-center justify-center active:bg-[#85140E]"
                       >
-                        <Text className="text-[#F4ECE1] font-inter-bold text-xs">Customize</Text>
+                        <Text className="text-[#F4ECE1] font-inter-bold text-[13px]">Customize</Text>
                       </TouchableOpacity>
                     ) : qty === 0 ? (
                       <TouchableOpacity
@@ -188,7 +188,7 @@ export default function CartUpsellTray({
                         className="bg-[#A61C14] rounded-lg h-8 flex-row items-center justify-center active:bg-[#85140E]"
                       >
                         <Ionicons name="add" size={14} color="#F4ECE1" />
-                        <Text className="text-[#F4ECE1] font-inter-bold text-xs ml-0.5">Add</Text>
+                        <Text className="text-[#F4ECE1] font-inter-bold text-[13px] ml-0.5">Add</Text>
                       </TouchableOpacity>
                     ) : (
                       <View className="flex-row items-center justify-between bg-stone-100 rounded-lg h-8 px-1 border border-stone-200">
@@ -198,7 +198,7 @@ export default function CartUpsellTray({
                         >
                           <Ionicons name="remove" size={12} color="#1C1917" />
                         </TouchableOpacity>
-                        <Text className="font-inter-bold text-[#1C1917] text-xs">{qty}</Text>
+                        <Text className="font-inter-bold text-[#1C1917] text-[13px]">{qty}</Text>
                         <TouchableOpacity
                           onPress={() =>
                             incrementSimpleItem(

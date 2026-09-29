@@ -117,7 +117,7 @@ export default function MenuCategoryScreen() {
               {categoryName}
             </Text>
             {!!items?.length && !isLoading && (
-              <Text className="text-xs text-stone-500 font-inter-medium">
+              <Text className="text-[13px] text-stone-500 font-inter-medium">
                 {items.length} {items.length === 1 ? 'item' : 'items'} •{' '}
                 {items.some((i: any) => i.is_catering)
                   ? 'Order by 6 PM for tomorrow'
@@ -140,7 +140,7 @@ export default function MenuCategoryScreen() {
               className="absolute -top-1 -right-1 bg-[#A61C14] rounded-full items-center justify-center border-2 border-white"
               style={{ minWidth: 18, height: 18, paddingHorizontal: 3 }}
             >
-              <Text className="text-[#F4ECE1] font-inter-bold text-[10px] leading-3">
+              <Text className="text-[#F4ECE1] font-inter-bold text-[11px] leading-3">
                 {cartQuantity}
               </Text>
             </View>
@@ -167,7 +167,7 @@ export default function MenuCategoryScreen() {
             <Text className="text-[#F4ECE1] font-inter-bold text-sm" numberOfLines={1}>
               {categoryDeal.title}
             </Text>
-            <Text className="text-[#F4ECE1] opacity-80 text-xs font-inter-medium" numberOfLines={1}>
+            <Text className="text-[#F4ECE1] opacity-80 text-[13px] font-inter-medium" numberOfLines={1}>
               {appliedCode === categoryDeal.code
                 ? 'Applied -- the saving shows in your cart'
                 : isBundleDeal(categoryDeal)
@@ -195,12 +195,12 @@ export default function MenuCategoryScreen() {
         <View className="mt-12 items-center px-6">
           <Ionicons name="alert-circle-outline" size={32} color="#A61C14" />
           <Text className="text-[#A61C14] font-inter-bold text-base mt-2 mb-1">Couldn't load items</Text>
-          <Text className="text-stone-500 text-center text-xs mb-4">{(error as Error).message}</Text>
+          <Text className="text-stone-500 text-center text-[13px] mb-4">{(error as Error).message}</Text>
           <TouchableOpacity
             onPress={goBackToGrid}
             className="bg-white border border-stone-300 px-4 py-2 rounded-xl"
           >
-            <Text className="text-[#1C1917] font-inter-bold text-xs">Return to Menu</Text>
+            <Text className="text-[#1C1917] font-inter-bold text-[13px]">Return to Menu</Text>
           </TouchableOpacity>
         </View>
       ) : (

@@ -215,7 +215,7 @@ export default function AvailableDeals({ locationId }: { locationId: string }) {
             hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
             className="bg-[#A61C14] rounded-lg px-2.5 py-1.5 mr-2 active:bg-[#85140E]"
           >
-            <Text className="text-[#F4ECE1] text-[11px] font-inter-bold">Apply best · Save {money(bestRow!.savings)}</Text>
+            <Text className="text-[#F4ECE1] text-xs font-inter-bold">Apply best · Save {money(bestRow!.savings)}</Text>
           </TouchableOpacity>
         )}
         <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color="#A8A29E" />
@@ -248,16 +248,16 @@ export default function AvailableDeals({ locationId }: { locationId: string }) {
                     </Text>
                   </View>
                   {row.freeItem ? (
-                    <Text className="text-xs text-green-700 font-inter-semibold mt-0.5">
+                    <Text className="text-[13px] text-green-700 font-inter-semibold mt-0.5">
                       {row.inCart ? 'In your cart' : 'Free menu item · tap to choose'}
                     </Text>
                   ) : works ? (
-                    <Text className="text-xs text-green-700 font-inter-semibold mt-0.5">Saves {money(row.savings)}</Text>
+                    <Text className="text-[13px] text-green-700 font-inter-semibold mt-0.5">Saves {money(row.savings)}</Text>
                   ) : (
                     !!row.unmet && (
                       <View className="flex-row items-start mt-0.5">
                         <Ionicons name="lock-closed" size={11} color="#B45309" style={{ marginTop: 2 }} />
-                        <Text className="text-amber-700 text-xs font-inter-medium ml-1 flex-1">{row.unmet}</Text>
+                        <Text className="text-amber-700 text-[13px] font-inter-medium ml-1 flex-1">{row.unmet}</Text>
                       </View>
                     )
                   )}
@@ -270,7 +270,7 @@ export default function AvailableDeals({ locationId }: { locationId: string }) {
                   </View>
                 ) : (
                   <View className="bg-stone-100 px-2.5 py-1.5 rounded-lg">
-                    <Text className="text-[11px] font-inter-bold text-[#1C1917]">{row.freeItem ? 'Claim' : 'Apply'}</Text>
+                    <Text className="text-xs font-inter-bold text-[#1C1917]">{row.freeItem ? 'Claim' : 'Apply'}</Text>
                   </View>
                 )}
               </TouchableOpacity>

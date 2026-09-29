@@ -57,7 +57,7 @@ export default function TimeSlotPickerSheet({ visible, onClose, onSelect, slots,
               <Ionicons name="close" size={26} color="#1C1917" />
             </TouchableOpacity>
           </View>
-          <Text className="text-xs text-[#78716C] mb-3">Catering is ordered by 6 PM for the next day or later.</Text>
+          <Text className="text-[13px] text-[#78716C] mb-3">Catering is ordered by 6 PM for the next day or later.</Text>
 
           {!anyOpen ? (
             <Text className="text-center text-[#78716C] my-6">No catering times are available in the next two weeks.</Text>
@@ -81,7 +81,7 @@ export default function TimeSlotPickerSheet({ visible, onClose, onSelect, slots,
                             : 'bg-white border-stone-300'
                         }`}
                       >
-                        <Text className={`text-[10px] font-inter-semibold ${active ? 'text-[#F4ECE1]' : d.closed ? 'text-stone-400' : 'text-[#78716C]'}`}>
+                        <Text className={`text-[11px] font-inter-semibold ${active ? 'text-[#F4ECE1]' : d.closed ? 'text-stone-400' : 'text-[#78716C]'}`}>
                           {d.weekday}
                         </Text>
                         <Text className={`text-base font-inter-bold ${active ? 'text-[#F4ECE1]' : d.closed ? 'text-stone-400' : 'text-[#1C1917]'}`}>
@@ -96,7 +96,7 @@ export default function TimeSlotPickerSheet({ visible, onClose, onSelect, slots,
               {day && (
                 <>
                   <Text className="text-sm font-inter-bold text-[#1C1917]">{day.label}</Text>
-                  <Text className="text-xs text-[#78716C] mb-2.5">
+                  <Text className="text-[13px] text-[#78716C] mb-2.5">
                     {day.closed ? 'The store is closed this day.' : `Store hours ${day.hoursLabel}`}
                   </Text>
                   <View className="flex-row flex-wrap -mx-1 pb-1">

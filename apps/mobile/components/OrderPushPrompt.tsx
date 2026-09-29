@@ -52,9 +52,9 @@ export default function OrderPushPrompt() {
       </View>
       <View className="flex-1 mr-2">
         <Text className="text-sm font-inter-bold text-[#1C1917]">Know when it's ready</Text>
-        <Text className="text-xs text-[#78716C]">Get a notification the moment your order is ready.</Text>
+        <Text className="text-[13px] text-[#78716C]">Get a notification the moment your order is ready.</Text>
         <TouchableOpacity onPress={handleNotNow} className="mt-1 self-start">
-          <Text className="text-[11px] text-stone-400 font-inter-semibold">Not now</Text>
+          <Text className="text-xs text-stone-400 font-inter-semibold">Not now</Text>
         </TouchableOpacity>
       </View>
       <TouchableOpacity
@@ -65,7 +65,7 @@ export default function OrderPushPrompt() {
         {working ? (
           <ActivityIndicator size="small" color="#F4ECE1" />
         ) : (
-          <Text className="text-[#F4ECE1] font-inter-bold text-xs">Turn On</Text>
+          <Text className="text-[#F4ECE1] font-inter-bold text-[13px]">Turn On</Text>
         )}
       </TouchableOpacity>
     </View>

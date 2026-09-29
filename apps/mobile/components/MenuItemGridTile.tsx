@@ -82,7 +82,7 @@ export default function MenuItemGridTile({ item, isSimpleCategory }: Props) {
           {!!item.serves_min && (
             <View className="flex-row items-center mt-0.5">
               <Ionicons name="people-outline" size={12} color="#78716C" />
-              <Text className="text-[#78716C] text-xs ml-1">{servesLabel(item.serves_min, item.serves_max)}</Text>
+              <Text className="text-[#78716C] text-[13px] ml-1">{servesLabel(item.serves_min, item.serves_max)}</Text>
             </View>
           )}
 
@@ -90,7 +90,7 @@ export default function MenuItemGridTile({ item, isSimpleCategory }: Props) {
             <View className="flex-row items-center mt-1">
               <Ionicons name="flame" size={12} color={drop === 'live' ? '#A61C14' : '#78716C'} />
               <Text
-                className={`text-[11px] ml-1 font-inter-semibold flex-1 ${drop === 'live' ? 'text-[#A61C14]' : 'text-[#78716C]'}`}
+                className={`text-xs ml-1 font-inter-semibold flex-1 ${drop === 'live' ? 'text-[#A61C14]' : 'text-[#78716C]'}`}
                 numberOfLines={1}
               >
                 {dropNote}
@@ -104,7 +104,7 @@ export default function MenuItemGridTile({ item, isSimpleCategory }: Props) {
                 onPress={addOne}
                 className="bg-[#A61C14] rounded-lg py-2 items-center mt-2 active:bg-[#85140E]"
               >
-                <Text className="text-[#F4ECE1] font-inter-bold text-xs">Add</Text>
+                <Text className="text-[#F4ECE1] font-inter-bold text-[13px]">Add</Text>
               </TouchableOpacity>
             ) : (
               <View className="flex-row items-center justify-between bg-stone-100 rounded-lg mt-2 px-1 py-1 border border-stone-200">

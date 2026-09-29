@@ -218,7 +218,7 @@ export default function MenuScreen() {
                 className="absolute bg-[#A61C14] rounded-full items-center justify-center border-2 border-white"
                 style={{ top: -4, right: -4, minWidth: 20, height: 20, paddingHorizontal: 4 }}
               >
-                <Text className="text-[#F4ECE1] font-inter-bold text-[11px] leading-3">{cartQuantity}</Text>
+                <Text className="text-[#F4ECE1] font-inter-bold text-xs leading-3">{cartQuantity}</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -240,7 +240,7 @@ export default function MenuScreen() {
                 <Ionicons name="pricetag" size={14} color="#F4ECE1" />
                 <Text className="text-[#F4ECE1] font-inter-bold text-sm ml-1.5" numberOfLines={1}>Deals</Text>
               </View>
-              <Text className="text-[#F4ECE1] opacity-80 text-[11px] mt-0.5" numberOfLines={1}>
+              <Text className="text-[#F4ECE1] opacity-80 text-xs mt-0.5" numberOfLines={1}>
                 {activePromotions!.length} {activePromotions!.length === 1 ? 'offer' : 'offers'}
               </Text>
             </TouchableOpacity>
@@ -261,7 +261,7 @@ export default function MenuScreen() {
                 <Ionicons name="people" size={14} color="#A61C14" />
                 <Text className="text-[#1C1917] font-inter-bold text-sm ml-1.5" numberOfLines={1}>Catering</Text>
               </View>
-              <Text className="text-[#78716C] text-[11px] mt-0.5" numberOfLines={1}>
+              <Text className="text-[#78716C] text-xs mt-0.5" numberOfLines={1}>
                 Order by 6 PM
               </Text>
             </TouchableOpacity>
@@ -283,7 +283,7 @@ export default function MenuScreen() {
                 <Text className="text-[#F4ECE1] font-inter-bold text-sm ml-1.5" numberOfLines={1}>Secret Mob</Text>
               </View>
               <Text
-                className={`text-[11px] mt-0.5 ${secretHighlight && dropState(secretHighlight as any) === 'live' ? 'text-[#F0B4AC] font-inter-semibold' : 'text-stone-400'}`}
+                className={`text-xs mt-0.5 ${secretHighlight && dropState(secretHighlight as any) === 'live' ? 'text-[#F0B4AC] font-inter-semibold' : 'text-stone-400'}`}
                 numberOfLines={1}
               >
                 {secretHighlight

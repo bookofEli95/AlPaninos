@@ -116,7 +116,7 @@ export default function MoreScreen() {
 
         {!!locations?.length && (
           <>
-            <Text className="text-xs font-inter-bold uppercase tracking-wider text-stone-500 mb-2 px-1">
+            <Text className="text-[13px] font-inter-bold uppercase tracking-wider text-stone-500 mb-2 px-1">
               Store Locations
             </Text>
             {locations.map((location: any) => {
@@ -126,13 +126,13 @@ export default function MoreScreen() {
               return (
                 <View key={location.id} className="bg-white rounded-2xl border border-stone-200 shadow-sm p-4 mb-3">
                   <Text className="text-base font-inter-bold text-[#1C1917]">{location.name}</Text>
-                  {!!location.address && <Text className="text-stone-500 text-xs mt-0.5">{location.address}</Text>}
+                  {!!location.address && <Text className="text-stone-500 text-[13px] mt-0.5">{location.address}</Text>}
 
                   <View className="flex-row items-center justify-between mt-3 pt-2.5 border-t border-stone-100">
                     <View className="flex-row items-center flex-1 mr-2">
                       <View className={`w-2 h-2 rounded-full mr-1.5 ${open ? 'bg-emerald-500' : 'bg-stone-300'}`} />
                       <Text
-                        className={`text-xs font-inter-semibold ${open ? 'text-emerald-700' : 'text-stone-500'}`}
+                        className={`text-[13px] font-inter-semibold ${open ? 'text-emerald-700' : 'text-stone-500'}`}
                         numberOfLines={1}
                       >
                         {open ? 'Open now' : 'Closed'}
@@ -146,7 +146,7 @@ export default function MoreScreen() {
                         className="flex-row items-center bg-[#FAF6F0] border border-stone-200 px-3 py-1.5 rounded-full active:bg-stone-100"
                       >
                         <Ionicons name="navigate-outline" size={13} color="#A61C14" />
-                        <Text className="text-[#A61C14] font-inter-bold text-xs ml-1">Directions</Text>
+                        <Text className="text-[#A61C14] font-inter-bold text-[13px] ml-1">Directions</Text>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -168,7 +168,7 @@ export default function MoreScreen() {
           </View>
           <View className="flex-1">
             <Text className="text-sm font-inter-bold text-[#1C1917]">Follow on Instagram</Text>
-            <Text className="text-xs text-stone-500">@al_paninos</Text>
+            <Text className="text-[13px] text-stone-500">@al_paninos</Text>
           </View>
           <Ionicons name="open-outline" size={16} color="#A8A29E" />
         </TouchableOpacity>
@@ -196,7 +196,7 @@ export default function MoreScreen() {
             onPress={handleGuestSignOut}
             className="bg-red-50 p-3 rounded-2xl w-full items-center border border-red-200 mt-2 active:bg-red-100"
           >
-            <Text className="text-[#A61C14] font-inter-bold text-xs">End Current Guest Session</Text>
+            <Text className="text-[#A61C14] font-inter-bold text-[13px]">End Current Guest Session</Text>
           </TouchableOpacity>
         )}
 

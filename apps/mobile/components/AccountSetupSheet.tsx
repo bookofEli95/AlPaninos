@@ -206,7 +206,7 @@ export default function AccountSetupSheet({ visible, mode, onClose, onDone, init
                 <Text className="text-xl font-display-bold text-[#1C1917] tracking-tight">
                   {step === 'code' ? 'Verify Your Email' : mode === 'upgrade' ? 'Create Your Account' : 'Finish Your Account'}
                 </Text>
-                <Text className="text-stone-500 text-xs mt-0.5">
+                <Text className="text-stone-500 text-[13px] mt-0.5">
                   {step === 'code'
                     ? emailConfirmed
                       ? 'Email verified -- tap below to finish setting up.'
@@ -252,7 +252,7 @@ export default function AccountSetupSheet({ visible, mode, onClose, onDone, init
                       className="flex-row items-center bg-white border border-stone-300 rounded-xl px-2.5 mr-2"
                     >
                       <Text className="text-sm mr-1">{country.flag}</Text>
-                      <Text className="text-xs font-inter-semibold text-[#1C1917] mr-1">+{country.dialCode}</Text>
+                      <Text className="text-[13px] font-inter-semibold text-[#1C1917] mr-1">+{country.dialCode}</Text>
                       <Ionicons name="chevron-down" size={12} color="#A8A29E" />
                     </TouchableOpacity>
                     <TextInput
@@ -343,12 +343,12 @@ export default function AccountSetupSheet({ visible, mode, onClose, onDone, init
                   {!emailConfirmed && (
                     <View className="flex-row justify-center">
                       <TouchableOpacity onPress={handleSendCode} disabled={submitting} className="py-1.5 px-2">
-                        <Text className="text-stone-500 text-xs font-inter-semibold">
+                        <Text className="text-stone-500 text-[13px] font-inter-semibold">
                           Didn't get it? <Text className="text-[#A61C14]">Resend code</Text>
                         </Text>
                       </TouchableOpacity>
                       <TouchableOpacity onPress={() => setStep('form')} disabled={submitting} className="py-1.5 px-2">
-                        <Text className="text-[#A61C14] text-xs font-inter-semibold">Edit details</Text>
+                        <Text className="text-[#A61C14] text-[13px] font-inter-semibold">Edit details</Text>
                       </TouchableOpacity>
                     </View>
                   )}

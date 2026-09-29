@@ -46,21 +46,21 @@ export default function CateringPlanner({ packages }: { packages: PlannerPackage
           <Text className="text-sm font-inter-bold text-[#1C1917]">
             {quantity}× {pkg.name}
           </Text>
-          <Text className="text-[11px] text-[#78716C]">
+          <Text className="text-xs text-[#78716C]">
             {detail} • ${(Number(pkg.base_price) * quantity).toFixed(2)}
           </Text>
         </View>
         {added ? (
           <View className="flex-row items-center px-2.5 py-1.5">
             <Ionicons name="checkmark-circle" size={16} color="#047857" />
-            <Text className="text-emerald-800 text-xs font-inter-bold ml-1">In Cart</Text>
+            <Text className="text-emerald-800 text-[13px] font-inter-bold ml-1">In Cart</Text>
           </View>
         ) : (
           <TouchableOpacity
             onPress={() => router.push({ pathname: '/(main)/item/[id]', params: { id: pkg.id, qty: String(quantity) } })}
             className="bg-[#A61C14] px-3.5 py-1.5 rounded-lg active:bg-[#85140E]"
           >
-            <Text className="text-[#F4ECE1] text-xs font-inter-bold">Choose</Text>
+            <Text className="text-[#F4ECE1] text-[13px] font-inter-bold">Choose</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -104,12 +104,12 @@ export default function CateringPlanner({ packages }: { packages: PlannerPackage
             onPress={() => changePeople(n)}
             className={`px-3 py-1 rounded-full border mr-1.5 ${people === n ? 'bg-[#1C1917] border-[#1C1917]' : 'bg-white border-stone-300'}`}
           >
-            <Text className={`text-xs font-inter-bold ${people === n ? 'text-[#F4ECE1]' : 'text-[#1C1917]'}`}>{n}</Text>
+            <Text className={`text-[13px] font-inter-bold ${people === n ? 'text-[#F4ECE1]' : 'text-[#1C1917]'}`}>{n}</Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      <Text className="text-[11px] font-inter-bold uppercase tracking-wider text-stone-500 mt-1">We Suggest</Text>
+      <Text className="text-xs font-inter-bold uppercase tracking-wider text-stone-500 mt-1">We Suggest</Text>
       {plan.mains.map((line) =>
         renderLine(line, line.pkg.serves_min ? servesLabel(line.pkg.serves_min, line.pkg.serves_max) : '')
       )}
@@ -118,7 +118,7 @@ export default function CateringPlanner({ packages }: { packages: PlannerPackage
       )}
 
       <View className="flex-row justify-between items-center mt-2.5">
-        <Text className="text-xs text-[#78716C] flex-1 mr-2">
+        <Text className="text-[13px] text-[#78716C] flex-1 mr-2">
           Feeds up to {plan.mainsServe}. Add sides or dessert from the list below.
         </Text>
         <Text className="text-sm font-inter-bold text-[#1C1917]" style={tabularNums}>
@@ -126,7 +126,7 @@ export default function CateringPlanner({ packages }: { packages: PlannerPackage
         </Text>
       </View>
       {plan.total < CATERING_MIN_SUBTOTAL && (
-        <Text className="text-[11px] text-[#A61C14] mt-1">
+        <Text className="text-xs text-[#A61C14] mt-1">
           Catering has a ${CATERING_MIN_SUBTOTAL} minimum -- add a side or dessert to reach it.
         </Text>
       )}

@@ -20,14 +20,14 @@ export default function ChallengeCard({ challenge }: { challenge: Challenge }) {
           <Text className="text-base font-inter-bold text-[#1C1917] flex-1">{challenge.title}</Text>
         </View>
         <View className={`px-2.5 py-1 rounded-full ${completed ? 'bg-emerald-100' : 'bg-[#A61C14]'}`}>
-          <Text className={`text-[11px] font-inter-bold ${completed ? 'text-emerald-800' : 'text-[#F4ECE1]'}`}>
+          <Text className={`text-xs font-inter-bold ${completed ? 'text-emerald-800' : 'text-[#F4ECE1]'}`}>
             +{challenge.bonus_points} pts
           </Text>
         </View>
       </View>
 
       {!!challenge.description && (
-        <Text className="text-stone-500 text-xs leading-4 mt-2">{challenge.description}</Text>
+        <Text className="text-stone-500 text-[13px] leading-4 mt-2">{challenge.description}</Text>
       )}
 
       {challenge.kind === 'weekdays' && challenge.weekdays ? (
@@ -46,7 +46,7 @@ export default function ChallengeCard({ challenge }: { challenge: Challenge }) {
                   size={13}
                   color={done ? '#047857' : '#A8A29E'}
                 />
-                <Text className={`text-xs font-inter-bold ml-1 ${done ? 'text-emerald-800' : 'text-stone-500'}`}>
+                <Text className={`text-[13px] font-inter-bold ml-1 ${done ? 'text-emerald-800' : 'text-stone-500'}`}>
                   {WEEKDAY_SHORT[day]}
                 </Text>
               </View>
@@ -61,13 +61,13 @@ export default function ChallengeCard({ challenge }: { challenge: Challenge }) {
               style={{ width: `${pct}%` }}
             />
           </View>
-          <Text className="text-[11px] text-stone-600 font-inter-semibold mt-1">
+          <Text className="text-xs text-stone-600 font-inter-semibold mt-1">
             {progress} of {target} days
           </Text>
         </View>
       )}
 
-      <Text className="text-[11px] text-[#78716C] mt-2">
+      <Text className="text-xs text-[#78716C] mt-2">
         {completed
           ? `Done! ${challenge.bonus_points} bonus points added to your balance.`
           : `Orders of $${Number(challenge.min_subtotal).toFixed(0)}+ count once completed • ${challengeEndsLabel(challenge.period_end)}`}
