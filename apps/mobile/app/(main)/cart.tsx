@@ -20,6 +20,7 @@ import TimeSlotPickerSheet from '../../components/TimeSlotPickerSheet';
 import OrderTypeSheet from '../../components/OrderTypeSheet';
 import CartUpsellTray from '../../components/CartUpsellTray';
 import AvailableDeals from '../../components/AvailableDeals';
+import PromoCoupon from '../../components/PromoCoupon';
 import AccountSetupSheet from '../../components/AccountSetupSheet';
 import { welcomeNewAccount } from '../../lib/guestSession';
 import { isValidEmail } from '../../lib/passwordStrength';
@@ -921,33 +922,17 @@ export default function CartScreen() {
 
             <View className="my-2 p-3.5 bg-white rounded-2xl border border-stone-200 shadow-sm">
               {activePromoCode ? (
-                <View className="flex-row items-center justify-between">
-                  <View className="flex-row items-center flex-1 mr-2">
-                    <Ionicons name="pricetag" size={16} color="#A61C14" />
-                    <View className="ml-2 flex-1">
-                      <Text className="text-[#1C1917] font-inter-bold text-sm" numberOfLines={1}>
-                        Code {activePromoCode} applied
-                      </Text>
-                      {!!appliedPromo && !!promoUnmetReason && (
-                        <View className="flex-row items-center mt-0.5">
-                          <Ionicons name="lock-closed" size={11} color="#B45309" />
-                          <Text className="text-amber-700 text-xs font-inter-medium ml-1 flex-1">
-                            {promoUnmetReason}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => {
-                      if (appliedPromo) setAppliedPromo(null);
-                      else removeItemsByPromoCode(activePromoCode);
-                    }}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    <Ionicons name="close-circle" size={20} color="#78716C" />
-                  </TouchableOpacity>
-                </View>
+                <PromoCoupon
+                  promo={appliedPromo}
+                  code={activePromoCode}
+                  saved={discountAmount}
+                  unmetReason={appliedPromo ? promoUnmetReason : null}
+                  paidSubtotal={items.filter((i) => !i.promoCode).reduce((sum, i) => sum + i.totalPrice, 0)}
+                  onRemove={() => {
+                    if (appliedPromo) setAppliedPromo(null);
+                    else removeItemsByPromoCode(activePromoCode);
+                  }}
+                />
               ) : !promoInputOpen ? (
                 <TouchableOpacity
                   onPress={() => setPromoInputOpen(true)}
@@ -1189,24 +1174,32 @@ export default function CartScreen() {
 
       {items.length > 0 && (
         <View className="px-5 pt-3 pb-8 border-t border-stone-200 bg-white shadow-lg">
-          <View className="flex-row justify-between items-center mb-1">
-            <Text className="text-xs font-inter-medium text-stone-500">Subtotal</Text>
-            <Text className="text-xs font-inter-semibold text-[#1C1917]" style={tabularNums}>${cartTotal.toFixed(2)}</Text>
+          <View className="flex-row justify-between items-center mb-1.5">
+            <Text className="text-sm font-inter-medium text-stone-600">Subtotal</Text>
+            <Text
+              className={`text-sm font-inter-semibold ${discountAmount > 0 ? 'text-stone-400 line-through' : 'text-[#1C1917]'}`}
+              style={tabularNums}
+            >
+              ${cartTotal.toFixed(2)}
+            </Text>
           </View>
           {discountAmount > 0 && (
-            <View className="flex-row justify-between items-center mb-1">
-              <Text className="text-xs font-inter-medium text-green-700">Discount ({appliedPromo?.code})</Text>
-              <Text className="text-xs font-inter-bold text-green-700" style={tabularNums}>-${discountAmount.toFixed(2)}</Text>
+            <View className="flex-row justify-between items-center mb-1.5">
+              <View className="flex-row items-center">
+                <Ionicons name="pricetag" size={13} color="#15803D" />
+                <Text className="text-sm font-inter-bold text-green-700 ml-1">You save ({appliedPromo?.code})</Text>
+              </View>
+              <Text className="text-sm font-inter-extrabold text-green-700" style={tabularNums}>-${discountAmount.toFixed(2)}</Text>
             </View>
           )}
           <View className="flex-row justify-between items-center mb-2">
-            <Text className="text-xs font-inter-medium text-stone-500">Tax</Text>
-            <Text className="text-xs font-inter-semibold text-[#1C1917]" style={tabularNums}>${taxAmount.toFixed(2)}</Text>
+            <Text className="text-sm font-inter-medium text-stone-600">Tax</Text>
+            <Text className="text-sm font-inter-semibold text-[#1C1917]" style={tabularNums}>${taxAmount.toFixed(2)}</Text>
           </View>
           {pointsEarned > 0 && (
             <View className="flex-row items-center bg-[#FAF6F0] rounded-lg px-2.5 py-1.5 mb-3">
-              <Ionicons name="star" size={12} color="#A61C14" />
-              <Text className="text-[11px] text-[#1C1917] ml-1.5 flex-1" numberOfLines={1}>
+              <Ionicons name="star" size={14} color="#A61C14" />
+              <Text className="text-[13px] text-[#1C1917] ml-1.5 flex-1" numberOfLines={1}>
                 <Text className="font-inter-bold">Earns {pointsEarned.toLocaleString()} PaninoPoints</Text>
                 <Text className="text-stone-500"> • {pointsHint}</Text>
               </Text>
