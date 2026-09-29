@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { View, Text, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
 import { Alert } from '../../lib/alert';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,6 +8,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { useCartStore } from '../../store/cartStore';
 import { useLocationStore } from '../../store/locationStore';
+import { useNavStore } from '../../store/navStore';
 import { useRouter, useNavigation } from 'expo-router';
 import SkeletonBox from '../../components/Skeleton';
 import AccountSetupSheet from '../../components/AccountSetupSheet';
@@ -31,6 +32,7 @@ export default function OrdersScreen() {
   const navigation = useNavigation();
   const queryClient = useQueryClient();
   const locationId = useLocationStore((state) => state.locationId);
+  const orderStarted = useNavStore((state) => state.orderStarted);
   const hasCartItems = useCartStore((state) => state.items.length > 0);
   const { data: profile } = useProfile();
   const [reorderingId, setReorderingId] = useState<string | null>(null);
@@ -73,9 +75,10 @@ export default function OrdersScreen() {
     queryKey: ['orders', session?.user?.id],
     queryFn: async () => {
       if (!session?.user?.id) return [];
-      const { data, error } = await supabase
+      // With each order's items (name + photo) and store, for the cards.
+      const { data, error } = await (supabase as any)
         .from('orders')
-        .select('*')
+        .select('*, locations ( name ), order_items ( id, quantity, menu_items ( name, image_url ) )')
         .eq('user_id', session.user.id)
         .order('created_at', { ascending: false });
 
@@ -146,7 +149,7 @@ export default function OrdersScreen() {
 
   return (
     <View className="flex-1 bg-[#FAF6F0] pt-14 px-4">
-      <Text className="text-2xl font-display-bold text-[#1C1917] tracking-tight mb-3">Your Orders</Text>
+      <Text className="text-2xl font-display-bold text-[#1C1917] mb-3 mt-1 ml-1.5">Your Orders</Text>
 
       {needsAccountSetup && (
         <View className="bg-white border border-stone-200 rounded-2xl p-3.5 mb-3 shadow-sm flex-row items-center justify-between">
@@ -155,8 +158,8 @@ export default function OrdersScreen() {
               <Ionicons name="shield-checkmark-outline" size={16} color="#A61C14" />
             </View>
             <View className="flex-1">
-              <Text className="text-xs font-inter-bold text-[#1C1917]">Keep These Orders</Text>
-              <Text className="text-[11px] text-stone-500">
+              <Text className="text-sm font-inter-bold text-[#1C1917]">Keep These Orders</Text>
+              <Text className="text-[13px] text-stone-500">
                 Set a password to keep these orders and your points.
               </Text>
             </View>
@@ -165,7 +168,7 @@ export default function OrdersScreen() {
             onPress={() => setSetupVisible(true)}
             className="bg-[#A61C14] px-3 py-1.5 rounded-lg active:bg-[#85140E]"
           >
-            <Text className="text-[#F4ECE1] font-inter-bold text-[11px]">Save</Text>
+            <Text className="text-[#F4ECE1] font-inter-bold text-sm">Save</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -178,72 +181,117 @@ export default function OrdersScreen() {
         // Room for the floating View Cart bar ((main)/_layout.tsx) so it
         // never covers the last order.
         contentContainerStyle={{ paddingBottom: hasCartItems ? 96 : 32 }}
-        renderItem={({ item }) => {
+        renderItem={({ item }: { item: any }) => {
           const badge = STATUS_CONFIG[item.status] || {
             bg: 'bg-stone-100',
             text: 'text-stone-800',
             label: item.status,
           };
           const isFinished = item.status === 'completed' || item.status === 'cancelled';
+          const lines: any[] = item.order_items || [];
+          const photos = lines.map((l) => l.menu_items?.image_url).filter(Boolean).slice(0, 3) as string[];
+          const names = lines.map((l) => `${l.quantity > 1 ? `${l.quantity}x ` : ''}${l.menu_items?.name ?? 'Item'}`);
+          const summary = names.slice(0, 2).join(', ') + (names.length > 2 ? ` +${names.length - 2} more` : '');
 
           return (
             <TouchableOpacity
               onPress={() => router.push(`/(main)/order/${item.id}`)}
-              className="bg-white p-4 rounded-2xl mb-3 border border-stone-200 shadow-sm"
-              activeOpacity={0.8}
+              className={`bg-white p-4 rounded-3xl mb-3 shadow-sm border ${isFinished ? 'border-stone-200' : 'border-[#A61C14]'}`}
+              activeOpacity={0.85}
             >
-              <View className="flex-row justify-between items-center mb-1.5">
+              <View className="flex-row justify-between items-center mb-3">
                 <View className="flex-row items-center flex-1 mr-2">
-                  <Text className="font-inter-bold text-sm text-[#1C1917]">Order #{item.id.slice(0, 8)}</Text>
-                  {(item as any).is_catering && (
-                    <View className="bg-[#FAF6F0] border border-[#A61C14] px-2 py-0.5 rounded-full ml-2">
-                      <Text className="text-[#A61C14] text-[10px] font-inter-bold uppercase">Catering</Text>
+                  {!isFinished && (
+                    <View className="flex-row items-center bg-[#A61C14] rounded-full px-2 py-0.5 mr-2">
+                      <View className="w-1.5 h-1.5 rounded-full bg-[#FFC72C] mr-1" />
+                      <Text className="text-[#F4ECE1] font-inter-extrabold text-[11px]">LIVE</Text>
                     </View>
                   )}
+                  <Text className="text-stone-600 text-sm font-inter-semibold" numberOfLines={1}>
+                    {new Date(item.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })} ·{' '}
+                    {item.order_type === 'delivery' ? 'Delivery' : 'Pickup'}
+                    {item.locations?.name ? ` · ${item.locations.name}` : ''}
+                  </Text>
                 </View>
-
                 {item.status && (
-                  <View className={`${badge.bg} px-2.5 py-0.5 rounded-full`}>
-                    <Text className={`${badge.text} font-inter-semibold text-[11px]`}>{badge.label}</Text>
+                  <View className={`${badge.bg} px-2.5 py-1 rounded-full`}>
+                    <Text className={`${badge.text} font-inter-bold text-xs`}>{badge.label}</Text>
                   </View>
                 )}
               </View>
 
-              <View className="flex-row justify-between items-center mt-1 mb-3">
-                <Text className="text-stone-500 text-xs">
-                  {new Date(item.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })} •{' '}
-                  {item.order_type === 'delivery' ? 'Delivery' : 'Pickup'}
-                </Text>
-                <Text className="font-inter-bold text-base text-[#A61C14]" style={tabularNums}>
-                  ${Number(item.total_amount).toFixed(2)}
-                </Text>
+              {/* What was in it */}
+              <View className="flex-row items-center mb-3.5">
+                <View className="flex-row mr-3">
+                  {photos.length ? (
+                    photos.map((uri, i) => (
+                      <Image
+                        key={uri + i}
+                        source={{ uri }}
+                        className="w-14 h-14 rounded-2xl bg-stone-200 border-2 border-white"
+                        style={{ marginLeft: i === 0 ? 0 : -16 }}
+                      />
+                    ))
+                  ) : (
+                    <View className="w-14 h-14 rounded-2xl bg-[#FAF6F0] items-center justify-center">
+                      <Ionicons name="receipt-outline" size={22} color="#A8A29E" />
+                    </View>
+                  )}
+                </View>
+                <View className="flex-1">
+                  <View className="flex-row items-center">
+                    {item.is_catering && (
+                      <View className="bg-[#FAF6F0] border border-[#A61C14] px-2 py-0.5 rounded-full mr-1.5">
+                        <Text className="text-[#A61C14] text-[11px] font-inter-bold uppercase">Catering</Text>
+                      </View>
+                    )}
+                    <Text className="text-[#1C1917] font-inter-bold text-[15px] flex-1" numberOfLines={2}>
+                      {summary || `Order #${item.id.slice(0, 8)}`}
+                    </Text>
+                  </View>
+                  <Text className="font-inter-extrabold text-base text-[#A61C14] mt-0.5" style={tabularNums}>
+                    ${Number(item.total_amount).toFixed(2)}
+                  </Text>
+                </View>
               </View>
 
-              <View className="flex-row gap-2">
+              {isFinished ? (
+                <View className="flex-row items-center gap-2">
+                  <TouchableOpacity
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      handleReorder(item.id);
+                    }}
+                    disabled={reorderingId === item.id}
+                    activeOpacity={0.85}
+                    className="flex-1 bg-[#A61C14] py-3 rounded-2xl flex-row items-center justify-center"
+                  >
+                    {reorderingId === item.id ? (
+                      <ActivityIndicator size="small" color="#F4ECE1" />
+                    ) : (
+                      <>
+                        <Ionicons name="refresh" size={17} color="#F4ECE1" />
+                        <Text className="text-[#F4ECE1] font-inter-bold text-base ml-1.5">Order Again</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => router.push(`/(main)/order/${item.id}`)}
+                    className="px-4 py-3 rounded-2xl bg-stone-100"
+                  >
+                    <Text className="text-[#1C1917] font-inter-bold text-sm">Details</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
                 <TouchableOpacity
                   onPress={() => router.push(`/(main)/order/${item.id}`)}
-                  className="flex-1 bg-stone-100 py-2 rounded-xl items-center active:bg-stone-200"
+                  activeOpacity={0.85}
+                  className="bg-[#1C1917] py-3 rounded-2xl flex-row items-center justify-center"
                 >
-                  <Text className="text-[#1C1917] font-inter-bold text-xs">
-                    {isFinished ? 'View Details' : 'Track Status'}
-                  </Text>
+                  <Ionicons name="navigate" size={16} color="#FFC72C" />
+                  <Text className="text-[#F4ECE1] font-inter-bold text-base ml-1.5">Track Order</Text>
                 </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    handleReorder(item.id);
-                  }}
-                  disabled={reorderingId === item.id}
-                  className="flex-1 bg-[#1C1917] py-2 rounded-xl items-center active:opacity-90"
-                >
-                  {reorderingId === item.id ? (
-                    <ActivityIndicator size="small" color="#F4ECE1" />
-                  ) : (
-                    <Text className="text-[#F4ECE1] font-inter-bold text-xs">Reorder</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
+              )}
             </TouchableOpacity>
           );
         }}
@@ -253,14 +301,14 @@ export default function OrdersScreen() {
               <Ionicons name="receipt-outline" size={30} color="#78716C" />
             </View>
             <Text className="text-base font-inter-bold text-[#1C1917]">No orders yet</Text>
-            <Text className="text-xs text-stone-500 text-center mt-1 mb-6">
+            <Text className="text-sm text-stone-500 text-center mt-1 mb-6">
               When you place an order, live tracking and past receipts will show up here.
             </Text>
             <TouchableOpacity
-              onPress={() => router.replace(locationId ? `/(main)/menu/${locationId}` : '/(main)')}
+              onPress={() => router.replace(orderStarted && locationId ? `/(main)/menu/${locationId}` : '/(main)')}
               className="bg-[#A61C14] px-5 py-2.5 rounded-xl active:bg-[#85140E]"
             >
-              <Text className="text-[#F4ECE1] font-inter-bold text-xs">Start Your First Order</Text>
+              <Text className="text-[#F4ECE1] font-inter-bold text-sm">Start Your First Order</Text>
             </TouchableOpacity>
           </View>
         }
