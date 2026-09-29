@@ -235,8 +235,13 @@ const styles = StyleSheet.create({
 // the typed suggestions ("123 King St W, Toronto, ON M5H 1A1, Canada");
 // if it can't be used (no key, or the API isn't switched on for it), the
 // phone's own maps service is asked instead.
+// Once Google refuses (the Geocoding API isn't switched on for the key),
+// it's skipped for the rest of the session -- quietly, since the phone's
+// own maps service does the job.
+let googleGeocodingDenied = false;
+
 async function addressAt(latitude: number, longitude: number, apiKey?: string): Promise<string | null> {
-  if (apiKey) {
+  if (apiKey && !googleGeocodingDenied) {
     try {
       const url =
         `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}` +
@@ -244,9 +249,9 @@ async function addressAt(latitude: number, longitude: number, apiKey?: string): 
       const data = await (await fetch(url)).json();
       if (data.status === 'OK' && data.results?.[0]?.formatted_address) return data.results[0].formatted_address;
       if (data.status === 'ZERO_RESULTS') return null;
-      console.warn('Geocoding API status:', data.status, data.error_message);
-    } catch (e) {
-      console.warn('Geocoding API error:', e);
+      if (data.status === 'REQUEST_DENIED') googleGeocodingDenied = true;
+    } catch {
+      // No connection to Google -- fall through to the phone's maps service.
     }
   }
 
