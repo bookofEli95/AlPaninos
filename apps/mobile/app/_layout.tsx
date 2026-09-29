@@ -32,7 +32,6 @@ import Svg, { Path } from "react-native-svg";
 import * as Haptics from "expo-haptics";
 import { supabase } from "../lib/supabase";
 import { useAuthStore } from "../store/authStore";
-import { useLocationStore } from "../store/locationStore";
 import { registerForPushNotificationsAsync, savePushToken } from "../lib/pushNotifications";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -146,19 +145,26 @@ export default function Layout() {
   useEffect(() => {
     let isMounted = true;
 
-    supabase.auth.getSession()
-      .then(({ data: { session: currentSession } }) => {
-        if (isMounted) {
-          setSession(currentSession);
-          setInitialized(true);
+    // Reading the saved sign-in can fail for a moment (e.g. the phone's
+    // secure storage is briefly unavailable) -- that isn't the same as being
+    // signed out, so it tries again before giving up and showing sign-in.
+    const loadSession = async () => {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const { data } = await supabase.auth.getSession();
+          return data.session;
+        } catch {
+          await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
         }
-      })
-      .catch(() => {
-        if (isMounted) {
-          setSession(null);
-          setInitialized(true);
-        }
-      });
+      }
+      return null;
+    };
+    loadSession().then((currentSession) => {
+      if (isMounted) {
+        setSession(currentSession);
+        setInitialized(true);
+      }
+    });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, currentSession) => {
       if (isMounted) setSession(currentSession);
@@ -193,16 +199,13 @@ export default function Layout() {
       router.replace('/(auth)/login');
     } else if (session && inAuthGroup) {
       navigationAttempted.current = true;
+      // Everyone starts on Home -- a guest, and a member signing in (a
+      // member opening the app already signed in starts there too, as the
+      // app's first screen). Only a member who hasn't had their welcome
+      // spin yet goes to the wheel first.
       const isAnonymous = session.user?.is_anonymous ?? false;
       if (isAnonymous) {
-        // A guest who's ordered here before goes straight back to their
-        // store's menu, like a member -- the store is remembered per phone,
-        // not per account.
-        (async () => {
-          await useLocationStore.getState().loadSavedLocation();
-          const savedId = useLocationStore.getState().locationId;
-          router.replace(savedId ? `/(main)/menu/${savedId}` : '/(main)');
-        })();
+        router.replace('/(main)');
       } else {
         (async () => {
           let showWheel = false;
@@ -215,14 +218,7 @@ export default function Layout() {
             showWheel = !!data && !data.has_spun_wheel;
           } catch {}
 
-          if (showWheel) {
-            router.replace('/(main)/spin-wheel');
-            return;
-          }
-
-          await useLocationStore.getState().loadSavedLocation();
-          const savedId = useLocationStore.getState().locationId;
-          router.replace(savedId ? `/(main)/menu/${savedId}` : '/(main)');
+          router.replace(showWheel ? '/(main)/spin-wheel' : '/(main)');
         })();
       }
     }

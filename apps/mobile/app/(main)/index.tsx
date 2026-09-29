@@ -46,14 +46,9 @@ import { dropLabel, dropState } from '../../lib/drops';
 import { switchStore } from '../../lib/storeSwitch';
 import { useCartBarSpace } from '../../hooks/useCartBarSpace';
 import { estimateReadyMinutes, getEtaDisplay } from '../../lib/orderTiming';
-import { pointsProgressLabel, pointsRewardLabel } from '../../lib/points';
-import { tabularNums } from '../../lib/typography';
-import { welcomeNewAccount } from '../../lib/guestSession';
 import OrderTypeSheet from '../../components/OrderTypeSheet';
-import AccountSetupSheet from '../../components/AccountSetupSheet';
 
-// Home: a full-screen showcase of the food, with the customer's points (or,
-// for guests, the join offer) along the top, and one decision -- Pickup or
+// Home: a full-screen showcase of the food, and one decision -- Pickup or
 // Delivery -- from the store that's already picked for them. Everything
 // else (a live order, the latest drop, their usual, time-of-day picks and
 // every store) is one swipe up.
@@ -134,9 +129,10 @@ export default function HomeScreen() {
   // Tapped Delivery with no address yet: the sheet opens to ask for one,
   // and closing it with an address carries on to the menu.
   const [deliveryPending, setDeliveryPending] = useState(false);
-  const [setupVisible, setSetupVisible] = useState(false);
   const [addingUsual, setAddingUsual] = useState(false);
-  const [going, setGoing] = useState<'pickup' | 'delivery' | null>(null);
+  // What's loading: 'pickup' / 'delivery' for the hero buttons, or
+  // '<storeId>:pickup' / '<storeId>:delivery' for a store card's buttons.
+  const [going, setGoing] = useState<string | null>(null);
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [locatingUser, setLocatingUser] = useState(false);
 
@@ -343,19 +339,32 @@ export default function HomeScreen() {
     router.replace(`/(main)/menu/${storeId}`);
   };
 
-  // Pickup / Delivery: one tap from here to the store's menu.
-  const handleGo = async (type: 'pickup' | 'delivery') => {
-    if (!selectedStoreId || going) return;
+  // Pickup / Delivery: one tap from here to a store's menu -- the picked
+  // store for the hero buttons, or a particular store from its card in the
+  // store list.
+  const handleGo = async (type: 'pickup' | 'delivery', storeId?: string) => {
+    const targetId = storeId ?? selectedStoreId;
+    if (!targetId || going) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    const key = storeId ? `${storeId}:${type}` : type;
     setOrderType(type);
     if (type === 'delivery' && !useCartStore.getState().deliveryAddress) {
+      // A store card's Delivery makes that store the one being ordered from
+      // first, so the address sheet shows it and carries on to its menu.
+      if (targetId !== selectedStoreId) {
+        setGoing(key);
+        const store = locations?.find((l: any) => l.id === targetId);
+        const switched = await switchStore(targetId, store?.name);
+        setGoing(null);
+        if (!switched) return;
+      }
       setDeliveryPending(true);
       setSheetVisible(true);
       return;
     }
-    setGoing(type);
+    setGoing(key);
     try {
-      await goToMenu(selectedStoreId);
+      await goToMenu(targetId);
     } finally {
       setGoing(null);
     }
@@ -428,11 +437,6 @@ export default function HomeScreen() {
     ],
   }));
 
-  // ---- Points strip text --------------------------------------------------
-  const points = profile?.panino_points ?? 0;
-  const pointsLine =
-    points >= 300 ? `Enough for ${pointsRewardLabel(points)} · redeem on Deals` : `${pointsProgressLabel(points)}`;
-
   const firstName = profile?.first_name && !isAnonymous ? profile.first_name : null;
   const headline = daypart.daypart === 'lunch' ? 'Lunch, hot off\nthe press.' : 'Dinner, hot off\nthe press.';
   // No hours on file counts as open, rather than telling everyone to order ahead.
@@ -465,7 +469,7 @@ export default function HomeScreen() {
             )}
           </Animated.View>
 
-          {/* Dark at the top (for the strip) and heavier at the bottom (for
+          {/* Dark at the top (for the status bar) and heavier at the bottom (for
               the headline and buttons), clear in the middle for the food. */}
           <Svg pointerEvents="none" width={SCREEN.width} height={HERO_HEIGHT} style={StyleSheet.absoluteFill}>
             <Defs>
@@ -479,67 +483,16 @@ export default function HomeScreen() {
             <Rect x={0} y={0} width={SCREEN.width} height={HERO_HEIGHT} fill="url(#heroFade)" />
           </Svg>
 
-          {/* Points strip (guests: the join offer) */}
+          {/* What's in the photo -- tap to open it */}
           <Animated.View
             entering={FadeInDown.duration(500).delay(80)}
             style={{ position: 'absolute', top: insets.top + 8, left: 12, right: 12 }}
           >
-            {isAnonymous ? (
-              <TouchableOpacity
-                onPress={() => setSetupVisible(true)}
-                activeOpacity={0.9}
-                className="bg-[#FAF6F0] rounded-2xl pl-2.5 pr-2 py-2 flex-row items-center"
-                style={styles.strip}
-              >
-                <View className="w-9 h-9 rounded-full bg-[#A61C14] items-center justify-center mr-2.5">
-                  <Ionicons name="sparkles" size={17} color="#FFC72C" />
-                </View>
-                <View className="flex-1 mr-2">
-                  <Text className="text-[#1C1917] font-inter-bold text-sm" numberOfLines={1}>
-                    Join free, get a welcome spin
-                  </Text>
-                  <Text className="text-stone-500 text-[11px]" numberOfLines={1}>
-                    Plus 10 PaninoPoints for every $1
-                  </Text>
-                </View>
-                <View className="bg-[#A61C14] rounded-full px-4 py-2">
-                  <Text className="text-[#F4ECE1] font-inter-bold text-xs">Join</Text>
-                </View>
-              </TouchableOpacity>
-            ) : profile ? (
-              <TouchableOpacity
-                onPress={() => router.push('/(main)/deals')}
-                activeOpacity={0.9}
-                className="bg-[#FAF6F0] rounded-2xl pl-2.5 pr-2 py-2 flex-row items-center"
-                style={styles.strip}
-              >
-                <View className="w-9 h-9 rounded-full bg-[#A61C14] items-center justify-center mr-2.5">
-                  <Ionicons name="star" size={17} color="#FFC72C" />
-                </View>
-                <View className="flex-1 mr-2">
-                  <Text className="text-[#1C1917] text-sm" numberOfLines={1}>
-                    <Text className="font-display-bold text-base" style={tabularNums}>
-                      {points.toLocaleString()}
-                    </Text>
-                    <Text className="font-inter-bold text-[#A61C14]"> PaninoPoints</Text>
-                  </Text>
-                  <Text className="text-stone-500 text-[11px]" numberOfLines={1}>
-                    {pointsLine.charAt(0).toUpperCase() + pointsLine.slice(1)}
-                  </Text>
-                </View>
-                <View className="bg-[#A61C14] rounded-full px-3.5 py-2 flex-row items-center">
-                  <Text className="text-[#F4ECE1] font-inter-bold text-xs">Rewards</Text>
-                  <Ionicons name="chevron-forward" size={12} color="#F4ECE1" style={{ marginLeft: 2 }} />
-                </View>
-              </TouchableOpacity>
-            ) : null}
-
-            {/* What's in the photo -- tap to open it */}
             {!!currentSlide && (
               <TouchableOpacity
                 onPress={() => selectedStoreId && openItem(currentSlide.id, selectedStoreId)}
                 activeOpacity={0.85}
-                className="self-start mt-2.5 flex-row items-center rounded-full pl-3 pr-2 py-1.5"
+                className="self-start flex-row items-center rounded-full pl-3 pr-2 py-1.5"
                 style={styles.photoChip}
               >
                 <Text className="text-white font-inter-semibold text-xs" numberOfLines={1}>
@@ -848,12 +801,37 @@ export default function HomeScreen() {
                         {status.label}
                       </Text>
                     </View>
+                  </View>
+                  <View className="flex-row mt-3" style={{ gap: 8 }}>
                     <TouchableOpacity
-                      onPress={() => goToMenu(item.id)}
-                      className="bg-[#A61C14] px-4 py-2 rounded-xl flex-row items-center active:bg-[#85140E]"
+                      onPress={() => handleGo('pickup', item.id)}
+                      disabled={!!going}
+                      activeOpacity={0.85}
+                      className="flex-1 bg-[#A61C14] py-3 rounded-xl flex-row items-center justify-center"
                     >
-                      <Text className="text-[#F4ECE1] font-inter-bold text-xs mr-1">Order Here</Text>
-                      <Ionicons name="arrow-forward" size={12} color="#F4ECE1" />
+                      {going === `${item.id}:pickup` ? (
+                        <ActivityIndicator size="small" color="#F4ECE1" />
+                      ) : (
+                        <>
+                          <Ionicons name="bag-handle" size={15} color="#F4ECE1" />
+                          <Text className="text-[#F4ECE1] font-inter-bold text-sm ml-1.5">Pickup</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleGo('delivery', item.id)}
+                      disabled={!!going}
+                      activeOpacity={0.85}
+                      className="flex-1 bg-white border border-[#A61C14] py-3 rounded-xl flex-row items-center justify-center"
+                    >
+                      {going === `${item.id}:delivery` ? (
+                        <ActivityIndicator size="small" color="#A61C14" />
+                      ) : (
+                        <>
+                          <Ionicons name="bicycle" size={16} color="#A61C14" />
+                          <Text className="text-[#A61C14] font-inter-bold text-sm ml-1.5">Delivery</Text>
+                        </>
+                      )}
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -865,28 +843,11 @@ export default function HomeScreen() {
 
       {/* Change store / order type / delivery address */}
       <OrderTypeSheet visible={sheetVisible} onClose={handleSheetClose} fallbackLocationId={selectedStoreId} />
-
-      <AccountSetupSheet
-        visible={setupVisible}
-        mode="upgrade"
-        onClose={() => setSetupVisible(false)}
-        onDone={() => {
-          setSetupVisible(false);
-          welcomeNewAccount(router);
-        }}
-      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  strip: {
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
-  },
   photoChip: {
     backgroundColor: 'rgba(0,0,0,0.45)',
     borderWidth: 1,
