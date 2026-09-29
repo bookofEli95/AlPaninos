@@ -59,7 +59,7 @@ const SCREEN = Dimensions.get('window');
 // Tall enough to feel like a poster, short enough that the first card of
 // the extras peeks up from the bottom as a hint to swipe.
 const HERO_HEIGHT = Math.round(SCREEN.height * 0.78);
-const SLIDE_MS = 5500;
+const SLIDE_MS = 4000;
 const MAX_SLIDES = 6;
 // The same "on its way" statuses as the Orders tab's live dot.
 const ACTIVE_STATUSES = ['received', 'preparing', 'ready', 'out_for_delivery'];
