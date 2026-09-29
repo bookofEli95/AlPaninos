@@ -1,4 +1,5 @@
-import { Alert } from 'react-native';
+import {  } from 'react-native';
+import { Alert } from './alert';
 import { supabase } from './supabase';
 import { CartItem, CartModifier, useCartStore } from '../store/cartStore';
 import { useLocationStore } from '../store/locationStore';

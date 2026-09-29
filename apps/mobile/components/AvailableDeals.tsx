@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, Alert, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, Modal } from 'react-native';
+import { Alert } from '../lib/alert';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';

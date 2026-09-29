@@ -6,10 +6,10 @@ import {
   FlatList,
   Image,
   ActivityIndicator,
-  Alert,
   Dimensions,
   StyleSheet,
 } from 'react-native';
+import { Alert } from '../../lib/alert';
 import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
 import { setStatusBarStyle } from 'expo-status-bar';

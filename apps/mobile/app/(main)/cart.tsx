@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Keyboard, Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Keyboard, Image } from 'react-native';
+import { Alert } from '../../lib/alert';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Location from 'expo-location';

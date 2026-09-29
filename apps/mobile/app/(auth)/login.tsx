@@ -7,8 +7,8 @@ import {
   Image,
   ActivityIndicator,
   Keyboard,
-  Alert,
 } from 'react-native';
+import { Alert } from '../../lib/alert';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -343,12 +343,27 @@ export default function Login() {
             )}
           </TouchableOpacity>
 
+          {/* Sign-up is the one we want people to pick: a big gold button
+              with what they get for it, not a small text link. */}
+          <Text className="text-[#F4ECE1] text-center text-sm font-inter-semibold mb-2">
+            Don't have an account?
+          </Text>
           <Link href="/(auth)/register" asChild>
-            <TouchableOpacity disabled={isBusy} className="py-2">
-              <Text className="text-[#F4ECE1] text-center text-xs font-inter-medium">
-                Don't have an account?{' '}
-                <Text className="underline font-inter-bold text-[#F4ECE1]">Sign Up</Text>
-              </Text>
+            <TouchableOpacity
+              disabled={isBusy}
+              activeOpacity={0.88}
+              className="bg-[#FFC72C] rounded-2xl px-4 py-3.5 flex-row items-center shadow-md"
+            >
+              <View className="w-11 h-11 rounded-full bg-[#A61C14] items-center justify-center mr-3">
+                <Ionicons name="gift" size={22} color="#FFC72C" />
+              </View>
+              <View className="flex-1">
+                <Text className="text-[#7A0E0A] font-display-bold text-lg">Sign Up Free</Text>
+                <Text className="text-[#7A0E0A] text-xs font-inter-semibold opacity-80">
+                  Spin to win a prize + earn points on every order
+                </Text>
+              </View>
+              <Ionicons name="arrow-forward" size={22} color="#7A0E0A" />
             </TouchableOpacity>
           </Link>
         </Animated.View>

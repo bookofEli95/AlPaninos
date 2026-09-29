@@ -5,9 +5,9 @@ import {
   TouchableOpacity,
   FlatList,
   Animated,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
+import { Alert } from '../../lib/alert';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';

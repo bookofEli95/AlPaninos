@@ -8,9 +8,9 @@ import {
   ScrollView,
   Keyboard,
   ActivityIndicator,
-  Alert,
   Linking,
 } from 'react-native';
+import { Alert } from '../lib/alert';
 import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';

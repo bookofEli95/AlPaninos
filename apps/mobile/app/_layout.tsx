@@ -33,6 +33,7 @@ import * as Haptics from "expo-haptics";
 import { supabase } from "../lib/supabase";
 import { useAuthStore } from "../store/authStore";
 import { registerForPushNotificationsAsync, savePushToken } from "../lib/pushNotifications";
+import AlertHost from "../components/AlertHost";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 const queryClient = new QueryClient();
@@ -340,6 +341,8 @@ export default function Layout() {
     <QueryClientProvider client={queryClient}>
       <View style={styles.root}>
         {fontsReady && <Stack screenOptions={{ headerShown: false }} />}
+        {/* The app's popups (lib/alert.ts), in the app's colours */}
+        {fontsReady && <AlertHost />}
 
         {!splashComplete && (
           <View pointerEvents="none" style={styles.splashContainer}>

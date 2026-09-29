@@ -1,4 +1,5 @@
-import { Alert } from 'react-native';
+import {  } from 'react-native';
+import { Alert } from './alert';
 import * as Haptics from 'expo-haptics';
 import type { useRouter } from 'expo-router';
 import { supabase } from './supabase';

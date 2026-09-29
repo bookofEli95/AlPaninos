@@ -1,4 +1,5 @@
-import { Alert, Linking, Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
+import { Alert } from './alert';
 
 // Apple Maps on iOS, Google Maps everywhere else -- each phone's own default
 // maps app, opened straight into directions to the store.

@@ -1,4 +1,5 @@
-import { Alert, Platform } from 'react-native';
+import { Platform } from 'react-native';
+import { Alert } from './alert';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as SecureStore from 'expo-secure-store';

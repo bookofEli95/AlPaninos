@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, Switch, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, Switch, ActivityIndicator } from 'react-native';
+import { Alert } from '../../lib/alert';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
