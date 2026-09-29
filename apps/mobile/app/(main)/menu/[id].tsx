@@ -1,11 +1,12 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, Image } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../../lib/supabase';
 import { useCartStore } from '../../../store/cartStore';
 import { useAuthStore } from '../../../store/authStore';
+import { useNavStore } from '../../../store/navStore';
 import SkeletonBox from '../../../components/Skeleton';
 import OrderTypeSheet from '../../../components/OrderTypeSheet';
 import MenuItemGridTile from '../../../components/MenuItemGridTile';
@@ -20,7 +21,14 @@ export default function MenuScreen() {
   const { orderType, deliveryAddress } = useCartStore();
   const session = useAuthStore(state => state.session);
 
-
+  // Reaching the menu -- however they got here -- means an order's
+  // started, so the first tab becomes "Menu" (see store/navStore.ts).
+  const setOrderStarted = useNavStore(state => state.setOrderStarted);
+  useFocusEffect(
+    useCallback(() => {
+      setOrderStarted(true);
+    }, [setOrderStarted])
+  );
 
   const cartItems = useCartStore(state => state.items);
   const cartQuantity = cartItems.reduce((sum, item) => sum + item.quantity, 0);

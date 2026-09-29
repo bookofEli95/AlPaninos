@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -28,6 +28,7 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
+  withSequence,
   withTiming,
 } from 'react-native-reanimated';
 import { supabase } from '../../lib/supabase';
@@ -35,6 +36,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useCartStore } from '../../store/cartStore';
 import SkeletonBox from '../../components/Skeleton';
 import { useLocationStore } from '../../store/locationStore';
+import { useNavStore } from '../../store/navStore';
 import { reorderUsualItem } from '../../lib/reorder';
 import { distanceKm } from '../../lib/geo';
 import { storeStatus } from '../../lib/hours';
@@ -62,7 +64,10 @@ const MAX_SLIDES = 6;
 // The same "on its way" statuses as the Orders tab's live dot.
 const ACTIVE_STATUSES = ['received', 'preparing', 'ready', 'out_for_delivery'];
 
-type HeroItem = { id: string; name: string; base_price: number; image_url: string };
+// One dish in the hero slideshow. `key` is its name, normalised -- the same
+// dish has a different id at every store.
+type HeroItem = { key: string; name: string; image_url: string };
+const dishKey = (name: string) => name.trim().toLowerCase();
 
 // One photo in the hero slideshow: fades in when it becomes the active one
 // and slowly pushes in (a "Ken Burns" zoom) while it's showing.
@@ -78,6 +83,72 @@ function HeroSlide({ uri, active }: { uri: string; active: boolean }) {
   }, [active, opacity, scale]);
   const style = useAnimatedStyle(() => ({ opacity: opacity.value, transform: [{ scale: scale.value }] }));
   return <Animated.Image source={{ uri }} style={[StyleSheet.absoluteFill, style]} resizeMode="cover" />;
+}
+
+// A store card's Pickup / Delivery button: outlined (neither one looks
+// picked), and when tapped it flashes red three times, fast, then carries
+// on -- staying red while the menu loads. The red is a second copy of the
+// button laid on top, faded in and out, so the flash never re-renders.
+const FLASH_ON = { duration: 45 };
+const FLASH_OFF = { duration: 65 };
+const FLASH_MS = 45 * 3 + 65 * 2;
+
+function StoreOrderButton({
+  label,
+  icon,
+  loading,
+  disabled,
+  onPress,
+}: {
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  loading: boolean;
+  disabled: boolean;
+  onPress: () => Promise<void>;
+}) {
+  const flash = useSharedValue(0);
+  const busy = useRef(false);
+  const litStyle = useAnimatedStyle(() => ({ opacity: flash.value }));
+
+  const handlePress = () => {
+    if (busy.current) return;
+    busy.current = true;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    flash.value = withSequence(
+      withTiming(1, FLASH_ON),
+      withTiming(0, FLASH_OFF),
+      withTiming(1, FLASH_ON),
+      withTiming(0, FLASH_OFF),
+      withTiming(1, FLASH_ON)
+    );
+    setTimeout(async () => {
+      try {
+        await onPress();
+      } finally {
+        busy.current = false;
+        flash.value = withTiming(0, { duration: 220 });
+      }
+    }, FLASH_MS);
+  };
+
+  const content = (color: string) =>
+    loading ? (
+      <ActivityIndicator size="small" color={color} />
+    ) : (
+      <>
+        <Ionicons name={icon} size={16} color={color} />
+        <Text style={[styles.storeButtonText, { color }]}>{label}</Text>
+      </>
+    );
+
+  return (
+    <TouchableOpacity onPress={handlePress} disabled={disabled} activeOpacity={1} style={styles.storeButton}>
+      {content('#A61C14')}
+      <Animated.View pointerEvents="none" style={[styles.storeButtonLit, litStyle]}>
+        {content('#F4ECE1')}
+      </Animated.View>
+    </TouchableOpacity>
+  );
 }
 
 // A pulsing green dot, for the live order card.
@@ -215,7 +286,7 @@ export default function HomeScreen() {
   const selectedStatus = selectedStore ? storeStatus(selectedStore.hours, now) : null;
   const selectedStoreId: string | null = selectedStore?.id ?? null;
 
-  // ---- The hero's food photos: the store's best-looking items -----------
+  // ---- Time-of-day picks (the row below the hero) ------------------------
   const { data: picks } = useQuery({
     queryKey: ['daypartPicks', selectedStoreId, daypart.daypart],
     queryFn: async () => {
@@ -231,25 +302,27 @@ export default function HomeScreen() {
     staleTime: 5 * 60000,
   });
 
-  const { data: menuPhotos } = useQuery({
-    queryKey: ['homeHeroPhotos', selectedStoreId],
+  // ---- The hero's food photos ---------------------------------------------
+  // The same slideshow whichever store is picked -- changing the store never
+  // changes the photos. Drawn from every store's menu, one photo per dish
+  // (each store has its own copy of every item): sandwiches first (they're
+  // the star), then wraps, then anything else with a photo. Nothing
+  // unavailable, catering-only, from the secret menu or an upcoming drop.
+  const { data: heroPool } = useQuery({
+    queryKey: ['homeHeroPhotos'],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('menu_items')
-        .select('id, name, base_price, image_url, is_available, is_catering, drop_starts_at, menu_categories ( name, is_secret )')
-        .eq('location_id', selectedStoreId)
+        .select('name, image_url, is_available, is_catering, drop_starts_at, menu_categories ( name, is_secret )')
         .not('image_url', 'is', null)
-        .limit(60);
+        .order('id')
+        .limit(1000);
       if (error) throw error;
       return (data || []) as any[];
     },
-    enabled: !!selectedStoreId,
-    staleTime: 10 * 60000,
+    staleTime: 30 * 60000,
   });
 
-  // Sandwiches first (they're the star), then this time of day's picks,
-  // then anything else with a photo. Nothing unavailable, catering-only or
-  // from the secret menu.
   const heroItems: HeroItem[] = useMemo(() => {
     const rank = (m: any) => {
       const category = m.menu_categories?.name ?? '';
@@ -257,17 +330,36 @@ export default function HomeScreen() {
       if (category === "Al's Wraps") return 1;
       return 2;
     };
-    const pickIds = new Set((picks ?? []).map((p) => p.id));
-    const candidates = (menuPhotos ?? [])
-      .filter((m) => m.image_url && m.is_available !== false && !m.is_catering && !m.menu_categories?.is_secret && !m.drop_starts_at)
-      .sort((a, b) => rank(a) - rank(b) || Number(pickIds.has(b.id)) - Number(pickIds.has(a.id)));
-    return candidates.slice(0, MAX_SLIDES).map((m) => ({
-      id: m.id,
-      name: m.name,
-      base_price: Number(m.base_price),
-      image_url: m.image_url,
-    }));
-  }, [menuPhotos, picks]);
+    const seen = new Set<string>();
+    const dishes: any[] = [];
+    for (const m of heroPool ?? []) {
+      if (!m.image_url || m.is_available === false || m.is_catering || m.menu_categories?.is_secret || m.drop_starts_at) continue;
+      const key = dishKey(m.name);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      dishes.push(m);
+    }
+    // By name within each group, so the order never depends on which
+    // store's rows came back first.
+    dishes.sort((a, b) => rank(a) - rank(b) || (dishKey(a.name) < dishKey(b.name) ? -1 : 1));
+    return dishes.slice(0, MAX_SLIDES).map((m) => ({ key: dishKey(m.name), name: m.name, image_url: m.image_url }));
+  }, [heroPool]);
+
+  // The picked store's own copy of each dish -- for the photo label's price,
+  // and to open the dish at that store when the label is tapped.
+  const { data: storeMenu } = useQuery({
+    queryKey: ['homeStoreMenu', selectedStoreId],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('menu_items')
+        .select('id, name, base_price, is_available')
+        .eq('location_id', selectedStoreId);
+      if (error) throw error;
+      return (data || []) as { id: string; name: string; base_price: number; is_available: boolean | null }[];
+    },
+    enabled: !!selectedStoreId,
+    staleTime: 10 * 60000,
+  });
 
   useEffect(() => {
     heroItems.forEach((item) => Image.prefetch(item.image_url).catch(() => {}));
@@ -282,8 +374,16 @@ export default function HomeScreen() {
       return () => clearInterval(timer);
     }, [heroItems.length])
   );
-  useEffect(() => setSlideIndex(0), [selectedStoreId]);
   const currentSlide = heroItems.length ? heroItems[slideIndex % heroItems.length] : null;
+  // Null when the picked store doesn't sell the dish in the photo -- the
+  // label then shows just its name.
+  const slideAtStore = useMemo(
+    () =>
+      currentSlide
+        ? storeMenu?.find((m) => m.is_available !== false && dishKey(m.name) === currentSlide.key) ?? null
+        : null,
+    [currentSlide, storeMenu]
+  );
 
   // ---- Extras below the hero ----------------------------------------------
   const { data: liveOrder } = useQuery({
@@ -336,6 +436,8 @@ export default function HomeScreen() {
   const goToMenu = async (storeId: string) => {
     const store = locations?.find((l: any) => l.id === storeId);
     if (!(await switchStore(storeId, store?.name))) return;
+    // Pickup / Delivery picked: the first tab is "Menu" from here on.
+    useNavStore.getState().setOrderStarted(true);
     router.replace(`/(main)/menu/${storeId}`);
   };
 
@@ -345,7 +447,8 @@ export default function HomeScreen() {
   const handleGo = async (type: 'pickup' | 'delivery', storeId?: string) => {
     const targetId = storeId ?? selectedStoreId;
     if (!targetId || going) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    // A store card's button buzzes itself, on the tap, before its flash.
+    if (!storeId) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     const key = storeId ? `${storeId}:${type}` : type;
     setOrderType(type);
     if (type === 'delivery' && !useCartStore.getState().deliveryAddress) {
@@ -458,11 +561,11 @@ export default function HomeScreen() {
           <Animated.View style={[StyleSheet.absoluteFill, heroPhotoStyle]}>
             {heroItems.length ? (
               heroItems.map((item, i) => (
-                <HeroSlide key={item.id} uri={item.image_url} active={i === slideIndex % heroItems.length} />
+                <HeroSlide key={item.key} uri={item.image_url} active={i === slideIndex % heroItems.length} />
               ))
             ) : (
-              // No photos yet (or none for this store): the brand red with
-              // the logo, rather than an empty black box.
+              // No photos yet: the brand red with the logo, rather than an
+              // empty black box.
               <View style={[StyleSheet.absoluteFill, { backgroundColor: '#AE1807', alignItems: 'center', justifyContent: 'center' }]}>
                 <Image source={require('../../assets/logo.jpg')} style={{ width: 240, height: 240, opacity: 0.25 }} />
               </View>
@@ -483,22 +586,26 @@ export default function HomeScreen() {
             <Rect x={0} y={0} width={SCREEN.width} height={HERO_HEIGHT} fill="url(#heroFade)" />
           </Svg>
 
-          {/* What's in the photo -- tap to open it */}
+          {/* What's in the photo -- tap to open it at the picked store */}
           <Animated.View
             entering={FadeInDown.duration(500).delay(80)}
             style={{ position: 'absolute', top: insets.top + 8, left: 12, right: 12 }}
           >
             {!!currentSlide && (
               <TouchableOpacity
-                onPress={() => selectedStoreId && openItem(currentSlide.id, selectedStoreId)}
+                onPress={() => slideAtStore && selectedStoreId && openItem(slideAtStore.id, selectedStoreId)}
+                disabled={!slideAtStore}
                 activeOpacity={0.85}
-                className="self-start flex-row items-center rounded-full pl-3 pr-2 py-1.5"
+                className={`self-start flex-row items-center rounded-full pl-3 py-1.5 ${slideAtStore ? 'pr-2' : 'pr-3'}`}
                 style={styles.photoChip}
               >
                 <Text className="text-white font-inter-semibold text-xs" numberOfLines={1}>
-                  {currentSlide.name} · ${currentSlide.base_price.toFixed(2)}
+                  {currentSlide.name}
+                  {slideAtStore ? ` · $${Number(slideAtStore.base_price).toFixed(2)}` : ''}
                 </Text>
-                <Ionicons name="chevron-forward" size={12} color="#FFFFFF" style={{ marginLeft: 2 }} />
+                {!!slideAtStore && (
+                  <Ionicons name="chevron-forward" size={12} color="#FFFFFF" style={{ marginLeft: 2 }} />
+                )}
               </TouchableOpacity>
             )}
           </Animated.View>
@@ -803,36 +910,20 @@ export default function HomeScreen() {
                     </View>
                   </View>
                   <View className="flex-row mt-3" style={{ gap: 8 }}>
-                    <TouchableOpacity
+                    <StoreOrderButton
+                      label="Pickup"
+                      icon="bag-handle"
+                      loading={going === `${item.id}:pickup`}
+                      disabled={!!going}
                       onPress={() => handleGo('pickup', item.id)}
+                    />
+                    <StoreOrderButton
+                      label="Delivery"
+                      icon="bicycle"
+                      loading={going === `${item.id}:delivery`}
                       disabled={!!going}
-                      activeOpacity={0.85}
-                      className="flex-1 bg-[#A61C14] py-3 rounded-xl flex-row items-center justify-center"
-                    >
-                      {going === `${item.id}:pickup` ? (
-                        <ActivityIndicator size="small" color="#F4ECE1" />
-                      ) : (
-                        <>
-                          <Ionicons name="bag-handle" size={15} color="#F4ECE1" />
-                          <Text className="text-[#F4ECE1] font-inter-bold text-sm ml-1.5">Pickup</Text>
-                        </>
-                      )}
-                    </TouchableOpacity>
-                    <TouchableOpacity
                       onPress={() => handleGo('delivery', item.id)}
-                      disabled={!!going}
-                      activeOpacity={0.85}
-                      className="flex-1 bg-white border border-[#A61C14] py-3 rounded-xl flex-row items-center justify-center"
-                    >
-                      {going === `${item.id}:delivery` ? (
-                        <ActivityIndicator size="small" color="#A61C14" />
-                      ) : (
-                        <>
-                          <Ionicons name="bicycle" size={16} color="#A61C14" />
-                          <Text className="text-[#A61C14] font-inter-bold text-sm ml-1.5">Delivery</Text>
-                        </>
-                      )}
-                    </TouchableOpacity>
+                    />
                   </View>
                 </View>
               );
@@ -848,6 +939,34 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  storeButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#A61C14',
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
+  },
+  storeButtonLit: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#A61C14',
+  },
+  storeButtonText: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 14,
+    marginLeft: 6,
+  },
   photoChip: {
     backgroundColor: 'rgba(0,0,0,0.45)',
     borderWidth: 1,

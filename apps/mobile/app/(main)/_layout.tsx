@@ -8,11 +8,12 @@ import Animated, {
   withTiming,
   Easing,
 } from 'react-native-reanimated';
-import { Tabs, useRouter, useSegments } from 'expo-router';
+import { Tabs, usePathname, useRouter, useSegments } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocationStore } from '../../store/locationStore';
 import { useCartStore } from '../../store/cartStore';
+import { useNavStore } from '../../store/navStore';
 import { tabularNums } from '../../lib/typography';
 import { useCartTotals } from '../../hooks/useCartTotals';
 import { useTabBadges } from '../../hooks/useTabBadges';
@@ -60,7 +61,11 @@ function PulsingDot() {
 export default function MainLayout() {
   const router = useRouter();
   const segments = useSegments();
+  const pathname = usePathname();
   const { locationId, isLoaded, loadSavedLocation } = useLocationStore();
+  const orderStarted = useNavStore((state) => state.orderStarted);
+  const showMenuTab = orderStarted && !!locationId;
+  const onHome = pathname === '/';
   const items = useCartStore((state) => state.items);
   // A fixed tab bar height ignores the phone's bottom safe area (the iPhone
   // home indicator, Android's navigation bar) -- the labels end up squeezed
@@ -140,14 +145,22 @@ export default function MainLayout() {
           headerShown: false,
         }}
       >
+        {/* "Home" (back to the Home screen) until the customer picks Pickup
+            or Delivery, then "Menu" for the rest of the session. Home itself
+            is a hidden route, so while it's showing this tab is drawn as the
+            current one. */}
         <Tabs.Screen
           name="menu/[id]"
           options={{
-            title: 'Menu',
-            tabBarIcon: ({ color, focused }) => (
-              <Ionicons name={focused ? 'restaurant' : 'restaurant-outline'} size={22} color={color} />
-            ),
-            href: locationId ? { pathname: '/(main)/menu/[id]', params: { id: locationId } } : '/(main)',
+            title: showMenuTab ? 'Menu' : 'Home',
+            tabBarIcon: ({ color, focused }) =>
+              showMenuTab ? (
+                <Ionicons name={focused ? 'restaurant' : 'restaurant-outline'} size={22} color={color} />
+              ) : (
+                <Ionicons name={focused || onHome ? 'home' : 'home-outline'} size={22} color={color} />
+              ),
+            tabBarInactiveTintColor: !showMenuTab && onHome ? '#A61C14' : '#78716C',
+            href: showMenuTab ? { pathname: '/(main)/menu/[id]', params: { id: locationId } } : '/(main)',
           }}
         />
         <Tabs.Screen

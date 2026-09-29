@@ -1,5 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { View, TextInput, Text, TouchableOpacity, StyleSheet, ScrollView, Keyboard } from 'react-native';
+import {
+  View,
+  TextInput,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Keyboard,
+  ActivityIndicator,
+  Alert,
+  Linking,
+} from 'react-native';
+import * as Location from 'expo-location';
+import * as Haptics from 'expo-haptics';
+import { Ionicons } from '@expo/vector-icons';
 
 type Props = {
   defaultAddress?: string;
@@ -61,6 +75,49 @@ export default function AddressAutocomplete({
     onAddressSelect(description);
   };
 
+  // "Use my current location": the phone's GPS position, turned into a
+  // street address -- by Google (the same format as the typed suggestions)
+  // when that works, else by the phone's own maps service.
+  const [locating, setLocating] = useState(false);
+  const handleUseCurrentLocation = async () => {
+    if (locating) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    setLocating(true);
+    try {
+      const { status, canAskAgain } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Location Access Needed',
+          'Allow location access to fill in your address automatically -- or type it in instead.',
+          canAskAgain
+            ? [{ text: 'OK' }]
+            : [
+                { text: 'Not Now', style: 'cancel' },
+                { text: 'Open Settings', onPress: () => Linking.openSettings() },
+              ]
+        );
+        return;
+      }
+      if (!(await Location.hasServicesEnabledAsync())) {
+        Alert.alert('Location Is Off', "Turn on your phone's location services, then try again -- or type your address in.");
+        return;
+      }
+
+      const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      const address = await addressAt(position.coords.latitude, position.coords.longitude, API_KEY);
+      if (!address) {
+        Alert.alert("Couldn't Find Your Address", "We couldn't find a street address where you are. Please type it in.");
+        return;
+      }
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      handleSelect(address);
+    } catch {
+      Alert.alert("Couldn't Get Your Location", 'Please try again, or type your address in.');
+    } finally {
+      setLocating(false);
+    }
+  };
+
   const handleFocus = () => {
     if (clearOnFocus) setQuery('');
     onFocus?.();
@@ -82,6 +139,19 @@ export default function AddressAutocomplete({
         onBlur={handleBlur}
         autoFocus={autoFocus}
       />
+      <TouchableOpacity
+        onPress={handleUseCurrentLocation}
+        disabled={locating}
+        activeOpacity={0.8}
+        style={styles.locateButton}
+      >
+        {locating ? (
+          <ActivityIndicator size="small" color="#A61C14" />
+        ) : (
+          <Ionicons name="navigate" size={16} color="#A61C14" />
+        )}
+        <Text style={styles.locateText}>{locating ? 'Finding your address...' : 'Use my current location'}</Text>
+      </TouchableOpacity>
       {results.length > 0 && (
         <View style={styles.dropdown}>
           <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
@@ -141,4 +211,53 @@ const styles = StyleSheet.create({
     color: '#1F2937',
     fontSize: 16,
   },
+  locateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#A61C14',
+    borderRadius: 8,
+    paddingVertical: 12,
+    marginBottom: 8,
+  },
+  locateText: {
+    color: '#A61C14',
+    fontFamily: 'Inter_700Bold',
+    fontSize: 14,
+    marginLeft: 8,
+  },
 });
+
+// The street address at a GPS position, or null if there isn't one (e.g.
+// the middle of a park). Google's Geocoding API gives the same format as
+// the typed suggestions ("123 King St W, Toronto, ON M5H 1A1, Canada");
+// if it can't be used (no key, or the API isn't switched on for it), the
+// phone's own maps service is asked instead.
+async function addressAt(latitude: number, longitude: number, apiKey?: string): Promise<string | null> {
+  if (apiKey) {
+    try {
+      const url =
+        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}` +
+        `&result_type=street_address%7Cpremise&key=${apiKey}`;
+      const data = await (await fetch(url)).json();
+      if (data.status === 'OK' && data.results?.[0]?.formatted_address) return data.results[0].formatted_address;
+      if (data.status === 'ZERO_RESULTS') return null;
+      console.warn('Geocoding API status:', data.status, data.error_message);
+    } catch (e) {
+      console.warn('Geocoding API error:', e);
+    }
+  }
+
+  const [place] = await Location.reverseGeocodeAsync({ latitude, longitude });
+  if (!place) return null;
+  // Only a real street address (with a house number) is any use for delivery.
+  const houseNumber = place.streetNumber ?? place.name?.match(/^\d+\S*/)?.[0] ?? null;
+  if (!houseNumber) return null;
+  if (place.formattedAddress) return place.formattedAddress;
+  const street = place.street ? `${houseNumber} ${place.street}` : place.name;
+  return [street, place.city, [place.region, place.postalCode].filter(Boolean).join(' '), place.country]
+    .filter(Boolean)
+    .join(', ');
+}
