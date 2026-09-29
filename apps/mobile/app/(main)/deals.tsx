@@ -14,6 +14,7 @@ import * as Haptics from 'expo-haptics';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { useLocationStore } from '../../store/locationStore';
+import { useNavStore } from '../../store/navStore';
 import { usePromoStore } from '../../store/promoStore';
 import { appliedPromoFromRow, hasCategoryScope, resolvePromoCategoryIds } from '../../lib/promoEligibility';
 import { useCartStore } from '../../store/cartStore';
@@ -58,9 +59,13 @@ export default function DealsScreen() {
   const [resolvingCode, setResolvingCode] = useState<string | null>(null);
   const [picker, setPicker] = useState<{ promo: any; items: EligiblePrizeItem[] } | null>(null);
 
+  // Back to the Menu once an order's started; until then, back to Home --
+  // the same rule as the first tab (store/navStore.ts).
+  const orderStarted = useNavStore((state) => state.orderStarted);
+  const backToMenu = orderStarted && !!locationId;
   const goBack = useCallback(() => {
-    router.replace(locationId ? `/(main)/menu/${locationId}` : '/(main)');
-  }, [locationId, router]);
+    router.replace(backToMenu ? `/(main)/menu/${locationId}` : '/(main)');
+  }, [backToMenu, locationId, router]);
   useBackHandler(goBack);
 
   // Its own key, not ['profile', id] -- profile.tsx caches the full row
@@ -375,7 +380,7 @@ export default function DealsScreen() {
         <View className="flex-row items-center">
           <TouchableOpacity onPress={goBack} className="flex-row items-center py-2 pr-3 -ml-2">
             <Ionicons name="chevron-back" size={26} color="#A61C14" />
-            <Text className="text-[#A61C14] font-inter-bold text-base">Menu</Text>
+            <Text className="text-[#A61C14] font-inter-bold text-base">{backToMenu ? 'Menu' : 'Home'}</Text>
           </TouchableOpacity>
           <Text className="text-2xl font-display-bold text-[#1C1917] tracking-tight ml-1">Rewards & Deals</Text>
         </View>
