@@ -414,12 +414,32 @@ export default function ProfileScreen() {
   if (isAnonymous) {
     return (
       <View className="flex-1 bg-[#FAF6F0] pt-14 px-4">
-        <Text className="text-2xl font-display-bold text-[#1C1917] tracking-tight mb-3">Profile</Text>
+        {/* Normal letter spacing: tightened, the "f" and "i" run together. */}
+        <Text className="text-2xl font-display-bold text-[#1C1917] mb-3 mt-1 ml-1.5">Profile</Text>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: cartBarSpace + 24 }}>
           <GuestJoinCard
             onCreate={() => setSetupVisible(true)}
             onSignIn={() => confirmSwitchToExistingAccount(router)}
           />
+
+          {/* Signing out ends a guest session for good, so it asks first. */}
+          <TouchableOpacity
+            onPress={() =>
+              Alert.alert(
+                'End Guest Session?',
+                "Signing out ends this guest session for good -- anything tied to it won't be viewable again afterward. Create an account above if you want to keep it.",
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Sign Out', style: 'destructive', onPress: () => signOutToLogin(router) },
+                ]
+              )
+            }
+            activeOpacity={0.7}
+            className="flex-row items-center justify-center py-4 mt-1"
+          >
+            <Ionicons name="log-out-outline" size={19} color={RED} />
+            <Text className="text-[#A61C14] font-inter-bold text-base ml-1.5">Sign Out</Text>
+          </TouchableOpacity>
         </ScrollView>
         <AccountSetupSheet
           visible={setupVisible}
