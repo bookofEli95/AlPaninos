@@ -151,6 +151,68 @@ function StoreOrderButton({
   );
 }
 
+// The hero's big Pickup / Delivery button. Unpicked it's cream with an
+// empty circle; picked it turns red, says to tap again, and a second tap
+// starts the order.
+function HeroOrderButton({
+  title,
+  icon,
+  sub,
+  selected,
+  loading,
+  disabled,
+  onPress,
+}: {
+  title: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  sub: string;
+  selected: boolean;
+  loading: boolean;
+  disabled: boolean;
+  onPress: () => void;
+}) {
+  const scale = useSharedValue(1);
+  useEffect(() => {
+    if (!selected) return;
+    scale.value = withSequence(withTiming(0.96, { duration: 70 }), withTiming(1, { duration: 160 }));
+  }, [selected, scale]);
+  const popStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+
+  const fg = selected ? '#F4ECE1' : '#1C1917';
+  return (
+    <Animated.View style={popStyle}>
+      <TouchableOpacity
+        onPress={onPress}
+        disabled={disabled}
+        activeOpacity={0.88}
+        style={[styles.bigButton, { backgroundColor: selected ? '#A61C14' : '#FAF6F0' }]}
+      >
+        <View
+          style={[styles.bigButtonIcon, { backgroundColor: selected ? 'rgba(255,255,255,0.16)' : 'rgba(166,28,20,0.1)' }]}
+        >
+          <Ionicons name={icon} size={20} color={selected ? '#F4ECE1' : '#A61C14'} />
+        </View>
+        <View className="flex-1">
+          <Text style={[styles.bigButtonTitle, { color: fg }]}>{title}</Text>
+          <Text
+            style={[styles.bigButtonSub, { color: selected ? 'rgba(244,236,225,0.9)' : '#78716C' }]}
+            numberOfLines={1}
+          >
+            {selected ? 'Tap again to start your order' : sub}
+          </Text>
+        </View>
+        {loading ? (
+          <ActivityIndicator color={fg} />
+        ) : selected ? (
+          <Ionicons name="arrow-forward-circle" size={30} color="#F4ECE1" />
+        ) : (
+          <Ionicons name="ellipse-outline" size={26} color="#A8A29E" />
+        )}
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
+
 // A pulsing green dot, for the live order card.
 function LiveDot() {
   const pulse = useSharedValue(0);
@@ -204,6 +266,9 @@ export default function HomeScreen() {
   // What's loading: 'pickup' / 'delivery' for the hero buttons, or
   // '<storeId>:pickup' / '<storeId>:delivery' for a store card's buttons.
   const [going, setGoing] = useState<string | null>(null);
+  // Which of the hero's Pickup / Delivery has been picked (first tap) --
+  // nothing each time Home is opened.
+  const [chosen, setChosen] = useState<'pickup' | 'delivery' | null>(null);
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [locatingUser, setLocatingUser] = useState(false);
 
@@ -214,6 +279,7 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       setNow(new Date());
+      setChosen(null);
       setStatusBarStyle('light');
       (scrollRef.current as any)?.scrollTo?.({ y: 0, animated: false });
       // Keep the store's open/closed status current while Home is showing.
@@ -473,6 +539,17 @@ export default function HomeScreen() {
     }
   };
 
+  // The hero's Pickup / Delivery: the first tap picks one, a second tap on
+  // the picked one starts the order.
+  const handleHeroPress = (type: 'pickup' | 'delivery') => {
+    if (chosen === type) {
+      handleGo(type);
+      return;
+    }
+    Haptics.selectionAsync().catch(() => {});
+    setChosen(type);
+  };
+
   const handleSheetClose = () => {
     setSheetVisible(false);
     if (!deliveryPending) return;
@@ -623,54 +700,33 @@ export default function HomeScreen() {
               <Text style={styles.headline}>{headline}</Text>
             </Animated.View>
 
+            {/* Two taps: the first picks Pickup or Delivery, the second (on
+                the picked one) starts the order. */}
             <Animated.View entering={FadeInDown.duration(550).delay(260)} className="mt-4" style={{ gap: 10 }}>
-              <TouchableOpacity
-                onPress={() => handleGo('pickup')}
+              <HeroOrderButton
+                title="Pickup"
+                icon="bag-handle"
+                sub={storeOpen ? `Ready in about ${pickupMinutes} min` : 'Order ahead for later'}
+                selected={chosen === 'pickup'}
+                loading={going === 'pickup'}
                 disabled={!selectedStoreId || !!going}
-                activeOpacity={0.88}
-                style={[styles.bigButton, { backgroundColor: '#A61C14' }]}
-              >
-                <View style={[styles.bigButtonIcon, { backgroundColor: 'rgba(255,255,255,0.16)' }]}>
-                  <Ionicons name="bag-handle" size={20} color="#F4ECE1" />
-                </View>
-                <View className="flex-1">
-                  <Text style={[styles.bigButtonTitle, { color: '#F4ECE1' }]}>Pickup</Text>
-                  <Text style={[styles.bigButtonSub, { color: 'rgba(244,236,225,0.8)' }]}>
-                    {storeOpen ? `Ready in about ${pickupMinutes} min` : 'Order ahead for later'}
-                  </Text>
-                </View>
-                {going === 'pickup' ? (
-                  <ActivityIndicator color="#F4ECE1" />
-                ) : (
-                  <Ionicons name="arrow-forward" size={22} color="#F4ECE1" />
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => handleGo('delivery')}
+                onPress={() => handleHeroPress('pickup')}
+              />
+              <HeroOrderButton
+                title="Delivery"
+                icon="bicycle"
+                sub={
+                  !storeOpen
+                    ? 'Order ahead for later'
+                    : deliveryAddress
+                    ? `About ${deliveryMinutes} min to ${deliveryAddress.split(',')[0]}`
+                    : `About ${deliveryMinutes} min to your door`
+                }
+                selected={chosen === 'delivery'}
+                loading={going === 'delivery'}
                 disabled={!selectedStoreId || !!going}
-                activeOpacity={0.88}
-                style={[styles.bigButton, { backgroundColor: '#FAF6F0' }]}
-              >
-                <View style={[styles.bigButtonIcon, { backgroundColor: 'rgba(166,28,20,0.1)' }]}>
-                  <Ionicons name="bicycle" size={21} color="#A61C14" />
-                </View>
-                <View className="flex-1">
-                  <Text style={[styles.bigButtonTitle, { color: '#1C1917' }]}>Delivery</Text>
-                  <Text style={[styles.bigButtonSub, { color: '#78716C' }]} numberOfLines={1}>
-                    {!storeOpen
-                      ? 'Order ahead for later'
-                      : deliveryAddress
-                      ? `About ${deliveryMinutes} min to ${deliveryAddress.split(',')[0]}`
-                      : `About ${deliveryMinutes} min to your door`}
-                  </Text>
-                </View>
-                {going === 'delivery' ? (
-                  <ActivityIndicator color="#A61C14" />
-                ) : (
-                  <Ionicons name="arrow-forward" size={22} color="#A61C14" />
-                )}
-              </TouchableOpacity>
+                onPress={() => handleHeroPress('delivery')}
+              />
             </Animated.View>
 
             {/* The store both buttons order from */}
