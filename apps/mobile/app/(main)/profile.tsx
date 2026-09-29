@@ -94,6 +94,36 @@ function PointsCounter({ value, playKey }: { value: number; playKey: number }) {
   return <Text style={styles.pointsNumber}>{shown.toLocaleString()}</Text>;
 }
 
+// A diagonal gradient filling its parent. Drawn at the parent's measured
+// size: an Svg sized "100%" can be laid out before the parent's final size
+// is known and then only covers part of it.
+function GradientFill({ id, x2, stops }: { id: string; x2: number; stops: [string, string][] }) {
+  const [size, setSize] = useState<{ width: number; height: number } | null>(null);
+  return (
+    <View
+      pointerEvents="none"
+      style={StyleSheet.absoluteFill}
+      onLayout={(e) => {
+        const { width, height } = e.nativeEvent.layout;
+        setSize((old) => (old && old.width === width && old.height === height ? old : { width, height }));
+      }}
+    >
+      {size && (
+        <Svg width={size.width} height={size.height}>
+          <Defs>
+            <LinearGradient id={id} x1="0" y1="0" x2={String(x2)} y2="1">
+              {stops.map(([offset, color]) => (
+                <Stop key={offset} offset={offset} stopColor={color} />
+              ))}
+            </LinearGradient>
+          </Defs>
+          <Rect x={0} y={0} width={size.width} height={size.height} fill={`url(#${id})`} />
+        </Svg>
+      )}
+    </View>
+  );
+}
+
 // One row of the Account list.
 function AccountRow({
   icon,
@@ -416,16 +446,8 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Header -- dark, so the red points card below stands out */}
-        <View style={{ paddingTop: insets.top + 14, paddingBottom: 92 }} className="px-5">
-          <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" preserveAspectRatio="none">
-            <Defs>
-              <LinearGradient id="profileHeader" x1="0" y1="0" x2="0.6" y2="1">
-                <Stop offset="0" stopColor="#2A0B08" />
-                <Stop offset="1" stopColor={INK} />
-              </LinearGradient>
-            </Defs>
-            <Rect x="0" y="0" width="100%" height="100%" fill="url(#profileHeader)" />
-          </Svg>
+        <View style={{ paddingTop: insets.top + 14, paddingBottom: 92, backgroundColor: INK }} className="px-5">
+          <GradientFill id="profileHeader" x2={0.6} stops={[['0', '#2A0B08'], ['1', INK]]} />
 
           <Animated.View entering={FadeInDown.duration(450)} className="flex-row items-center">
             <View style={styles.avatarRing}>
@@ -453,16 +475,11 @@ export default function ProfileScreen() {
           {/* PaninoPoints card */}
           <Animated.View entering={FadeInDown.duration(500).delay(80)} style={styles.pointsCardShadow}>
             <View style={styles.pointsCard}>
-              <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" preserveAspectRatio="none">
-                <Defs>
-                  <LinearGradient id="pointsCard" x1="0" y1="0" x2="1" y2="1">
-                    <Stop offset="0" stopColor="#D0261B" />
-                    <Stop offset="0.55" stopColor={RED} />
-                    <Stop offset="1" stopColor="#6E100B" />
-                  </LinearGradient>
-                </Defs>
-                <Rect x="0" y="0" width="100%" height="100%" fill="url(#pointsCard)" />
-              </Svg>
+              <GradientFill
+                id="pointsCard"
+                x2={1}
+                stops={[['0', '#D0261B'], ['0.55', RED], ['1', '#6E100B']]}
+              />
               <Animated.View pointerEvents="none" style={[styles.shine, shineStyle]} />
 
               <View className="flex-row items-center justify-between">
@@ -885,9 +902,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // Pinned to the photo box rather than sized by the photo -- a full-size
+  // photo would otherwise stretch the whole ticket to its own height.
   ticketImage: {
-    width: '100%',
-    height: '100%',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   // Drawn as separate dashes: a dashed single-side border doesn't render
   // reliably on Android.
