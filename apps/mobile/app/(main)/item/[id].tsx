@@ -13,6 +13,7 @@ import { useQuery } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../../lib/supabase';
+import { useDealBuilderStore } from '../../../store/dealBuilderStore';
 import { useCartStore } from '../../../store/cartStore';
 import { useBackHandler } from '../../../hooks/useBackHandler';
 import SkeletonBox from '../../../components/Skeleton';
@@ -40,7 +41,21 @@ export default function ItemDetailScreen() {
     promoTitle,
     returnTo,
     qty,
-  } = useLocalSearchParams<{ id: string; promoCode?: string; promoTitle?: string; returnTo?: string; qty?: string }>();
+    dealSlot,
+  } = useLocalSearchParams<{
+    id: string;
+    promoCode?: string;
+    promoTitle?: string;
+    returnTo?: string;
+    qty?: string;
+    dealSlot?: string;
+  }>();
+  // Picking a meal for a Mix & Match deal (app/(main)/deal-pick.tsx): the
+  // button confirms it into the deal instead of adding it to the cart.
+  const dealPromo = useDealBuilderStore((state) => state.promo);
+  const setDealMeal = useDealBuilderStore((state) => state.setMeal);
+  const dealMealIndex = dealSlot != null && dealSlot !== '' ? Number(dealSlot) : null;
+  const dealMode = dealMealIndex != null && !Number.isNaN(dealMealIndex) && !!dealPromo;
   // Starting quantity -- the catering planner opens a package with the
   // number it suggested (e.g. 2 Drinks Packs).
   const initialQuantity = Math.max(1, Number(qty) || 1);
@@ -312,6 +327,10 @@ export default function ItemDetailScreen() {
   const finalPrice = promoCode ? 0 : calculatedPrice;
 
   const goBackToCategory = useCallback(() => {
+    if (dealMode) {
+      router.replace({ pathname: '/(main)/deal-pick', params: { slot: String(dealMealIndex) } });
+      return;
+    }
     if (returnTo === 'cart') {
       router.replace('/(main)/cart');
       return;
@@ -335,7 +354,7 @@ export default function ItemDetailScreen() {
     } else {
       router.replace(`/(main)/menu/${data.location_id}`);
     }
-  }, [data, returnTo, router]);
+  }, [data, returnTo, router, dealMode, dealMealIndex]);
   useBackHandler(goBackToCategory);
 
   const handleAddToCart = () => {
@@ -356,21 +375,29 @@ export default function ItemDetailScreen() {
       });
     });
 
-    addItem(
-      {
-        cartItemId: Math.random().toString(36).substring(2, 9),
-        menuItemId: data.id,
-        name: data.name,
-        basePrice: data.base_price,
-        quantity: promoCode ? 1 : quantity,
-        modifiers,
-        totalPrice: finalPrice,
-        specialInstructions: specialInstructions.trim() || undefined,
-        promoCode: promoCode || undefined,
-        imageUrl: data.image_url,
-      },
-      data.location_id!
-    );
+    const line = {
+      cartItemId: Math.random().toString(36).substring(2, 9),
+      menuItemId: data.id,
+      name: data.name,
+      basePrice: data.base_price,
+      quantity: promoCode || dealMode ? 1 : quantity,
+      modifiers,
+      totalPrice: dealMode ? calculatedPrice / Math.max(quantity, 1) : finalPrice,
+      specialInstructions: specialInstructions.trim() || undefined,
+      promoCode: promoCode || undefined,
+      imageUrl: data.image_url,
+    };
+
+    // A deal meal waits in the deal until the whole deal is confirmed.
+    if (dealMode) {
+      setDealMeal(dealMealIndex!, { item: line, locationId: data.location_id! });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setJustAdded(true);
+      setTimeout(() => router.replace('/(main)/deals'), 500);
+      return;
+    }
+
+    addItem(line, data.location_id!);
 
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setJustAdded(true);
@@ -701,7 +728,7 @@ export default function ItemDetailScreen() {
       </ScrollView>
 
       <View className="px-5 pt-3 pb-8 border-t border-stone-200 bg-white shadow-lg">
-        {!promoCode && (
+        {!promoCode && !dealMode && (
           <View className="flex-row items-center justify-between mb-3">
             <Text className="text-sm font-inter-bold text-[#1C1917]">Quantity</Text>
             <View className="flex-row items-center bg-[#FAF6F0] rounded-xl p-1 border border-stone-200">
@@ -739,7 +766,9 @@ export default function ItemDetailScreen() {
           {justAdded ? (
             <View className="flex-1 flex-row items-center justify-center">
               <Ionicons name="checkmark-circle" size={20} color="#F4ECE1" style={{ marginRight: 6 }} />
-              <Text className="font-inter-bold text-base text-[#F4ECE1]">Added to Cart!</Text>
+              <Text className="font-inter-bold text-base text-[#F4ECE1]">
+                {dealMode ? `Meal ${dealMealIndex! + 1} Confirmed!` : 'Added to Cart!'}
+              </Text>
             </View>
           ) : !isValid ? (
             <View className="flex-1 items-center justify-center">
@@ -752,11 +781,11 @@ export default function ItemDetailScreen() {
           ) : (
             <>
               <Text className="font-inter-bold text-base text-[#F4ECE1]">
-                {promoCode ? 'Claim Free Item' : 'Add to Cart'}
+                {dealMode ? `Confirm Meal ${dealMealIndex! + 1}` : promoCode ? 'Claim Free Item' : 'Add to Cart'}
               </Text>
               <View className="flex-row items-center">
                 <Text className="font-inter-bold text-base text-[#F4ECE1] mr-1.5" style={tabularNums}>
-                  {promoCode ? 'FREE' : `$${finalPrice.toFixed(2)}`}
+                  {promoCode ? 'FREE' : `$${(dealMode ? calculatedPrice / Math.max(quantity, 1) : finalPrice).toFixed(2)}`}
                 </Text>
                 <Ionicons name="arrow-forward" size={16} color="#F4ECE1" />
               </View>

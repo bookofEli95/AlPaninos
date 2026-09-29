@@ -10,11 +10,12 @@ import { Alert } from '../../lib/alert';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { useLocationStore } from '../../store/locationStore';
 import { usePromoStore } from '../../store/promoStore';
-import { appliedPromoFromRow } from '../../lib/promoEligibility';
+import { appliedPromoFromRow, hasCategoryScope, resolvePromoCategoryIds } from '../../lib/promoEligibility';
 import { useCartStore } from '../../store/cartStore';
 import { useBackHandler } from '../../hooks/useBackHandler';
 import {
@@ -28,6 +29,8 @@ import SkeletonBox from '../../components/Skeleton';
 import AccountSetupSheet from '../../components/AccountSetupSheet';
 import ChallengeCard from '../../components/ChallengeCard';
 import DealCard from '../../components/DealCard';
+import DealBuilderSheet from '../../components/DealBuilderSheet';
+import { isBundleDeal, useDealBuilderStore } from '../../store/dealBuilderStore';
 import { Challenge } from '../../lib/challenges';
 
 const NEXT_TIER_BY_POINTS = [
@@ -300,9 +303,55 @@ export default function DealsScreen() {
       showToast('Promo removed');
       return;
     }
-    setAppliedPromo(appliedPromoFromRow(item));
-    showToast('Promo applied');
+
+    // "Buy 2 or more" deals are built meal by meal (DealBuilderSheet).
+    if (isBundleDeal(item)) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      useDealBuilderStore.getState().start(item);
+      return;
+    }
+
+    const applied = appliedPromoFromRow(item);
+    setAppliedPromo(applied);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    showToast('Deal applied -- let\'s find your food');
+    // ...then straight to what it's for, after a beat to see it turn green:
+    // a Mob deal opens The Mob; a whole-order deal opens the menu (or the
+    // cart, if there's already food in it, to see the saving).
+    const target = locationId;
+    if (!target) return;
+    setTimeout(async () => {
+      if (hasCategoryScope(applied)) {
+        const ids = await resolvePromoCategoryIds(applied, target);
+        if (ids?.length) {
+          const { data: cats } = await (supabase as any).from('menu_categories').select('id, name').in('id', ids);
+          const first = (cats ?? [])[0];
+          if (ids.length === 1 && first) {
+            router.push({
+              pathname: '/(main)/menu-category',
+              params: { categoryId: first.id, categoryName: first.name, locationId: target },
+            });
+            return;
+          }
+        }
+        router.replace(`/(main)/menu/${target}`);
+        return;
+      }
+      if (useCartStore.getState().items.length > 0) router.push('/(main)/cart');
+      else router.replace(`/(main)/menu/${target}`);
+    }, 650);
   };
+
+  // The Mix & Match builder shows over Deals only while Deals is on screen
+  // -- it steps aside while a meal is being picked, and is back on return.
+  const builderOpen = useDealBuilderStore((state) => state.open);
+  const [dealsFocused, setDealsFocused] = useState(true);
+  useFocusEffect(
+    useCallback(() => {
+      setDealsFocused(true);
+      return () => setDealsFocused(false);
+    }, [])
+  );
 
   const currentPoints = profile?.panino_points ?? 0;
   const nextTier =
@@ -511,6 +560,20 @@ export default function DealsScreen() {
             { text: 'Later', style: 'cancel' },
             { text: 'Spin the Wheel', onPress: () => router.replace('/(main)/spin-wheel') },
           ]);
+        }}
+      />
+
+      <DealBuilderSheet
+        visible={builderOpen && dealsFocused}
+        onPickMeal={(slot) => router.push({ pathname: '/(main)/deal-pick', params: { slot: String(slot) } })}
+        onConfirmed={({ promo, meals, saved }) => {
+          setAppliedPromo(appliedPromoFromRow(promo));
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+          showToast(
+            saved > 0
+              ? `${meals} meals added -- you saved $${saved.toFixed(2)}!`
+              : `${meals} meals added to your cart`
+          );
         }}
       />
 

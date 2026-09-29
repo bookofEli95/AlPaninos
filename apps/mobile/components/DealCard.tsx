@@ -2,6 +2,7 @@ import { View, Text, Image, Pressable, ActivityIndicator, StyleSheet } from 'rea
 import Animated, { FadeInDown, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { describePromoRequirements } from '../lib/promoEligibility';
+import { isBundleDeal } from '../store/dealBuilderStore';
 
 // One offer on the Deals tab, drawn as a coupon -- the shape people already
 // read as "a deal I've got":
@@ -58,7 +59,19 @@ export default function DealCard({
   const scale = useSharedValue(1);
   const pressStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
-  const action = used ? 'Redeemed' : applied ? (isItemPrize ? 'In Cart' : 'Applied') : isItemPrize ? 'Claim' : 'Apply';
+  // Says what happens: claim a free item, build a Mix & Match, or get the
+  // deal (which applies it and opens the food it's for).
+  const action = used
+    ? 'Redeemed'
+    : applied
+    ? isItemPrize
+      ? 'In Cart'
+      : 'Applied'
+    : isItemPrize
+    ? 'Claim'
+    : isBundleDeal(promo)
+    ? 'Build'
+    : 'Get Deal';
 
   return (
     // The entrance and the squeeze on separate layers -- both move the card,

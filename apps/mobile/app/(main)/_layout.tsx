@@ -83,7 +83,11 @@ export default function MainLayout() {
   const { total: cartTotal } = useCartTotals();
 
   // Also hidden over the welcome wheel, which is a full screen of its own.
-  const hideCartBar = segments.includes('cart') || segments.includes('item') || segments.includes('spin-wheel');
+  const hideCartBar =
+    segments.includes('cart') ||
+    segments.includes('item') ||
+    segments.includes('spin-wheel') ||
+    segments.includes('deal-pick' as any);
 
   const { hasActiveOrder, hasNewPrize, markPrizesSeen, refreshIfStale } = useTabBadges();
   const onDeals = segments.includes('deals');
@@ -216,6 +220,8 @@ export default function MainLayout() {
           }}
         />
         <Tabs.Screen name="cart" options={{ href: null }} />
+        {/* Picking a meal for a Mix & Match deal: a focused flow, no tab bar. */}
+        <Tabs.Screen name="deal-pick" options={{ href: null, tabBarStyle: { display: 'none' } }} />
         <Tabs.Screen name="item/[id]" options={{ href: null }} />
         <Tabs.Screen name="order/[id]" options={{ href: null }} />
         <Tabs.Screen name="edit-profile" options={{ href: null }} />
