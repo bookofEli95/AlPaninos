@@ -3,6 +3,7 @@ import { Session } from '@supabase/supabase-js';
 import { useCartStore } from './cartStore';
 import { usePromoStore } from './promoStore';
 import { useNavStore } from './navStore';
+import { useLocationStore } from './locationStore';
 
 interface AuthState {
   session: Session | null;
@@ -27,6 +28,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // Someone new (or signed out): they start on Home, with the first tab
       // back to "Home" until they pick Pickup or Delivery.
       useNavStore.getState().setOrderStarted(false);
+      // ...and at their nearest store, not whichever was used last.
+      useLocationStore.getState().resetSessionPick();
     }
     set({ session });
   },

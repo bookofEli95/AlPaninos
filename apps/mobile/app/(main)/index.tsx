@@ -300,20 +300,32 @@ export default function HomeScreen() {
     })();
   }, [userId, isAnonymous, deliveryAddress, setDeliveryAddress]);
 
-  // If the phone has already allowed location, quietly find the nearest
-  // store -- never asks on its own (the Nearby button in the store list
-  // does that).
+  // Where the customer is right now, to start them at their nearest store.
+  // Asks for location the first time (the phone only ever asks once); if
+  // it's refused or can't be had, Home falls back to the last store used.
+  // `locationChecked` holds back the store line until this has had a go
+  // (at most 4 seconds), so it doesn't flash last time's store first.
+  const [locationChecked, setLocationChecked] = useState(false);
   useEffect(() => {
+    const giveUp = setTimeout(() => setLocationChecked(true), 4000);
     (async () => {
       try {
-        const { status } = await Location.getForegroundPermissionsAsync();
+        let { status, canAskAgain } = await Location.getForegroundPermissionsAsync();
+        if (status === 'undetermined' && canAskAgain) {
+          ({ status } = await Location.requestForegroundPermissionsAsync());
+        }
         if (status !== 'granted') return;
         const position =
-          (await Location.getLastKnownPositionAsync()) ??
+          (await Location.getLastKnownPositionAsync({ maxAge: 10 * 60000 })) ??
           (await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }));
         if (position) setUserCoords({ lat: position.coords.latitude, lng: position.coords.longitude });
-      } catch {}
+      } catch {
+      } finally {
+        clearTimeout(giveUp);
+        setLocationChecked(true);
+      }
     })();
+    return () => clearTimeout(giveUp);
   }, []);
 
   const { data: locations, isLoading, error: locationsError, refetch: refetchLocations } = useLocations();
@@ -337,18 +349,32 @@ export default function HomeScreen() {
   }, [locations, userCoords]);
 
   // The store Pickup and Delivery order from: the one the cart is already
-  // from, else the one they last used, else the nearest (when the phone's
-  // location is known), else the first one that's open now.
+  // from, else one they picked themselves since opening the app, else the
+  // nearest (when the phone's location is known), else the last one used,
+  // else the first one that's open now. Every launch (and sign-in) starts
+  // from the nearest -- they may be in St. Thomas today and London tomorrow.
+  const pickedThisSession = useLocationStore((state) => state.pickedThisSession);
   const selectedStore = useMemo(() => {
     if (!sortedLocations.length) return null;
     return (
       sortedLocations.find((l: any) => l.id === cartLocationId) ??
-      sortedLocations.find((l: any) => l.id === storedLocationId) ??
+      (pickedThisSession ? sortedLocations.find((l: any) => l.id === storedLocationId) : null) ??
       (userCoords ? sortedLocations[0] : null) ??
+      sortedLocations.find((l: any) => l.id === storedLocationId) ??
       sortedLocations.find((l: any) => storeStatus(l.hours, now).open) ??
       sortedLocations[0]
     );
-  }, [sortedLocations, cartLocationId, storedLocationId, userCoords, now]);
+  }, [sortedLocations, cartLocationId, pickedThisSession, storedLocationId, userCoords, now]);
+
+  // Make the nearest store the current one everywhere else too (the store
+  // sheet, the Menu tab), not just on Home.
+  useEffect(() => {
+    if (!userCoords || pickedThisSession || cartLocationId) return;
+    const nearest = sortedLocations[0];
+    if (nearest && nearest.distanceKm != null && nearest.id !== storedLocationId) {
+      useLocationStore.getState().setNearestLocationId(nearest.id);
+    }
+  }, [userCoords, pickedThisSession, cartLocationId, sortedLocations, storedLocationId]);
   const selectedStatus = selectedStore ? storeStatus(selectedStore.hours, now) : null;
   const selectedStoreId: string | null = selectedStore?.id ?? null;
 
@@ -731,7 +757,7 @@ export default function HomeScreen() {
 
             {/* The store both buttons order from */}
             <Animated.View entering={FadeInDown.duration(550).delay(340)}>
-              {isLoading ? (
+              {isLoading || !locationChecked ? (
                 <View className="flex-row items-center mt-3.5">
                   <ActivityIndicator size="small" color="#FFE58A" />
                   <Text className="text-white/80 text-xs font-inter-medium ml-2">Finding your store…</Text>
