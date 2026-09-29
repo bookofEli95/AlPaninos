@@ -11,6 +11,7 @@ import {
   Dimensions
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import AddressAutocomplete from '../../components/AddressAutocomplete';
@@ -114,8 +115,27 @@ export default function Register() {
     setCodeSentTo(email.trim());
   };
 
+  // The same food video behind a dark wash as the sign-in screen, so
+  // signing up feels like the same place.
+  const videoPlayer = useVideoPlayer(require('../../assets/videos/login-background.mp4'), (player) => {
+    player.loop = true;
+    player.muted = true;
+    player.play();
+  });
+
   return (
-    <View className="flex-1 bg-[#FAF6F0]">
+    <View className="flex-1 bg-[#1C1917]">
+      <VideoView
+        player={videoPlayer}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+        contentFit="cover"
+        nativeControls={false}
+        pointerEvents="none"
+      />
+      <View
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)' }}
+        pointerEvents="none"
+      />
       <ScrollView
         className="flex-1 px-6 pt-12"
         keyboardShouldPersistTaps="handled"
@@ -128,7 +148,13 @@ export default function Register() {
             className="w-24 h-24 rounded-full mb-3 shadow-md"
             resizeMode="contain"
           />
-          <Text className="text-3xl font-display-bold text-[#1C1917]">Create Account</Text>
+          <Text className="text-3xl font-display-bold text-[#F4ECE1]">Create Account</Text>
+          <View className="flex-row items-center bg-[#FFC72C] px-3.5 py-1.5 rounded-full mt-3">
+            <Ionicons name="gift" size={14} color="#7A0E0A" />
+            <Text className="text-[#7A0E0A] font-inter-bold text-[13px] ml-1.5">
+              Free spin to win + 10 points per $1
+            </Text>
+          </View>
         </View>
 
         {errorMessage && <ErrorBanner message={errorMessage} />}
@@ -196,7 +222,7 @@ export default function Register() {
                 className="h-full rounded-full"
               />
             </View>
-            <Text style={{ color: strength.color }} className="text-xs font-inter-bold mt-1">
+            <Text style={{ color: strength.color }} className="text-[13px] font-inter-bold mt-1">
               {strength.label} password
             </Text>
           </View>
@@ -216,12 +242,15 @@ export default function Register() {
           </Text>
         </TouchableOpacity>
 
-        <NotifyPreferenceToggle
-          notifyEmail={notifyEmail}
-          notifySms={notifySms}
-          onChangeEmail={setNotifyEmail}
-          onChangeSms={setNotifySms}
-        />
+        {/* On a light card so its labels read over the video */}
+        <View className="bg-[#FAF6F0] rounded-2xl px-4 pt-4 mb-4">
+          <NotifyPreferenceToggle
+            notifyEmail={notifyEmail}
+            notifySms={notifySms}
+            onChangeEmail={setNotifyEmail}
+            onChangeSms={setNotifySms}
+          />
+        </View>
 
         <TouchableOpacity
           className="bg-[#A61C14] p-4 rounded-xl mb-4 items-center shadow-md active:bg-[#85140E]"
@@ -236,7 +265,9 @@ export default function Register() {
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => router.back()} className="mb-12 py-2">
-          <Text className="text-[#78716C] text-center text-base font-inter-semibold">Back to Login</Text>
+          <Text className="text-[#F4ECE1] text-center text-base font-inter-semibold">
+            Already have an account? <Text className="underline font-inter-bold">Sign In</Text>
+          </Text>
         </TouchableOpacity>
       </ScrollView>
 

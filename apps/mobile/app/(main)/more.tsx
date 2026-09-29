@@ -97,7 +97,7 @@ export default function MoreScreen() {
 
   return (
     <View className="flex-1 bg-[#FAF6F0] pt-14 px-4">
-      <Text className="text-2xl font-display-bold text-[#1C1917] tracking-tight mb-3 mt-1 ml-1.5">More</Text>
+      <Text className="text-2xl font-display-bold text-[#1C1917] mb-3 mt-1 ml-1.5">More</Text>
 
       <ScrollView
         ref={scrollRef}
@@ -117,7 +117,7 @@ export default function MoreScreen() {
         {!!locations?.length && (
           <>
             <Text className="text-[13px] font-inter-bold uppercase tracking-wider text-stone-500 mb-2 px-1">
-              Store Locations
+              Our Stores
             </Text>
             {locations.map((location: any) => {
               const open = isOpenNow(location.hours);
@@ -125,8 +125,17 @@ export default function MoreScreen() {
 
               return (
                 <View key={location.id} className="bg-white rounded-2xl border border-stone-200 shadow-sm p-4 mb-3">
-                  <Text className="text-base font-inter-bold text-[#1C1917]">{location.name}</Text>
-                  {!!location.address && <Text className="text-stone-500 text-[13px] mt-0.5">{location.address}</Text>}
+                  <View className="flex-row items-start">
+                    <View className="w-10 h-10 rounded-xl bg-[#FAF6F0] items-center justify-center mr-3">
+                      <Ionicons name="storefront" size={19} color="#A61C14" />
+                    </View>
+                    <View className="flex-1">
+                      <Text className="text-base font-inter-bold text-[#1C1917]">Al Paninos {location.name}</Text>
+                      {!!location.address && (
+                        <Text className="text-stone-500 text-[13px] mt-0.5">{location.address}</Text>
+                      )}
+                    </View>
+                  </View>
 
                   <View className="flex-row items-center justify-between mt-3 pt-2.5 border-t border-stone-100">
                     <View className="flex-row items-center flex-1 mr-2">
@@ -157,56 +166,57 @@ export default function MoreScreen() {
           </>
         )}
 
-        <TouchableOpacity
-          onPress={() =>
-            Linking.openURL(INSTAGRAM_URL).catch(() => Alert.alert("Couldn't open Instagram", 'Please try again.'))
-          }
-          className="bg-white rounded-2xl border border-stone-200 shadow-sm p-3.5 flex-row items-center mb-3 active:bg-stone-50"
-        >
-          <View className="w-10 h-10 rounded-2xl bg-[#FAF6F0] border border-stone-200 items-center justify-center mr-3">
-            <Ionicons name="logo-instagram" size={20} color="#A61C14" />
-          </View>
-          <View className="flex-1">
-            <Text className="text-sm font-inter-bold text-[#1C1917]">Follow on Instagram</Text>
-            <Text className="text-[13px] text-stone-500">@al_paninos</Text>
-          </View>
-          <Ionicons name="open-outline" size={16} color="#A8A29E" />
-        </TouchableOpacity>
-
+        {/* Same rows as the Profile tab's Account list */}
+        <Text className="text-[13px] font-inter-bold uppercase tracking-wider text-stone-500 mb-2 mt-2 px-1">
+          Help & Info
+        </Text>
         <View className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden mb-3">
           {MENU_ITEMS.map((item, index) => (
-            <TouchableOpacity
+            <MoreRow
               key={item.label}
+              icon={item.icon}
+              label={item.label}
               onPress={() => router.push(item.route as any)}
-              className={`flex-row items-center justify-between p-3.5 ${
-                index < MENU_ITEMS.length - 1 ? 'border-b border-stone-100' : ''
-              }`}
-            >
-              <View className="flex-row items-center">
-                <Ionicons name={item.icon as any} size={18} color="#A61C14" style={{ width: 26 }} />
-                <Text className="text-sm font-inter-semibold text-[#1C1917]">{item.label}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={16} color="#A8A29E" />
-            </TouchableOpacity>
+              last={index === MENU_ITEMS.length - 1}
+            />
           ))}
+        </View>
+
+        <Text className="text-[13px] font-inter-bold uppercase tracking-wider text-stone-500 mb-2 mt-3 px-1">
+          Follow Us
+        </Text>
+        <View className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden mb-3">
+          <MoreRow
+            icon="logo-instagram"
+            label="Instagram"
+            detail="@al_paninos"
+            trailing="open-outline"
+            onPress={() =>
+              Linking.openURL(INSTAGRAM_URL).catch(() => Alert.alert("Couldn't open Instagram", 'Please try again.'))
+            }
+            last
+          />
         </View>
 
         {isAnonymous && (
           <TouchableOpacity
             onPress={handleGuestSignOut}
-            className="bg-red-50 p-3 rounded-2xl w-full items-center border border-red-200 mt-2 active:bg-red-100"
+            activeOpacity={0.7}
+            className="flex-row items-center justify-center py-4 mt-1"
           >
-            <Text className="text-[#A61C14] font-inter-bold text-[13px]">End Current Guest Session</Text>
+            <Ionicons name="log-out-outline" size={19} color="#A61C14" />
+            <Text className="text-[#A61C14] font-inter-bold text-base ml-1.5">End Guest Session</Text>
           </TouchableOpacity>
         )}
 
         {!!session && !isAnonymous && (
           <TouchableOpacity
             onPress={handleSignOut}
-            className="flex-row bg-red-50 p-3.5 rounded-2xl w-full items-center justify-center border border-red-200 mt-2 active:bg-red-100"
+            activeOpacity={0.7}
+            className="flex-row items-center justify-center py-4 mt-1"
           >
-            <Ionicons name="log-out-outline" size={16} color="#A61C14" />
-            <Text className="text-[#A61C14] font-inter-bold text-sm ml-1.5">Sign Out</Text>
+            <Ionicons name="log-out-outline" size={19} color="#A61C14" />
+            <Text className="text-[#A61C14] font-inter-bold text-base ml-1.5">Sign Out</Text>
           </TouchableOpacity>
         )}
       </ScrollView>
@@ -230,5 +240,39 @@ export default function MoreScreen() {
         }
       />
     </View>
+  );
+}
+
+// One row of a list -- the same look as the Profile tab's Account rows.
+function MoreRow({
+  icon,
+  label,
+  detail,
+  trailing = 'chevron-forward',
+  onPress,
+  last,
+}: {
+  icon: string;
+  label: string;
+  detail?: string;
+  trailing?: string;
+  onPress: () => void;
+  last?: boolean;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.7}
+      className={`flex-row items-center px-4 py-3.5 ${last ? '' : 'border-b border-stone-100'}`}
+    >
+      <View className="w-9 h-9 rounded-xl bg-[#FAF6F0] items-center justify-center mr-3">
+        <Ionicons name={icon as any} size={18} color="#A61C14" />
+      </View>
+      <View className="flex-1 mr-2">
+        <Text className="text-[15px] font-inter-semibold text-[#1C1917]">{label}</Text>
+        {!!detail && <Text className="text-[13px] text-[#78716C] mt-0.5">{detail}</Text>}
+      </View>
+      <Ionicons name={trailing as any} size={18} color="#A8A29E" />
+    </TouchableOpacity>
   );
 }
