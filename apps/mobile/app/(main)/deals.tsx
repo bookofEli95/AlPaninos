@@ -103,16 +103,17 @@ export default function DealsScreen() {
     [promotions]
   );
 
-  // A photo of the food each deal is for (every store's menu, one photo per
-  // dish). A whole-order deal gets a sandwich -- the star of the menu.
+  // A photo of the food each deal is for, picked at random from the right
+  // part of the menu -- a Mob deal gets a Mob sandwich, a drink deal a
+  // drink, and so on -- and a fresh pick each time Deals is opened. No two
+  // deals share a photo while there are others to choose from.
   const { data: menuPhotos } = useQuery({
     queryKey: ['dealPhotos'],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('menu_items')
-        .select('name, image_url, is_available, menu_categories ( id, name )')
+        .select('name, image_url, is_available, is_catering, drop_starts_at, menu_categories ( id, name, is_secret )')
         .not('image_url', 'is', null)
-        .order('name')
         .limit(1000);
       if (error) throw error;
       return (data || []) as any[];
@@ -120,30 +121,77 @@ export default function DealsScreen() {
     staleTime: 30 * 60000,
   });
 
-  const photoFor = useCallback(
-    (promo: any): string | null => {
-      const all = (menuPhotos ?? []).filter((m) => m.is_available !== false && m.image_url);
-      if (!all.length) return null;
-      const lower = (v: string) => v.trim().toLowerCase();
-      const categoryNames = new Set<string>(
-        [...(promo.category_names ?? []), promo.category_name].filter(Boolean).map(lower)
-      );
-      const inCategory = all.filter(
-        (m) =>
-          (m.menu_categories?.name && categoryNames.has(lower(m.menu_categories.name))) ||
-          (!!promo.category_id && m.menu_categories?.id === promo.category_id)
-      );
-      const patterns = (promo.item_name_patterns ?? []).map(lower);
-      const matching = patterns.length ? inCategory.filter((m) => patterns.includes(lower(m.name))) : inCategory;
-      const pick =
-        matching[0] ??
-        inCategory[0] ??
-        all.find((m) => m.menu_categories?.name === 'The Mob') ??
-        all[0];
-      return pick?.image_url ?? null;
-    },
-    [menuPhotos]
+  const [photoSeed, setPhotoSeed] = useState(() => Math.floor(Math.random() * 1e9));
+  useFocusEffect(
+    useCallback(() => {
+      setPhotoSeed(Math.floor(Math.random() * 1e9));
+    }, [])
   );
+
+  const dealPhotos = useMemo(() => {
+    const photos = new Map<string, string>();
+    const lower = (v: string) => v.trim().toLowerCase();
+    // One photo per dish (each store has its own copy of every item).
+    const seen = new Set<string>();
+    const dishes = (menuPhotos ?? []).filter((m) => {
+      if (!m.image_url || m.is_available === false || m.is_catering || m.drop_starts_at || m.menu_categories?.is_secret) {
+        return false;
+      }
+      const key = lower(m.name);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    if (!dishes.length || !sortedPromotions) return photos;
+
+    const inCategories = (names: string[]) => {
+      const wanted = new Set(names.map(lower));
+      return dishes.filter((m) => m.menu_categories?.name && wanted.has(lower(m.menu_categories.name)));
+    };
+    // What a deal is for: its category (narrowed to named items, e.g.
+    // Specialty Fries), else what its name and description talk about,
+    // else a main -- a sandwich or a wrap -- for a whole-order deal.
+    const candidatesFor = (promo: any): any[] => {
+      let pool: any[] = [];
+      const categoryNames = [...(promo.category_names ?? []), promo.category_name].filter(Boolean);
+      if (categoryNames.length) pool = inCategories(categoryNames);
+      if (!pool.length && promo.category_id) pool = dishes.filter((m) => m.menu_categories?.id === promo.category_id);
+      if (pool.length && promo.item_name_patterns?.length) {
+        const patterns = promo.item_name_patterns.map(lower);
+        const named = pool.filter((m) => patterns.includes(lower(m.name)));
+        if (named.length) pool = named;
+      }
+      if (pool.length) return pool;
+
+      const text = lower(`${promo.title ?? ''} ${promo.description ?? ''}`);
+      if (/\bmob\b|sandwich|panin/.test(text)) pool = inCategories(['The Mob']);
+      else if (/wrap/.test(text)) pool = inCategories(["Al's Wraps"]);
+      else if (/drink|\bpop\b|soda|beverage/.test(text)) pool = inCategories(['Drinks']);
+      else if (/fries|\bside/.test(text)) pool = inCategories(['Sides']);
+      if (!pool.length) pool = inCategories(['The Mob', "Al's Wraps"]);
+      return pool.length ? pool : dishes;
+    };
+
+    // A small seeded random, so the picks hold still while Deals is open
+    // and change the next time it's opened.
+    let state = photoSeed || 1;
+    const random = () => {
+      state = (state * 1664525 + 1013904223) % 4294967296;
+      return state / 4294967296;
+    };
+    const used = new Set<string>();
+    for (const promo of sortedPromotions as any[]) {
+      const pool = candidatesFor(promo);
+      const fresh = pool.filter((m) => !used.has(m.image_url));
+      const from = fresh.length ? fresh : pool;
+      const pick = from[Math.floor(random() * from.length)];
+      if (pick) {
+        used.add(pick.image_url);
+        photos.set(promo.id, pick.image_url);
+      }
+    }
+    return photos;
+  }, [menuPhotos, sortedPromotions, photoSeed]);
 
   const { data: usedCodes } = useQuery({
     queryKey: ['usedPromoCodes', session?.user?.id],
@@ -379,7 +427,7 @@ export default function DealsScreen() {
             <DealCard
               promo={item}
               index={index}
-              photo={photoFor(item)}
+              photo={dealPhotos.get(item.id) ?? null}
               applied={isApplied}
               used={!!item.code && isAlreadyUsed(item)}
               loading={resolvingCode === item.code}
