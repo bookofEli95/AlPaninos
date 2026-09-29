@@ -17,6 +17,8 @@ import { emailInvoice, saveInvoice } from '../../../lib/invoice';
 import BoxManifest from '../../../components/BoxManifest';
 import { useCartBarSpace } from '../../../hooks/useCartBarSpace';
 import { useAuthStore } from '../../../store/authStore';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
+import ConfettiBurst from '../../../components/ConfettiBurst';
 import { useProfile } from '../../../hooks/useProfile';
 import { needsPassword } from '../../../lib/account';
 import AccountSetupSheet from '../../../components/AccountSetupSheet';
@@ -61,6 +63,50 @@ function statusLine(order: any): { text: string; time: string | null } | null {
   }
 }
 
+// Orders already celebrated this session -- the party happens once, the
+// moment the order goes in, not every time the tracker is reopened.
+const CELEBRATED = new Set<string>();
+const CONFETTI_COLORS = ['#A61C14', '#FFC72C', '#F4ECE1', '#FFE58A', '#D0261B'];
+
+// "+120 PaninoPoints" counting up from 0.
+function CountUp({ value }: { value: number }) {
+  const [shown, setShown] = useState(0);
+  useEffect(() => {
+    let frame = 0;
+    let start: number | null = null;
+    const tick = (t: number) => {
+      if (start == null) start = t;
+      const p = Math.min(1, (t - start) / 1100);
+      setShown(Math.round(value * (1 - Math.pow(1 - p, 3))));
+      if (p < 1) frame = requestAnimationFrame(tick);
+    };
+    const delay = setTimeout(() => (frame = requestAnimationFrame(tick)), 500);
+    return () => {
+      clearTimeout(delay);
+      cancelAnimationFrame(frame);
+    };
+  }, [value]);
+  return <Text style={{ fontVariant: ['tabular-nums'] }}>{shown.toLocaleString()}</Text>;
+}
+
+// A soft ring pulsing out of the step the order is on right now.
+function StepPulse() {
+  const pulse = useSharedValue(0);
+  useEffect(() => {
+    pulse.value = withRepeat(withTiming(1, { duration: 1500, easing: Easing.out(Easing.ease) }), -1, false);
+  }, [pulse]);
+  const ring = useAnimatedStyle(() => ({
+    opacity: 0.55 * (1 - pulse.value),
+    transform: [{ scale: 1 + pulse.value * 0.9 }],
+  }));
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[{ position: 'absolute', top: 0, left: '50%', marginLeft: -16, width: 32, height: 32, borderRadius: 16, backgroundColor: '#A61C14' }, ring]}
+    />
+  );
+}
+
 const PICKUP_STEPS = [
   { key: 'received', label: 'Received' },
   { key: 'preparing', label: 'In the Press' },
@@ -70,7 +116,20 @@ const PICKUP_STEPS = [
 
 export default function OrderDetailScreen() {
   const cartBarSpace = useCartBarSpace();
-  const { id } = useLocalSearchParams() as { id: string };
+  const { id, placed } = useLocalSearchParams() as { id: string; placed?: string };
+
+  // Just placed (checkout opens this with placed=1): confetti, a buzz and a
+  // big "Order placed!" card -- once per order.
+  const [celebrating, setCelebrating] = useState(false);
+  useEffect(() => {
+    if (placed === '1' && id && !CELEBRATED.has(id)) {
+      CELEBRATED.add(id);
+      setCelebrating(true);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    } else {
+      setCelebrating(false);
+    }
+  }, [id, placed]);
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -375,6 +434,31 @@ export default function OrderDetailScreen() {
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 + cartBarSpace + keyboardHeight }}
         ListHeaderComponent={
           <>
+            {celebrating && (
+              <View className="bg-[#A61C14] rounded-3xl p-5 mb-4 items-center shadow-sm">
+                <View className="w-16 h-16 rounded-full bg-[#FFC72C] items-center justify-center mb-3">
+                  <Ionicons name="checkmark" size={38} color="#7A0E0A" />
+                </View>
+                <Text className="text-[#F4ECE1] font-display-bold text-[28px] text-center">
+                  {order.is_catering ? 'Catering Order In!' : 'Order Placed!'}
+                </Text>
+                <Text className="text-[#F4ECE1] opacity-90 text-[15px] font-inter-medium text-center mt-1">
+                  {order.is_catering
+                    ? "We'll call you to confirm the details before we start."
+                    : "We're firing up the press. Follow along right here."}
+                </Text>
+                {!order.is_catering && !session?.user?.is_anonymous && orderPoints > 0 && (
+                  <View className="flex-row items-center bg-black/20 rounded-full px-4 py-2 mt-4">
+                    <Ionicons name="star" size={16} color="#FFC72C" />
+                    <Text className="text-[#FFC72C] font-inter-extrabold text-base ml-1.5">
+                      +<CountUp value={orderPoints} /> PaninoPoints
+                    </Text>
+                    <Text className="text-[#F4ECE1] font-inter-semibold text-sm ml-1.5">on the way</Text>
+                  </View>
+                )}
+              </View>
+            )}
+
             {order.is_catering && !isCancelled && (
               <View className="bg-white border border-[#A61C14] rounded-3xl p-4 mb-4 shadow-sm">
                 <View className="flex-row items-center">
@@ -464,6 +548,7 @@ export default function OrderDetailScreen() {
 
                     return (
                       <View key={step.key} className="items-center flex-1 px-0.5">
+                        {isCurrent && !isCompleted && <StepPulse />}
                         <View
                           style={[
                             styles.stepIndicator,
@@ -771,6 +856,9 @@ export default function OrderDetailScreen() {
           ) : null
         }
       />
+      {/* The moment the order goes in */}
+      <ConfettiBurst count={80} colors={CONFETTI_COLORS} playing={celebrating} />
+
       <AccountSetupSheet
         visible={setupVisible}
         mode="finish"

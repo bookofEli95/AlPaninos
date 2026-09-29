@@ -591,7 +591,6 @@ export default function CartScreen() {
         if (profileError) console.warn('Failed to save guest details to profile:', profileError.message);
       }
 
-      const wasCatering = isCateringOrder;
       clearCart();
       setVerifiedAtCheckout(false);
       setAppliedPromo(null);
@@ -601,14 +600,9 @@ export default function CartScreen() {
       setInvoiceEmail('');
       setCateringSuite('');
       setCateringDropoff('');
-      hapticSuccess();
-      Alert.alert(
-        wasCatering ? 'Catering Order Received!' : 'Order Placed!',
-        wasCatering
-          ? "We'll call you to confirm the details before we start preparing it."
-          : 'You can track its status now.',
-        [{ text: 'Track Order', onPress: () => router.replace(`/(main)/order/${orderData.id}`) }]
-      );
+      // Straight to the order, where it's celebrated (confetti, points) and
+      // tracked live -- no popup in between.
+      router.replace({ pathname: `/(main)/order/${orderData.id}`, params: { placed: '1' } });
 
     } catch (error: any) {
       hapticError();
