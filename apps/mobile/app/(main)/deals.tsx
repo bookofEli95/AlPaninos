@@ -1,11 +1,10 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   FlatList,
   Animated,
-  ActivityIndicator,
 } from 'react-native';
 import { Alert } from '../../lib/alert';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -15,7 +14,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { useLocationStore } from '../../store/locationStore';
 import { usePromoStore } from '../../store/promoStore';
-import { appliedPromoFromRow, describePromoRequirements } from '../../lib/promoEligibility';
+import { appliedPromoFromRow } from '../../lib/promoEligibility';
 import { useCartStore } from '../../store/cartStore';
 import { useBackHandler } from '../../hooks/useBackHandler';
 import {
@@ -28,6 +27,7 @@ import PrizeItemPicker from '../../components/PrizeItemPicker';
 import SkeletonBox from '../../components/Skeleton';
 import AccountSetupSheet from '../../components/AccountSetupSheet';
 import ChallengeCard from '../../components/ChallengeCard';
+import DealCard from '../../components/DealCard';
 import { Challenge } from '../../lib/challenges';
 
 const NEXT_TIER_BY_POINTS = [
@@ -95,6 +95,55 @@ export default function DealsScreen() {
     },
     enabled: !!locationId && !!session?.user?.id,
   });
+
+  // The customer's own prizes first -- they're what people are most drawn
+  // to -- then everything else, newest first.
+  const sortedPromotions = useMemo(
+    () => (promotions ? [...promotions].sort((a: any, b: any) => Number(!!b.user_id) - Number(!!a.user_id)) : promotions),
+    [promotions]
+  );
+
+  // A photo of the food each deal is for (every store's menu, one photo per
+  // dish). A whole-order deal gets a sandwich -- the star of the menu.
+  const { data: menuPhotos } = useQuery({
+    queryKey: ['dealPhotos'],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('menu_items')
+        .select('name, image_url, is_available, menu_categories ( id, name )')
+        .not('image_url', 'is', null)
+        .order('name')
+        .limit(1000);
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+    staleTime: 30 * 60000,
+  });
+
+  const photoFor = useCallback(
+    (promo: any): string | null => {
+      const all = (menuPhotos ?? []).filter((m) => m.is_available !== false && m.image_url);
+      if (!all.length) return null;
+      const lower = (v: string) => v.trim().toLowerCase();
+      const categoryNames = new Set<string>(
+        [...(promo.category_names ?? []), promo.category_name].filter(Boolean).map(lower)
+      );
+      const inCategory = all.filter(
+        (m) =>
+          (m.menu_categories?.name && categoryNames.has(lower(m.menu_categories.name))) ||
+          (!!promo.category_id && m.menu_categories?.id === promo.category_id)
+      );
+      const patterns = (promo.item_name_patterns ?? []).map(lower);
+      const matching = patterns.length ? inCategory.filter((m) => patterns.includes(lower(m.name))) : inCategory;
+      const pick =
+        matching[0] ??
+        inCategory[0] ??
+        all.find((m) => m.menu_categories?.name === 'The Mob') ??
+        all[0];
+      return pick?.image_url ?? null;
+    },
+    [menuPhotos]
+  );
 
   const { data: usedCodes } = useQuery({
     queryKey: ['usedPromoCodes', session?.user?.id],
@@ -244,7 +293,7 @@ export default function DealsScreen() {
 
       <FlatList
         ref={listRef}
-        data={promotions}
+        data={sortedPromotions}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: hasBottomBar ? 96 : 32 }}
         showsVerticalScrollIndicator={false}
@@ -321,108 +370,22 @@ export default function DealsScreen() {
             </Text>
           </View>
         }
-        renderItem={({ item }) => {
+        renderItem={({ item, index }) => {
+          const isItemPrize = isPickAnItemPrize(item);
           const isApplied =
             !!item.code &&
-            (isPickAnItemPrize(item)
-              ? items.some((i) => i.promoCode === item.code)
-              : appliedPromo?.code === item.code);
-          const alreadyUsed = !!item.code && isAlreadyUsed(item);
-
+            (isItemPrize ? items.some((i) => i.promoCode === item.code) : appliedPromo?.code === item.code);
           return (
-            <TouchableOpacity
+            <DealCard
+              promo={item}
+              index={index}
+              photo={photoFor(item)}
+              applied={isApplied}
+              used={!!item.code && isAlreadyUsed(item)}
+              loading={resolvingCode === item.code}
+              isItemPrize={isItemPrize}
               onPress={() => handleTogglePromo(item)}
-              disabled={alreadyUsed || !item.code}
-              activeOpacity={0.8}
-              className={`bg-white rounded-2xl border p-4 mb-3 shadow-sm ${
-                alreadyUsed
-                  ? 'opacity-50 border-stone-200'
-                  : isApplied
-                  ? 'border-[#A61C14] bg-[#FAF6F0]/40'
-                  : 'border-stone-200'
-              }`}
-            >
-              <View className="flex-row items-start justify-between mb-1.5">
-                <View className="flex-1 mr-2">
-                  <View className="flex-row items-center flex-wrap gap-1.5 mb-1">
-                    {item.user_id && (
-                      <View className="bg-[#A61C14] px-2 py-0.5 rounded-full">
-                        <Text className="text-[#F4ECE1] text-[10px] font-inter-bold uppercase">
-                          Your Prize
-                        </Text>
-                      </View>
-                    )}
-                    <Text className="text-base font-inter-bold text-[#1C1917]">{item.title}</Text>
-                  </View>
-                  {item.description && (
-                    <Text className="text-stone-500 text-xs leading-4">{item.description}</Text>
-                  )}
-                  {describePromoRequirements(item).length > 0 && (
-                    <View className="flex-row flex-wrap mt-2">
-                      {describePromoRequirements(item).map((tag) => (
-                        <View key={tag} className="bg-[#FAF6F0] border border-stone-200 rounded-md px-2 py-0.5 mr-1.5 mb-1">
-                          <Text className="text-stone-600 text-[11px] font-inter-semibold">{tag}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  )}
-                </View>
-
-                {isApplied && (
-                  <View className="bg-[#A61C14] rounded-full p-1">
-                    <Ionicons name="checkmark" size={14} color="#F4ECE1" />
-                  </View>
-                )}
-              </View>
-
-              <View className="flex-row items-center justify-between mt-3 pt-2.5 border-t border-stone-100">
-                <View className="flex-row items-center">
-                  <Ionicons name="pricetag-outline" size={14} color="#78716C" />
-                  <Text className="text-xs font-inter-semibold text-stone-600 ml-1.5 uppercase tracking-wide">
-                    {alreadyUsed
-                      ? 'Already Redeemed'
-                      : isPickAnItemPrize(item)
-                      ? 'Free Menu Item'
-                      : `Code: ${item.code}`}
-                  </Text>
-                </View>
-
-                <View
-                  className={`px-3 py-1.5 rounded-xl flex-row items-center ${
-                    alreadyUsed
-                      ? 'bg-stone-100'
-                      : isApplied
-                      ? 'bg-[#A61C14]'
-                      : 'bg-stone-100'
-                  }`}
-                >
-                  {resolvingCode === item.code && (
-                    <ActivityIndicator
-                      size="small"
-                      color="#A61C14"
-                      style={{ marginRight: 4 }}
-                    />
-                  )}
-                  <Text
-                    className={`text-xs font-inter-bold ${
-                      alreadyUsed
-                        ? 'text-stone-400'
-                        : isApplied
-                        ? 'text-[#F4ECE1]'
-                        : 'text-[#1C1917]'
-                    }`}
-                  >
-                    {alreadyUsed
-                      ? 'Redeemed'
-                      : isApplied
-                      ? 'Applied'
-                      : isPickAnItemPrize(item)
-                      ? 'Claim Item'
-                      : 'Apply Offer'}
-                  </Text>
-                </View>
-              </View>
-            </TouchableOpacity>
+            />
           );
         }}
         ListEmptyComponent={
