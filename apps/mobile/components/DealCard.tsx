@@ -59,8 +59,9 @@ export default function DealCard({
   const scale = useSharedValue(1);
   const pressStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
-  // Says what happens: claim a free item, build a Mix & Match, or get the
-  // deal (which applies it and opens the food it's for).
+  // Says what happens: claim a free item, build a Mix & Match, get a deal
+  // on part of the menu (applies it and opens that food), or just apply a
+  // money-off-the-order deal.
   const action = used
     ? 'Redeemed'
     : applied
@@ -71,7 +72,9 @@ export default function DealCard({
     ? 'Claim'
     : isBundleDeal(promo)
     ? 'Build'
-    : 'Get Deal';
+    : promo.category_name || promo.category_id || promo.category_names?.length
+    ? 'Get Deal'
+    : 'Apply';
 
   return (
     // The entrance and the squeeze on separate layers -- both move the card,

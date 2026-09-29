@@ -2,9 +2,6 @@ import { useEffect, useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView, Image, StyleSheet, Pressable } from 'react-native';
 import Animated, {
   Easing,
-  FadeIn,
-  FadeInDown,
-  SlideInDown,
   useAnimatedStyle,
   useSharedValue,
   withSequence,
@@ -84,6 +81,17 @@ export default function DealBuilderSheet({
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
   }, [unlocked, visible, pulse]);
   const barStyle = useAnimatedStyle(() => ({ width: `${progress.value * 100}%` }));
+
+  // The sheet slides up each time the builder is shown.
+  const slide = useSharedValue(600);
+  useEffect(() => {
+    if (!visible) {
+      slide.value = 600;
+      return;
+    }
+    slide.value = withTiming(0, { duration: 320, easing: Easing.out(Easing.cubic) });
+  }, [visible, slide]);
+  const sheetStyle = useAnimatedStyle(() => ({ transform: [{ translateY: slide.value }] }));
   const pulseStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulse.value }] }));
 
   if (!promo) return null;
@@ -118,13 +126,13 @@ export default function DealBuilderSheet({
     : `${filled.length} of ${needed} picked -- ${needed - filled.length} more to unlock ${offLabel}`;
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={close} statusBarTranslucent>
-      <Animated.View entering={FadeIn.duration(160)} style={styles.backdrop}>
+    // No layout ("entering") animations in here: inside a Modal on iPhone
+    // they can leave the whole sheet not answering taps. The Modal fades the
+    // backdrop in and the sheet slides up on an animated style instead.
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={close} statusBarTranslucent>
+      <View style={styles.backdrop}>
         <Pressable style={StyleSheet.absoluteFill} onPress={close} />
-        <Animated.View
-          entering={SlideInDown.duration(320).easing(Easing.out(Easing.cubic))}
-          style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}
-        >
+        <Animated.View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) + 8 }, sheetStyle]}>
           {/* Header: the deal, and a way out */}
           <View style={styles.header}>
             <View style={styles.valueChip}>
@@ -160,7 +168,7 @@ export default function DealBuilderSheet({
               const extra = i >= needed;
               if (!meal) {
                 return (
-                  <Animated.View key={`slot-${i}`} entering={FadeInDown.duration(260)}>
+                  <View key={`slot-${i}`}>
                     <TouchableOpacity onPress={() => onPickMeal(i)} activeOpacity={0.8} style={styles.emptySlot}>
                       <View style={styles.emptyIcon}>
                         <Ionicons name="add" size={24} color={RED} />
@@ -177,12 +185,12 @@ export default function DealBuilderSheet({
                         <Ionicons name="chevron-forward" size={20} color={RED} />
                       )}
                     </TouchableOpacity>
-                  </Animated.View>
+                  </View>
                 );
               }
               const options = meal.item.modifiers.map((m) => m.name).join(', ');
               return (
-                <Animated.View key={`slot-${i}`} entering={FadeInDown.duration(260)}>
+                <View key={`slot-${i}`}>
                   <View style={styles.filledSlot}>
                     {meal.item.imageUrl ? (
                       <Image source={{ uri: meal.item.imageUrl }} style={styles.mealPhoto} />
@@ -224,7 +232,7 @@ export default function DealBuilderSheet({
                       </View>
                     </View>
                   </View>
-                </Animated.View>
+                </View>
               );
             })}
 
@@ -271,7 +279,7 @@ export default function DealBuilderSheet({
         </Animated.View>
 
         {confirmLeave && (
-          <Animated.View entering={FadeIn.duration(140)} style={styles.leaveBackdrop}>
+          <View style={styles.leaveBackdrop}>
             <View style={styles.leaveCard}>
               <View style={styles.leaveAccent} />
               <Text style={styles.leaveTitle}>Leave This Deal?</Text>
@@ -294,9 +302,9 @@ export default function DealBuilderSheet({
                 </TouchableOpacity>
               </View>
             </View>
-          </Animated.View>
+          </View>
         )}
-      </Animated.View>
+      </View>
     </Modal>
   );
 }

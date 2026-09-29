@@ -313,32 +313,34 @@ export default function DealsScreen() {
 
     const applied = appliedPromoFromRow(item);
     setAppliedPromo(applied);
+
+    // Money-off-the-order deals ($3 off pickup, $7 off $40...) just apply --
+    // the card turns green and that's it.
+    if (!hasCategoryScope(applied)) {
+      showToast('Promo applied');
+      return;
+    }
+
+    // A deal on part of the menu (25% off The Mob) applies, then opens that
+    // part of the menu -- after a beat, so the card is seen turning green.
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    showToast('Deal applied -- let\'s find your food');
-    // ...then straight to what it's for, after a beat to see it turn green:
-    // a Mob deal opens The Mob; a whole-order deal opens the menu (or the
-    // cart, if there's already food in it, to see the saving).
+    showToast("Deal applied -- let's find your food");
     const target = locationId;
     if (!target) return;
     setTimeout(async () => {
-      if (hasCategoryScope(applied)) {
-        const ids = await resolvePromoCategoryIds(applied, target);
-        if (ids?.length) {
-          const { data: cats } = await (supabase as any).from('menu_categories').select('id, name').in('id', ids);
-          const first = (cats ?? [])[0];
-          if (ids.length === 1 && first) {
-            router.push({
-              pathname: '/(main)/menu-category',
-              params: { categoryId: first.id, categoryName: first.name, locationId: target },
-            });
-            return;
-          }
+      const ids = await resolvePromoCategoryIds(applied, target);
+      if (ids?.length === 1) {
+        const { data: cats } = await (supabase as any).from('menu_categories').select('id, name').in('id', ids);
+        const category = (cats ?? [])[0];
+        if (category) {
+          router.push({
+            pathname: '/(main)/menu-category',
+            params: { categoryId: category.id, categoryName: category.name, locationId: target },
+          });
+          return;
         }
-        router.replace(`/(main)/menu/${target}`);
-        return;
       }
-      if (useCartStore.getState().items.length > 0) router.push('/(main)/cart');
-      else router.replace(`/(main)/menu/${target}`);
+      router.replace(`/(main)/menu/${target}`);
     }, 650);
   };
 
