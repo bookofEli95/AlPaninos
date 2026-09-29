@@ -358,6 +358,10 @@ export default function ProfileScreen() {
     ]);
   };
 
+  // Each Account row opens just its own part of Edit Profile.
+  const editSection = (section: 'details' | 'phone' | 'address') =>
+    router.push({ pathname: '/(main)/edit-profile', params: { section } });
+
   // An account that never set a password (a guest who verified their email
   // at checkout) couldn't sign back in afterward, so it's offered the
   // chance to set one first -- same as the More tab.
@@ -462,7 +466,7 @@ export default function ProfileScreen() {
               {!!since && <Text className="text-stone-400 text-xs font-inter-medium mt-0.5">{since}</Text>}
             </View>
             <TouchableOpacity
-              onPress={() => router.push('/(main)/edit-profile')}
+              onPress={() => editSection('details')}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               className="w-10 h-10 rounded-full bg-white/10 items-center justify-center border border-white/15"
             >
@@ -710,42 +714,24 @@ export default function ProfileScreen() {
                 icon="person-outline"
                 label="Personal Details"
                 detail={[fullName, session?.user?.email].filter(Boolean).join(' · ')}
-                onPress={() => router.push('/(main)/edit-profile')}
+                onPress={() => editSection('details')}
               />
               <AccountRow
                 icon="call-outline"
                 label="Phone"
                 detail={phoneLabel}
-                onPress={() => router.push('/(main)/edit-profile')}
+                onPress={() => editSection('phone')}
               />
               <AccountRow
                 icon="location-outline"
                 label="Delivery Address"
                 detail={profile?.address || 'Add an address'}
-                onPress={() => router.push('/(main)/edit-profile')}
+                onPress={() => editSection('address')}
               />
               <AccountRow
                 icon="time-outline"
                 label="Order History"
                 onPress={() => router.push('/(main)/orders')}
-                last
-              />
-            </View>
-
-            <Text className="text-xs font-inter-bold uppercase tracking-wider text-stone-500 mt-6 mb-2 px-1">
-              More
-            </Text>
-            <View className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
-              <AccountRow
-                icon="notifications-outline"
-                label="Settings"
-                detail="Notifications and preferences"
-                onPress={() => router.push('/(main)/settings')}
-              />
-              <AccountRow
-                icon="help-buoy-outline"
-                label="Customer Support"
-                onPress={() => router.push('/(main)/customer-support')}
                 last
               />
             </View>

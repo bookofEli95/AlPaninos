@@ -10,7 +10,7 @@ import {
   Keyboard,
   Dimensions,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
@@ -25,14 +25,28 @@ import { isValidEmail } from '../../lib/passwordStrength';
 import { useBackHandler } from '../../hooks/useBackHandler';
 import { useCartBarSpace } from '../../hooks/useCartBarSpace';
 
+// Profile opens this for one thing at a time: `section` 'details' (name and
+// email), 'phone' or 'address'. With no section it's the whole form.
+type Section = 'details' | 'phone' | 'address';
+const TITLES: Record<Section, string> = {
+  details: 'Personal Details',
+  phone: 'Phone Number',
+  address: 'Delivery Address',
+};
+
 export default function EditProfile() {
   const cartBarSpace = useCartBarSpace();
   const router = useRouter();
+  const { section } = useLocalSearchParams<{ section?: Section }>();
+  const showDetails = !section || section === 'details';
+  const showPhone = !section || section === 'phone';
+  const showAddress = !section || section === 'address';
+  const showNotify = !section;
   const queryClient = useQueryClient();
   const { session } = useAuthStore();
   const userId = session?.user?.id;
   const isAnonymous = session?.user?.is_anonymous ?? false;
-  const locationId = useLocationStore(state => state.locationId);
+  const locationId = useLocationStore((state) => state.locationId);
 
   // Reachable via the Profile screen's Edit button, but that screen itself
   // bounces guests away -- still guard this route directly too, since a
@@ -76,16 +90,22 @@ export default function EditProfile() {
   const { data: profile, isLoading } = useQuery({
     queryKey: ['profile', userId],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
+      const { data, error } = await (supabase as any).from('profiles').select('*').eq('id', userId).single();
       if (error) throw error;
       return data;
     },
     enabled: !isAnonymous && !!userId,
   });
+
+  // This screen stays mounted between visits, so each visit starts again
+  // from the saved profile (nothing half-typed from last time).
+  useFocusEffect(
+    useCallback(() => {
+      setFormReady(false);
+      setErrorMessage(null);
+      setEmail(session?.user?.email || '');
+    }, [section, session?.user?.email]),
+  );
 
   useEffect(() => {
     if (profile && !formReady) {
@@ -104,41 +124,50 @@ export default function EditProfile() {
   const handleSave = async () => {
     setErrorMessage(null);
 
-    if (!firstName.trim() || !lastName.trim() || !phone.trim() || !address.trim() || !email.trim()) {
-      setErrorMessage('Please fill out all fields.');
+    if (
+      (showDetails && (!firstName.trim() || !lastName.trim() || !email.trim())) ||
+      (showPhone && !phone.trim()) ||
+      (showAddress && !address.trim())
+    ) {
+      setErrorMessage(section ? 'Please fill this in.' : 'Please fill out all fields.');
       return;
     }
-    if (!isValidEmail(email)) {
+    if (showDetails && !isValidEmail(email)) {
       setErrorMessage('Please enter a valid email address.');
       return;
     }
-    if (!isValidPhoneForCountry(phone, country)) {
+    if (showPhone && !isValidPhoneForCountry(phone, country)) {
       setErrorMessage(`Please enter a valid phone number for ${country.name}.`);
       return;
     }
-    if (!notifyEmail && !notifySms) {
+    if (showNotify && !notifyEmail && !notifySms) {
       setErrorMessage('Choose at least one way to receive order updates.');
       return;
     }
 
+    // Only what's on screen is saved.
+    const changes: Record<string, any> = {};
+    if (showDetails) {
+      changes.first_name = firstName.trim();
+      changes.last_name = lastName.trim();
+    }
+    if (showPhone) changes.phone = `+${country.dialCode}${phone.trim()}`;
+    if (showAddress) changes.address = address.trim();
+    if (showNotify) {
+      changes.notify_email = notifyEmail;
+      changes.notify_sms = notifySms;
+    }
+
     setLoading(true);
     try {
-      const { error: profileError } = await (supabase as any)
-        .from('profiles')
-        .update({
-          first_name: firstName.trim(),
-          last_name: lastName.trim(),
-          phone: `+${country.dialCode}${phone.trim()}`,
-          address: address.trim(),
-          notify_email: notifyEmail,
-          notify_sms: notifySms,
-        })
-        .eq('id', userId);
+      const { error: profileError } = await (supabase as any).from('profiles').update(changes).eq('id', userId);
       if (profileError) throw profileError;
 
-      const emailChanged = email.trim() !== session?.user?.email;
+      const emailChanged = showDetails && email.trim() !== session?.user?.email;
       if (emailChanged) {
-        const { error: emailError } = await supabase.auth.updateUser({ email: email.trim() });
+        const { error: emailError } = await supabase.auth.updateUser({
+          email: email.trim(),
+        });
         if (emailError) throw emailError;
       }
 
@@ -148,8 +177,12 @@ export default function EditProfile() {
         emailChanged ? 'Confirm Your New Email' : 'Saved',
         emailChanged
           ? 'Your profile was updated. Check your inbox to confirm your new email address before it takes effect.'
-          : 'Your profile was updated.',
-        [{ text: 'OK', onPress: goBackToProfile }]
+          : section === 'phone'
+            ? 'Your phone number was updated.'
+            : section === 'address'
+              ? 'Your delivery address was updated.'
+              : 'Your profile was updated.',
+        [{ text: 'OK', onPress: goBackToProfile }],
       );
     } catch (e: any) {
       setErrorMessage(e.message);
@@ -180,75 +213,87 @@ export default function EditProfile() {
           <Text className="text-[#A61C14] font-inter-bold text-xl">Back</Text>
         </TouchableOpacity>
 
-        <Text className="text-3xl font-display-bold text-[#1C1917] mb-6">Edit Profile</Text>
+        <Text className="text-3xl font-display-bold text-[#1C1917] mb-6">
+          {section ? TITLES[section] : 'Edit Profile'}
+        </Text>
 
         {errorMessage && <ErrorBanner message={errorMessage} />}
 
-        <View className="flex-row justify-between mb-4">
-          <TextInput
-            className="bg-white border border-stone-300 p-4 rounded-xl flex-1 mr-2 text-base text-[#1C1917]"
-            placeholder="First Name"
-            placeholderTextColor="#A8A29E"
-            value={firstName}
-            onChangeText={setFirstName}
-          />
-          <TextInput
-            className="bg-white border border-stone-300 p-4 rounded-xl flex-1 ml-2 text-base text-[#1C1917]"
-            placeholder="Last Name"
-            placeholderTextColor="#A8A29E"
-            value={lastName}
-            onChangeText={setLastName}
-          />
-        </View>
+        {showDetails && (
+          <View className="flex-row justify-between mb-4">
+            <TextInput
+              className="bg-white border border-stone-300 p-4 rounded-xl flex-1 mr-2 text-base text-[#1C1917]"
+              placeholder="First Name"
+              placeholderTextColor="#A8A29E"
+              value={firstName}
+              onChangeText={setFirstName}
+            />
+            <TextInput
+              className="bg-white border border-stone-300 p-4 rounded-xl flex-1 ml-2 text-base text-[#1C1917]"
+              placeholder="Last Name"
+              placeholderTextColor="#A8A29E"
+              value={lastName}
+              onChangeText={setLastName}
+            />
+          </View>
+        )}
 
-        <View className="flex-row mb-4">
+        {showPhone && (
+          <View className="flex-row mb-4">
+            <TouchableOpacity
+              onPress={() => setCountryPickerVisible(true)}
+              className="flex-row items-center bg-white border border-stone-300 rounded-xl px-3 mr-2"
+            >
+              <Text className="text-base mr-1">{country.flag}</Text>
+              <Text className="text-base font-inter-semibold text-[#1C1917] mr-1">+{country.dialCode}</Text>
+              <Ionicons name="chevron-down" size={14} color="#A8A29E" />
+            </TouchableOpacity>
+            <TextInput
+              className="bg-white border border-stone-300 p-4 rounded-xl flex-1 text-base text-[#1C1917]"
+              placeholder="Phone Number"
+              placeholderTextColor="#A8A29E"
+              keyboardType="phone-pad"
+              value={formatPhoneNumber(phone, country)}
+              onChangeText={(text) => setPhone(text.replace(/[^0-9]/g, ''))}
+            />
+          </View>
+        )}
+
+        {showDetails && (
+          <TextInput
+            className="bg-white border border-stone-300 p-4 rounded-xl mb-4 text-base text-[#1C1917]"
+            placeholder="Email"
+            placeholderTextColor="#A8A29E"
+            autoCapitalize="none"
+            keyboardType="email-address"
+            value={email}
+            onChangeText={setEmail}
+          />
+        )}
+
+        {showAddress && (
           <TouchableOpacity
-            onPress={() => setCountryPickerVisible(true)}
-            className="flex-row items-center bg-white border border-stone-300 rounded-xl px-3 mr-2"
+            onPress={() => setAddressPopupVisible(true)}
+            className="flex-row items-center bg-white border border-stone-300 p-4 rounded-xl mb-6"
           >
-            <Text className="text-base mr-1">{country.flag}</Text>
-            <Text className="text-base font-inter-semibold text-[#1C1917] mr-1">+{country.dialCode}</Text>
-            <Ionicons name="chevron-down" size={14} color="#A8A29E" />
+            <Ionicons name="location-outline" size={20} color="#A8A29E" />
+            <Text
+              className={`flex-1 ml-3 text-base ${address ? 'text-[#1C1917]' : 'text-[#A8A29E]'}`}
+              numberOfLines={1}
+            >
+              {address || 'Enter delivery address...'}
+            </Text>
           </TouchableOpacity>
-          <TextInput
-            className="bg-white border border-stone-300 p-4 rounded-xl flex-1 text-base text-[#1C1917]"
-            placeholder="Phone Number"
-            placeholderTextColor="#A8A29E"
-            keyboardType="phone-pad"
-            value={formatPhoneNumber(phone, country)}
-            onChangeText={(text) => setPhone(text.replace(/[^0-9]/g, ''))}
+        )}
+
+        {showNotify && (
+          <NotifyPreferenceToggle
+            notifyEmail={notifyEmail}
+            notifySms={notifySms}
+            onChangeEmail={setNotifyEmail}
+            onChangeSms={setNotifySms}
           />
-        </View>
-
-        <TextInput
-          className="bg-white border border-stone-300 p-4 rounded-xl mb-4 text-base text-[#1C1917]"
-          placeholder="Email"
-          placeholderTextColor="#A8A29E"
-          autoCapitalize="none"
-          keyboardType="email-address"
-          value={email}
-          onChangeText={setEmail}
-        />
-
-        <TouchableOpacity
-          onPress={() => setAddressPopupVisible(true)}
-          className="flex-row items-center bg-white border border-stone-300 p-4 rounded-xl mb-6"
-        >
-          <Ionicons name="location-outline" size={20} color="#A8A29E" />
-          <Text
-            className={`flex-1 ml-3 text-base ${address ? 'text-[#1C1917]' : 'text-[#A8A29E]'}`}
-            numberOfLines={1}
-          >
-            {address || 'Enter delivery address...'}
-          </Text>
-        </TouchableOpacity>
-
-        <NotifyPreferenceToggle
-          notifyEmail={notifyEmail}
-          notifySms={notifySms}
-          onChangeEmail={setNotifyEmail}
-          onChangeSms={setNotifySms}
-        />
+        )}
 
         <TouchableOpacity
           className="bg-[#A61C14] p-4 rounded-xl mb-12 items-center shadow-md active:bg-[#85140E]"
@@ -264,9 +309,24 @@ export default function EditProfile() {
       </ScrollView>
 
       {addressPopupVisible && (
-        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)' }}>
+        <View
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.4)',
+          }}
+        >
           <TouchableOpacity
-            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+            }}
             activeOpacity={1}
             onPress={() => setAddressPopupVisible(false)}
           />
@@ -279,7 +339,10 @@ export default function EditProfile() {
           >
             <View className="flex-row justify-between items-center mb-4">
               <Text className="text-xl font-inter-extrabold text-[#1C1917]">Delivery Address</Text>
-              <TouchableOpacity onPress={() => setAddressPopupVisible(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <TouchableOpacity
+                onPress={() => setAddressPopupVisible(false)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
                 <Ionicons name="close" size={26} color="#1C1917" />
               </TouchableOpacity>
             </View>
