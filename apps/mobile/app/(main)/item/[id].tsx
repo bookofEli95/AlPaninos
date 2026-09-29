@@ -487,7 +487,8 @@ export default function ItemDetailScreen() {
         {data.image_url ? (
           <Image
             source={{ uri: data.image_url }}
-            className="w-full h-64 rounded-3xl bg-stone-200 mb-4 shadow-sm"
+            className="w-full rounded-3xl bg-stone-200 mb-4 shadow-sm"
+            style={{ height: 300 }}
             resizeMode="cover"
           />
         ) : (
@@ -556,12 +557,12 @@ export default function ItemDetailScreen() {
                   <Text className="text-lg font-inter-bold text-[#1C1917] mr-2">{group.name}</Text>
                   {minRequired > 0 && !isGroupSatisfied && (
                     <View className="bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-md">
-                      <Text className="text-amber-800 text-[10px] font-inter-bold uppercase">Required</Text>
+                      <Text className="text-amber-800 text-[11px] font-inter-bold uppercase">Required</Text>
                     </View>
                   )}
                 </View>
 
-                <Text className="text-stone-500 text-xs font-inter-medium">
+                <Text className="text-stone-500 text-[13px] font-inter-medium">
                   {isSingleChoice
                     ? 'Select 1'
                     : group.max_selections && minRequired === group.max_selections
@@ -578,7 +579,9 @@ export default function ItemDetailScreen() {
                 <Text className="text-[11px] text-[#78716C] mb-2.5">{DIETARY_DISCLAIMER}</Text>
               )}
 
-              <View className="gap-2">
+              {/* Choices as chips (tap to pick), except count-able ones
+                  (catering), which keep their - / + rows. */}
+              <View className={group.allow_quantity ? 'gap-2' : 'flex-row flex-wrap gap-2'}>
                 {group.modifier_options?.map((option: any) => {
                   const isSelected = selectedInGroup.includes(option.id);
 
@@ -639,38 +642,24 @@ export default function ItemDetailScreen() {
                       key={option.id}
                       onPress={() => handleToggleOption(group.id, option.id, group.max_selections)}
                       activeOpacity={0.8}
-                      className={`flex-row justify-between items-center p-3.5 rounded-2xl border ${
-                        isSelected ? 'bg-white border-[#A61C14]' : 'bg-white/70 border-stone-200'
+                      className={`flex-row items-center px-4 py-2.5 rounded-full border ${
+                        isSelected ? 'bg-[#A61C14] border-[#A61C14]' : 'bg-white border-stone-300'
                       }`}
                       style={isSelected ? shadowSm : undefined}
                     >
-                      <View className="flex-row items-center flex-1 mr-2">
-                        <View
-                          className={`w-5 h-5 ${isSingleChoice ? 'rounded-full' : 'rounded-md'} border mr-3 items-center justify-center ${
-                            isSelected ? 'border-[#A61C14] bg-[#A61C14]' : 'border-stone-300 bg-stone-50'
-                          }`}
-                        >
-                          {isSelected && (
-                            <Ionicons
-                              name={isSingleChoice ? 'ellipse' : 'checkmark'}
-                              size={isSingleChoice ? 7 : 12}
-                              color="#F4ECE1"
-                            />
-                          )}
-                        </View>
-
-                        <Text
-                          className={`text-sm ${
-                            isSelected ? 'font-inter-bold text-[#1C1917]' : 'font-inter-medium text-stone-800'
-                          }`}
-                        >
-                          {option.name}
-                        </Text>
-                      </View>
-
+                      {isSelected && (
+                        <Ionicons name="checkmark" size={15} color="#F4ECE1" style={{ marginRight: 4 }} />
+                      )}
+                      <Text
+                        className={`text-[15px] ${
+                          isSelected ? 'font-inter-bold text-[#F4ECE1]' : 'font-inter-semibold text-[#1C1917]'
+                        }`}
+                      >
+                        {option.name}
+                      </Text>
                       {!promoCode && option.price_adjustment > 0 && (
                         <Text
-                          className={`font-inter-bold text-xs ${isSelected ? 'text-[#A61C14]' : 'text-stone-500'}`}
+                          className={`font-inter-bold text-sm ml-1.5 ${isSelected ? 'text-[#FFC72C]' : 'text-[#A61C14]'}`}
                         >
                           +${option.price_adjustment.toFixed(2)}
                         </Text>
@@ -686,7 +675,7 @@ export default function ItemDetailScreen() {
         {data.menu_categories?.name !== 'Drinks' && (
           <View className="mt-6 border-t border-stone-200/80 pt-4">
             <Text className="text-base font-inter-bold text-[#1C1917] mb-1">Special Kitchen Notes</Text>
-            <Text className="text-stone-500 text-xs mb-3">
+            <Text className="text-stone-500 text-[13px] mb-3">
               Tap a common instruction or enter custom preferences below.
             </Text>
 
@@ -701,7 +690,7 @@ export default function ItemDetailScreen() {
                       isActive ? 'bg-[#A61C14] border-[#A61C14]' : 'bg-white border-stone-200'
                     }`}
                   >
-                    <Text className={`text-xs font-inter-semibold ${isActive ? 'text-[#F4ECE1]' : 'text-stone-600'}`}>
+                    <Text className={`text-[13px] font-inter-semibold ${isActive ? 'text-[#F4ECE1]' : 'text-stone-700'}`}>
                       {preset}
                     </Text>
                   </TouchableOpacity>
@@ -722,9 +711,12 @@ export default function ItemDetailScreen() {
           </View>
         )}
 
-        <View className="mt-2 mb-6">
-          <ItemAddOns locationId={data.location_id!} excludeCategoryName={data.menu_categories?.name} />
-        </View>
+        {/* Not while claiming a reward, building a deal or ordering catering. */}
+        {!promoCode && !dealMode && !data.is_catering && (
+          <View className="mt-2 mb-6">
+            <ItemAddOns locationId={data.location_id!} excludeCategoryName={data.menu_categories?.name} />
+          </View>
+        )}
       </ScrollView>
 
       <View className="px-5 pt-3 pb-8 border-t border-stone-200 bg-white shadow-lg">

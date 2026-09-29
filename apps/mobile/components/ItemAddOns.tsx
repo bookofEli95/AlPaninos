@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, Image } from 'react-native';
+import { View, Text, TouchableOpacity, Image, ScrollView } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -7,11 +7,10 @@ import { useCartStore } from '../store/cartStore';
 
 type Suggestion = { menuItemId: string; name: string; basePrice: number; imageUrl: string | null };
 
-// Suggested add-ons shown inline on the item page itself (below Special
-// Instructions), styled the same way Extras/Drinks already work on the
-// category grid (MenuItemGridTile) -- a picture, name, price, and a
-// quantity stepper, no popup. Always visible while customizing the main
-// item rather than surfaced only after Add to Cart.
+// "Goes great with..." on the item page, just above the Add button: a row
+// of sides and drinks with photos, each added with one tap (and a stepper
+// once it's in) -- the add-on moment, while they're still deciding.
+// Only things with no options to choose, so a tap is all it takes.
 export default function ItemAddOns({
   locationId,
   excludeCategoryName,
@@ -33,117 +32,110 @@ export default function ItemAddOns({
   };
 
   const { data: suggestions } = useQuery({
-    queryKey: ['upsellSuggestions', locationId, excludeCategoryName],
-    queryFn: async () => {
+    queryKey: ['upsellSuggestions', locationId, excludeCategoryName, 'row'],
+    queryFn: async (): Promise<Suggestion[]> => {
       const { data: categories } = await supabase
         .from('menu_categories')
         .select('id, name')
         .eq('location_id', locationId)
-        .in('name', ['Drinks', 'Sides']);
+        .in('name', ['Sides', 'Drinks']);
+      const wanted = (categories || []).filter((c) => c.name !== excludeCategoryName);
+      if (!wanted.length) return [];
 
-      const drinksCat = categories?.find((c) => c.name === 'Drinks');
-      const sidesCat = categories?.find((c) => c.name === 'Sides');
-      const result: Suggestion[] = [];
-
-      if (drinksCat && excludeCategoryName !== 'Drinks') {
-        const { data: drink } = await supabase
-          .from('menu_items')
-          .select('id, name, base_price, image_url')
-          .eq('category_id', drinksCat.id)
-          .eq('is_available', true)
-          .limit(1)
-          .maybeSingle();
-        if (drink) {
-          result.push({ menuItemId: drink.id, name: drink.name, basePrice: drink.base_price, imageUrl: drink.image_url });
-        }
-      }
-
-      if (sidesCat && excludeCategoryName !== 'Sides') {
-        const { data: fries } = await supabase
-          .from('menu_items')
-          .select('id, name, base_price, image_url')
-          .eq('category_id', sidesCat.id)
-          .eq('is_available', true)
-          .ilike('name', 'Fries')
-          .maybeSingle();
-        if (fries) {
-          result.push({ menuItemId: fries.id, name: fries.name, basePrice: fries.base_price, imageUrl: fries.image_url });
-        }
-      }
-
-      return result;
+      const { data } = await (supabase as any)
+        .from('menu_items')
+        .select('id, name, base_price, image_url, category_id')
+        .in(
+          'category_id',
+          wanted.map((c) => c.id)
+        )
+        .eq('is_available', true)
+        .order('name');
+      const ids = (data || []).map((m: any) => m.id);
+      const { data: groups } = ids.length
+        ? await (supabase as any).from('modifier_groups').select('menu_item_id').in('menu_item_id', ids)
+        : { data: [] };
+      const hasOptions = new Set((groups || []).map((g: any) => g.menu_item_id));
+      const simple = (data || []).filter((m: any) => !hasOptions.has(m.id));
+      // Sides first (plain Fries leading -- the classic add-on), then drinks.
+      const sidesId = wanted.find((c) => c.name === 'Sides')?.id;
+      simple.sort((a: any, b: any) => {
+        const rank = (m: any) => (m.category_id === sidesId ? (m.name.trim().toLowerCase() === 'fries' ? 0 : 1) : 2);
+        return rank(a) - rank(b);
+      });
+      return simple.slice(0, 8).map(
+        (m: any): Suggestion => ({ menuItemId: m.id, name: m.name, basePrice: Number(m.base_price), imageUrl: m.image_url })
+      );
     },
     enabled: !!locationId,
+    staleTime: 10 * 60000,
   });
 
   if (!suggestions || suggestions.length === 0) return null;
 
   return (
     <View className="mt-6 border-t border-stone-200 pt-4">
-      <Text className="text-lg font-inter-bold text-[#1C1917] mb-2">Add to your order</Text>
-      {suggestions.map((suggestion) => {
-        const qty =
-          items.find((i) => i.menuItemId === suggestion.menuItemId && i.modifiers.length === 0)?.quantity || 0;
-        return (
-          <View key={suggestion.menuItemId} className="flex-row items-center py-3 border-b border-stone-100">
-            {suggestion.imageUrl ? (
-              <Image source={{ uri: suggestion.imageUrl }} className="w-14 h-14 rounded-xl bg-stone-200" resizeMode="cover" />
-            ) : (
-              <View className="w-14 h-14 rounded-xl bg-[#FAF6F0] items-center justify-center">
-                <Ionicons name="fast-food-outline" size={22} color="#A8A29E" />
+      <Text className="text-lg font-display-bold text-[#1C1917] mb-3">Goes great with...</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingRight: 8 }}>
+        {suggestions.map((s) => {
+          const qty = items.find((i) => i.menuItemId === s.menuItemId && i.modifiers.length === 0)?.quantity || 0;
+          const add = () =>
+            incrementSimpleItem(
+              { menuItemId: s.menuItemId, name: s.name, basePrice: s.basePrice, imageUrl: s.imageUrl },
+              locationId
+            );
+          return (
+            <View
+              key={s.menuItemId}
+              className={`bg-white rounded-2xl overflow-hidden border ${qty > 0 ? 'border-[#A61C14]' : 'border-stone-200'}`}
+              style={{ width: 132 }}
+            >
+              {s.imageUrl ? (
+                <Image source={{ uri: s.imageUrl }} style={{ width: 132, height: 92 }} resizeMode="cover" />
+              ) : (
+                <View style={{ width: 132, height: 92 }} className="bg-[#FAF6F0] items-center justify-center">
+                  <Ionicons name="fast-food-outline" size={24} color="#A8A29E" />
+                </View>
+              )}
+              <View className="p-2.5">
+                <Text className="text-[#1C1917] font-inter-bold text-sm" numberOfLines={1}>
+                  {s.name}
+                </Text>
+                <View className="flex-row items-center justify-between mt-1.5">
+                  <Text className="text-stone-600 font-inter-semibold text-sm">+${s.basePrice.toFixed(2)}</Text>
+                  {qty === 0 ? (
+                    <TouchableOpacity
+                      onPress={add}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      className="bg-[#A61C14] rounded-full w-8 h-8 items-center justify-center"
+                    >
+                      <Ionicons name="add" size={20} color="#F4ECE1" />
+                    </TouchableOpacity>
+                  ) : (
+                    <View className="flex-row items-center">
+                      <TouchableOpacity
+                        onPress={() => decrementSimpleItem(s.menuItemId)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 4 }}
+                        className="bg-stone-100 rounded-full w-7 h-7 items-center justify-center"
+                      >
+                        <Ionicons name="remove" size={16} color="#1C1917" />
+                      </TouchableOpacity>
+                      <Text className="font-inter-bold text-[#1C1917] text-sm w-6 text-center">{qty}</Text>
+                      <TouchableOpacity
+                        onPress={add}
+                        hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
+                        className="bg-[#A61C14] rounded-full w-7 h-7 items-center justify-center"
+                      >
+                        <Ionicons name="add" size={16} color="#F4ECE1" />
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
               </View>
-            )}
-            <View className="flex-1 ml-3">
-              <Text className="text-[#1C1917] font-inter-semibold">{suggestion.name}</Text>
-              <Text className="text-[#A61C14] font-inter-bold text-sm mt-0.5">${suggestion.basePrice.toFixed(2)}</Text>
             </View>
-            {qty === 0 ? (
-              <TouchableOpacity
-                onPress={() =>
-                  incrementSimpleItem(
-                    {
-                      menuItemId: suggestion.menuItemId,
-                      name: suggestion.name,
-                      basePrice: suggestion.basePrice,
-                      imageUrl: suggestion.imageUrl,
-                    },
-                    locationId
-                  )
-                }
-                className="bg-[#A61C14] rounded-lg px-4 py-2 active:bg-[#85140E]"
-              >
-                <Text className="text-[#F4ECE1] font-inter-bold text-sm">Add</Text>
-              </TouchableOpacity>
-            ) : (
-              <View className="flex-row items-center bg-stone-100 rounded-lg px-1 py-1 border border-stone-200">
-                <TouchableOpacity
-                  onPress={() => decrementSimpleItem(suggestion.menuItemId)}
-                  className="bg-white w-8 h-8 rounded-md items-center justify-center shadow-sm"
-                >
-                  <Text className="font-inter-bold text-[#1C1917]">-</Text>
-                </TouchableOpacity>
-                <Text className="font-inter-bold text-[#1C1917] text-sm w-6 text-center">{qty}</Text>
-                <TouchableOpacity
-                  onPress={() =>
-                    incrementSimpleItem(
-                      {
-                        menuItemId: suggestion.menuItemId,
-                        name: suggestion.name,
-                        basePrice: suggestion.basePrice,
-                        imageUrl: suggestion.imageUrl,
-                      },
-                      locationId
-                    )
-                  }
-                  className="bg-white w-8 h-8 rounded-md items-center justify-center shadow-sm"
-                >
-                  <Text className="font-inter-bold text-[#1C1917]">+</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        );
-      })}
+          );
+        })}
+      </ScrollView>
     </View>
   );
 }
