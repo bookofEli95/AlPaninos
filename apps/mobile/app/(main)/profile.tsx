@@ -261,12 +261,15 @@ export default function ProfileScreen() {
   });
 
   const scrollViewRef = useRef<ScrollView>(null);
+  // Whether a reward's pick list is open (set below, once `picker` exists).
+  const pickerOpen = useRef(false);
   const [playKey, setPlayKey] = useState(0);
   const shine = useSharedValue(0);
 
   useFocusEffect(
     useCallback(() => {
-      scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+      // Back from an item picked off a reward's list: left as it was.
+      if (!pickerOpen.current) scrollViewRef.current?.scrollTo({ y: 0, animated: false });
       if (!userId) return;
       queryClient.invalidateQueries({ queryKey: ['profile', userId] });
       queryClient.invalidateQueries({ queryKey: ['wheelPromo', userId] });
@@ -304,15 +307,22 @@ export default function ProfileScreen() {
   // The code of the prize being looked up, so only its button spins.
   const [resolvingCode, setResolvingCode] = useState<string | null>(null);
   const [picker, setPicker] = useState<{ promo: any; items: EligiblePrizeItem[] } | null>(null);
+  pickerOpen.current = !!picker;
+  useEffect(() => {
+    if (picker && items.some((i) => i.promoCode === picker.promo.code)) setPicker(null);
+  }, [picker, items]);
 
+  // Same as Deals: an item with options opens on its own screen with the
+  // pick list left open behind it, so back returns to the list as it was.
   const giveFreeItem = (target: EligiblePrizeItem, promo: any) => {
     itemHasModifiers(target.id).then((hasModifiers) => {
       if (hasModifiers) {
         router.push({
           pathname: `/(main)/item/${target.id}`,
-          params: { promoCode: promo.code, promoTitle: promo.title },
+          params: { promoCode: promo.code, promoTitle: promo.title, returnTo: 'profile' },
         });
       } else if (locationId) {
+        setPicker(null);
         addFreeItem(
           { menuItemId: target.id, name: target.name, basePrice: target.base_price, imageUrl: target.image_url },
           locationId,
@@ -925,10 +935,7 @@ export default function ProfileScreen() {
         <PrizeItemPicker
           title={picker.promo.title}
           items={picker.items}
-          onSelect={(selected) => {
-            giveFreeItem(selected, picker.promo);
-            setPicker(null);
-          }}
+          onSelect={(selected) => giveFreeItem(selected, picker.promo)}
           onClose={() => setPicker(null)}
         />
       )}

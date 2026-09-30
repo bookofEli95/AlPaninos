@@ -150,7 +150,10 @@ export default function AvailableDeals({ locationId }: { locationId: string }) {
     if (await itemHasModifiers(target.id)) {
       // Its choices (bread, sauce...) still need picking -- the item screen
       // adds it free with this code.
-      router.push({ pathname: `/(main)/item/${target.id}`, params: { promoCode: promo.code, promoTitle: promo.title } });
+      router.push({
+        pathname: `/(main)/item/${target.id}`,
+        params: { promoCode: promo.code, promoTitle: promo.title, returnTo: 'cart' },
+      });
       return;
     }
     addFreeItem(

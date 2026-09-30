@@ -53,13 +53,20 @@ export default function PrizeItemPicker({
               className="flex-row items-center bg-white border border-stone-200 rounded-xl p-3 mb-2"
             >
               {item.image_url ? (
-                <Image source={{ uri: item.image_url }} className="w-12 h-12 rounded-lg bg-stone-200" resizeMode="cover" />
+                <Image source={{ uri: item.image_url }} className="w-16 h-16 rounded-xl bg-stone-200" resizeMode="cover" />
               ) : (
-                <View className="w-12 h-12 rounded-lg bg-[#FAF6F0] items-center justify-center">
-                  <Ionicons name="fast-food-outline" size={20} color="#A8A29E" />
+                <View className="w-16 h-16 rounded-xl bg-[#FAF6F0] items-center justify-center">
+                  <Ionicons name="fast-food-outline" size={22} color="#A8A29E" />
                 </View>
               )}
-              <Text className="flex-1 ml-3 font-inter-semibold text-[#1C1917]" numberOfLines={1}>{item.name}</Text>
+              <View className="flex-1 ml-3 mr-2">
+                <Text className="font-inter-bold text-[15px] text-[#1C1917]" numberOfLines={2}>{item.name}</Text>
+                {!!item.description && (
+                  <Text className="text-[13px] text-stone-500 leading-[17px] mt-0.5" numberOfLines={3}>
+                    {item.description}
+                  </Text>
+                )}
+              </View>
               <Text className="text-[#A61C14] font-inter-extrabold text-sm">FREE</Text>
             </TouchableOpacity>
           ))}

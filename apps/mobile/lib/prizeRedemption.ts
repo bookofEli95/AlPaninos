@@ -6,6 +6,7 @@ export type EligiblePrizeItem = {
   name: string;
   base_price: number;
   image_url: string | null;
+  description: string | null;
 };
 
 // A promo counts as a "pick a specific free item" reward (Free Choice of
@@ -32,7 +33,7 @@ export async function fetchEligiblePrizeItems(
 
   const { data, error } = await supabase
     .from('menu_items')
-    .select('id, name, base_price, image_url')
+    .select('id, name, base_price, image_url, description')
     .eq('location_id', locationId)
     .eq('category_id', categoryId)
     .eq('is_available', true);

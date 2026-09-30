@@ -335,6 +335,12 @@ export default function ItemDetailScreen() {
       router.replace('/(main)/cart');
       return;
     }
+    // Opened from a reward's pick list on Deals or Profile: back there, where
+    // the list is still open.
+    if (returnTo === 'deals' || returnTo === 'profile') {
+      router.replace(`/(main)/${returnTo}`);
+      return;
+    }
     // Opened from Home (Lunch Rush / Tonight picks, a drop): back to the
     // store's main menu rather than the category the item happens to be in.
     if (returnTo === 'menu' && data?.location_id) {
@@ -662,7 +668,9 @@ export default function ItemDetailScreen() {
                         }}
                       >
                         <View style={{ flex: 1, marginRight: 8 }}>
-                          <Text className="text-[15px] leading-5 font-inter-semibold text-[#1C1917]" numberOfLines={2}>
+                          {/* The whole name, however long ("Sub Cheese Sauce
+                              for Mozzarella") -- tiles in a row grow together. */}
+                          <Text className="text-[15px] leading-5 font-inter-semibold text-[#1C1917]">
                             {option.name}
                           </Text>
                           {!promoCode && option.price_adjustment > 0 && (

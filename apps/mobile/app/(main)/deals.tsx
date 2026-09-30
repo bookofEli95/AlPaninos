@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -61,6 +61,13 @@ export default function DealsScreen() {
   const toastOpacity = useRef(new Animated.Value(0)).current;
   const [resolvingCode, setResolvingCode] = useState<string | null>(null);
   const [picker, setPicker] = useState<{ promo: any; items: EligiblePrizeItem[] } | null>(null);
+  // Coming back from an item picked off the list: Deals is left exactly as
+  // it was (list open, same photos, same scroll) -- see the focus effects.
+  const pickerOpen = useRef(false);
+  pickerOpen.current = !!picker;
+  useEffect(() => {
+    if (picker && items.some((i) => i.promoCode === picker.promo.code)) setPicker(null);
+  }, [picker, items]);
 
   // Back to the Menu once an order's started; until then, back to Home --
   // the same rule as the first tab (store/navStore.ts).
@@ -135,6 +142,7 @@ export default function DealsScreen() {
   const [photoSeed, setPhotoSeed] = useState(() => Math.floor(Math.random() * 1e9));
   useFocusEffect(
     useCallback(() => {
+      if (pickerOpen.current) return;
       setPhotoSeed(Math.floor(Math.random() * 1e9));
     }, [])
   );
@@ -223,6 +231,7 @@ export default function DealsScreen() {
   const listRef = useRef<FlatList>(null);
   useFocusEffect(
     useCallback(() => {
+      if (pickerOpen.current) return;
       listRef.current?.scrollToOffset({ offset: 0, animated: false });
     }, [])
   );
@@ -249,14 +258,18 @@ export default function DealsScreen() {
 
   const isAlreadyUsed = (item: any) => isPromoUsed(item, usedCodes);
 
+  // An item with options opens on its own screen, and the pick list stays
+  // open behind it -- back from there lands here with the list as it was.
+  // It closes once the reward is in the cart.
   const giveFreeItem = (target: EligiblePrizeItem, promo: any) => {
     itemHasModifiers(target.id).then((hasModifiers) => {
       if (hasModifiers) {
         router.push({
           pathname: `/(main)/item/${target.id}`,
-          params: { promoCode: promo.code, promoTitle: promo.title },
+          params: { promoCode: promo.code, promoTitle: promo.title, returnTo: 'deals' },
         });
       } else if (locationId) {
+        setPicker(null);
         addFreeItem(
           { menuItemId: target.id, name: target.name, basePrice: target.base_price, imageUrl: target.image_url },
           locationId,
@@ -416,7 +429,14 @@ export default function DealsScreen() {
                 </TouchableOpacity>
               </View>
             ) : (
-            <View className="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm mb-4">
+            // The whole card opens Profile, where points are redeemed.
+            <TouchableOpacity
+              onPress={() => router.push('/(main)/profile')}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="PaninoPoints balance. Opens Profile to redeem rewards."
+              className="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm mb-4"
+            >
               <View className="flex-row justify-between items-center mb-2">
                 <View>
                   <Text className="text-xs font-inter-bold uppercase tracking-wider text-stone-500">
@@ -444,7 +464,12 @@ export default function DealsScreen() {
                   ? `🎉 You have enough points for ${nextTier.title}!`
                   : `${nextTier.cost - currentPoints} more points until ${nextTier.title}`}
               </Text>
-            </View>
+
+              <View className="flex-row items-center justify-between mt-3 pt-3 border-t border-stone-100">
+                <Text className="text-[#A61C14] font-inter-bold text-sm">Redeem your rewards</Text>
+                <Ionicons name="chevron-forward" size={18} color="#A61C14" />
+              </View>
+            </TouchableOpacity>
             )}
 
             {!isAnonymous && <ReferralCard compact />}
@@ -580,10 +605,7 @@ export default function DealsScreen() {
         <PrizeItemPicker
           title={picker.promo.title}
           items={picker.items}
-          onSelect={(selected) => {
-            giveFreeItem(selected, picker.promo);
-            setPicker(null);
-          }}
+          onSelect={(selected) => giveFreeItem(selected, picker.promo)}
           onClose={() => setPicker(null)}
         />
       )}
