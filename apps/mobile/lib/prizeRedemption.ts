@@ -96,3 +96,9 @@ export async function rewardNeedsItemScreen(itemId: string, promo: { category_na
   if ((promo.category_name ?? '').trim().toLowerCase() !== 'drinks') return true;
   return itemHasModifiers(itemId);
 }
+
+// A-to-Z by name (ignoring case and accents; "Item 2" before "Item 10") --
+// every pick list (reward items, Mix & Match meals) is shown this way.
+export function byName<T extends { name?: string | null }>(a: T, b: T): number {
+  return String(a.name ?? '').localeCompare(String(b.name ?? ''), undefined, { sensitivity: 'base', numeric: true });
+}

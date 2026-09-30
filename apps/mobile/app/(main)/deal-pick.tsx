@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, FlatList, Image, ScrollView, Dimensions }
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
+import { byName } from '../../lib/prizeRedemption';
 import { supabase } from '../../lib/supabase';
 import { useLocationStore } from '../../store/locationStore';
 import { useDealBuilderStore } from '../../store/dealBuilderStore';
@@ -68,7 +69,8 @@ export default function DealPickScreen() {
           isDropOrderable(i) &&
           (!patterns.length || patterns.includes(String(i.name).trim().toLowerCase()))
       );
-      return { categories: inScope, items: usable };
+      // A to Z (the database's order can put capitals and accents oddly).
+      return { categories: inScope, items: usable.sort(byName) };
     },
     enabled: !!promo && !!locationId,
   });

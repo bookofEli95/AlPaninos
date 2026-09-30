@@ -2,7 +2,7 @@ import { View, Text, TouchableOpacity, Image, ScrollView, StyleSheet } from 'rea
 import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { EligiblePrizeItem } from '../lib/prizeRedemption';
+import { EligiblePrizeItem, byName } from '../lib/prizeRedemption';
 
 // Shown when a "pick a free item" prize (see lib/prizeRedemption.ts) has
 // more than one eligible item -- e.g. Free Choice of Pop lists every drink,
@@ -46,7 +46,8 @@ export default function PrizeItemPicker({
             cart shows this from inside its own scrolling screen, where a
             FlatList triggers React Native's nested-list warning. */}
         <ScrollView showsVerticalScrollIndicator={false}>
-          {items.map((item) => (
+          {/* Always A to Z, whichever screen opened it. */}
+          {[...items].sort(byName).map((item) => (
             <TouchableOpacity
               key={item.id}
               onPress={() => onSelect(item)}
