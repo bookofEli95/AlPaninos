@@ -37,6 +37,7 @@ import { isBundleDeal, useDealBuilderStore } from '../../store/dealBuilderStore'
 import { Challenge } from '../../lib/challenges';
 
 const NEXT_TIER_BY_POINTS = [
+  { cost: 150, title: 'a Free Dip' },
   { cost: 300, title: 'a Free Beverage' },
   { cost: 600, title: 'a Free Specialty Side' },
   { cost: 1200, title: 'a Free Signature Sandwich' },
@@ -404,7 +405,7 @@ export default function DealsScreen() {
                   </View>
                 </View>
                 <Text className="text-xs text-stone-600 font-inter-medium mb-3">
-                  Get 10 points for every $1 -- a free drink at 300, a side at 600, a sandwich at 1,200 -- plus a free
+                  Get 10 points for every $1 -- a free dip at 150, a drink at 300, a side at 600, a sandwich at 1,200 -- plus a free
                   spin on the welcome wheel. Your cart comes with you.
                 </Text>
                 <TouchableOpacity

@@ -1,13 +1,14 @@
 import { WeekHours } from './hours';
 
 // There's no kitchen/staff app yet setting real prep times, so checkout
-// (cart.tsx) computes a one-time estimate from order size and stores it --
-// the tracking screen (order/[id].tsx) just counts down against that fixed
-// timestamp instead of re-guessing on every render.
-export function estimateReadyMinutes(orderType: 'pickup' | 'delivery', itemCount: number): number {
+// (cart.tsx) computes a one-time estimate from order size -- plus a bit
+// more while the store is busy (rushMinutes, from hooks/useStoreRush) --
+// and stores it; the tracking screen (order/[id].tsx) just counts down
+// against that fixed timestamp instead of re-guessing on every render.
+export function estimateReadyMinutes(orderType: 'pickup' | 'delivery', itemCount: number, rushMinutes = 0): number {
   const base = orderType === 'delivery' ? 35 : 20;
   const extra = Math.min(Math.max(itemCount - 1, 0) * 2, 20);
-  return base + extra;
+  return base + extra + rushMinutes;
 }
 
 export type PickupSlot = { time: Date; label: string };
@@ -43,12 +44,13 @@ export function canOrderAsap(
   hours: WeekHours | null | undefined,
   orderType: 'pickup' | 'delivery',
   itemCount: number,
+  rushMinutes = 0,
   now: Date = new Date()
 ): boolean {
   if (!hours) return true;
   const today = hoursOn(hours, now);
   if (!today) return false;
-  const readyAt = now.getTime() + estimateReadyMinutes(orderType, itemCount) * 60000;
+  const readyAt = now.getTime() + estimateReadyMinutes(orderType, itemCount, rushMinutes) * 60000;
   return now >= today.openAt && now < today.closeAt && readyAt <= today.closeAt.getTime();
 }
 
@@ -65,10 +67,11 @@ export function getOrderDays(
   hours: WeekHours | null | undefined,
   orderType: 'pickup' | 'delivery',
   itemCount: number,
+  rushMinutes = 0,
   now: Date = new Date()
 ): OrderDay[] {
   if (!hours) return [];
-  const prepMs = estimateReadyMinutes(orderType, itemCount) * 60000;
+  const prepMs = estimateReadyMinutes(orderType, itemCount, rushMinutes) * 60000;
   const days: OrderDay[] = [];
 
   for (let ahead = 0; ahead < 8 && days.length < 3; ahead++) {
@@ -103,9 +106,10 @@ export function isOrderTimeAvailable(
   hours: WeekHours | null | undefined,
   orderType: 'pickup' | 'delivery',
   itemCount: number,
+  rushMinutes = 0,
   now: Date = new Date()
 ): boolean {
-  if (time.getTime() < now.getTime() + estimateReadyMinutes(orderType, itemCount) * 60000 - 60000) return false;
+  if (time.getTime() < now.getTime() + estimateReadyMinutes(orderType, itemCount, rushMinutes) * 60000 - 60000) return false;
   if (!hours) return true;
   const day = hoursOn(hours, time);
   return !!day && time >= day.openAt && time <= day.closeAt;

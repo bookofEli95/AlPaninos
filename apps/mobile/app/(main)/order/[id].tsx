@@ -12,7 +12,7 @@ import { formatDayAndTime, getEtaDisplay } from '../../../lib/orderTiming';
 import { reorderFromOrder } from '../../../lib/reorder';
 import { tabularNums } from '../../../lib/typography';
 import { groupRepeats } from '../../../lib/modifiers';
-import { pointsForSubtotal, pointsProgressLabel, pointsRewardLabel } from '../../../lib/points';
+import { pointsForSubtotal, pointsProgressLabel, pointsRewardLabel, FIRST_REWARD_POINTS } from '../../../lib/points';
 import { emailInvoice, saveInvoice } from '../../../lib/invoice';
 import BoxManifest from '../../../components/BoxManifest';
 import { useCartBarSpace } from '../../../hooks/useCartBarSpace';
@@ -403,7 +403,7 @@ export default function OrderDetailScreen() {
   const pointsBalanceLine =
     balance == null
       ? 'Added to your balance.'
-      : balance >= 300
+      : balance >= FIRST_REWARD_POINTS
       ? `Balance: ${balance.toLocaleString()} · enough for ${pointsRewardLabel(balance)}. Redeem on Deals.`
       : `Balance: ${balance.toLocaleString()} · ${pointsProgressLabel(balance)}.`;
   const halfStepPct = 100 / (2 * steps.length);

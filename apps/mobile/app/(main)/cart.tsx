@@ -20,6 +20,7 @@ import TimeSlotPickerSheet from '../../components/TimeSlotPickerSheet';
 import OrderTypeSheet from '../../components/OrderTypeSheet';
 import CartUpsellTray from '../../components/CartUpsellTray';
 import { redeemReferralCode } from '../../lib/referrals';
+import { useStoreRush } from '../../hooks/useStoreRush';
 import AvailableDeals from '../../components/AvailableDeals';
 import PromoCoupon from '../../components/PromoCoupon';
 import AccountSetupSheet from '../../components/AccountSetupSheet';
@@ -135,13 +136,16 @@ export default function CartScreen() {
       setClockTick((t) => t + 1);
     }, [])
   );
+  // Extra minutes while the store's busy (hooks/useStoreRush) -- in every
+  // time below.
+  const rushMinutes = useStoreRush(locationId);
   const asapAvailable = useMemo(
-    () => canOrderAsap(locationHours, orderType, itemCount),
-    [locationHours, orderType, itemCount, clockTick]
+    () => canOrderAsap(locationHours, orderType, itemCount, rushMinutes),
+    [locationHours, orderType, itemCount, rushMinutes, clockTick]
   );
   const orderDays = useMemo(
-    () => getOrderDays(locationHours, orderType, itemCount),
-    [locationHours, orderType, itemCount, clockTick]
+    () => getOrderDays(locationHours, orderType, itemCount, rushMinutes),
+    [locationHours, orderType, itemCount, rushMinutes, clockTick]
   );
 
   // Any catering package in the cart switches the whole order to catering
@@ -197,14 +201,14 @@ export default function CartScreen() {
   // A time that's no longer possible (the clock moved past it) is dropped.
   useEffect(() => {
     if (isCateringOrder) return;
-    if (selectedSlot && !isOrderTimeAvailable(selectedSlot, locationHours, orderType, itemCount)) {
+    if (selectedSlot && !isOrderTimeAvailable(selectedSlot, locationHours, orderType, itemCount, rushMinutes)) {
       setSelectedSlot(null);
       return;
     }
     if (!selectedSlot && !asapAvailable && orderDays[0]?.slots[0]) {
       setSelectedSlot(orderDays[0].slots[0].time);
     }
-  }, [isCateringOrder, selectedSlot, asapAvailable, orderDays, locationHours, orderType, itemCount]);
+  }, [isCateringOrder, selectedSlot, asapAvailable, orderDays, locationHours, orderType, itemCount, rushMinutes]);
 
   // Why Place Order is greyed out, if it is -- shown on the button itself.
   // Below the catering minimum, Place Order isn't a dead end: tapping it
@@ -216,6 +220,12 @@ export default function CartScreen() {
     ? 'Verify Email Above to Continue'
     : null;
   const scrollRef = useRef<ScrollView>(null);
+  // One ID per checkout, sent with the order and reused if Place Order is
+  // tapped again for the same cart -- after a dropped connection the order
+  // may already be in, and the database hands that one back instead of
+  // making it twice (the checkout_and_loyalty_upgrades migration). A
+  // changed cart gets a new ID.
+  const checkoutKey = useRef<{ key: string; cart: string } | null>(null);
 
   // The cart is a tab screen, so it stays mounted (and keeps its scroll
   // position) while the customer browses the menu -- start back at the top
@@ -450,14 +460,14 @@ export default function CartScreen() {
     // since the cart opened): no "ASAP" while the store's closed, and a
     // chosen time has to still be possible.
     if (!isCateringOrder) {
-      if (selectedSlot && !isOrderTimeAvailable(selectedSlot, locationHours, orderType, itemCount)) {
+      if (selectedSlot && !isOrderTimeAvailable(selectedSlot, locationHours, orderType, itemCount, rushMinutes)) {
         hapticError();
         setSelectedSlot(null);
         Alert.alert('Time No Longer Available', 'That time has passed or the store is closed then. Please choose another time.');
         setTimePickerVisible(true);
         return;
       }
-      if (!selectedSlot && !canOrderAsap(locationHours, orderType, itemCount)) {
+      if (!selectedSlot && !canOrderAsap(locationHours, orderType, itemCount, rushMinutes)) {
         hapticError();
         Alert.alert("We're Closed Right Now", 'Choose a time when the store is open to order ahead.');
         setTimePickerVisible(true);
@@ -563,8 +573,22 @@ export default function CartScreen() {
         customerPhone = profile.phone;
       }
 
+      const cartSignature = JSON.stringify([
+        locationId,
+        orderType,
+        selectedSlot?.toISOString() ?? null,
+        appliedPromo?.code ?? null,
+        items.map((i) => [i.menuItemId, i.quantity, i.modifiers.map((m) => m.optionId), i.specialInstructions ?? '', i.promoCode ?? '']),
+      ]);
+      if (!checkoutKey.current || checkoutKey.current.cart !== cartSignature) {
+        checkoutKey.current = {
+          key: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}${Math.random().toString(36).slice(2, 10)}`,
+          cart: cartSignature,
+        };
+      }
+
       const estimatedReadyAt = (
-        selectedSlot ?? new Date(Date.now() + estimateReadyMinutes(orderType, itemCount) * 60000)
+        selectedSlot ?? new Date(Date.now() + estimateReadyMinutes(orderType, itemCount, rushMinutes) * 60000)
       ).toISOString();
 
       // One call saves the whole order -- items, options, and spending any
@@ -573,6 +597,7 @@ export default function CartScreen() {
       // shown here is sent along so it can stop if they don't match.
       const { data: placed, error: placeError } = await (supabase as any).rpc('place_order', {
         p: {
+          client_key: checkoutKey.current.key,
           location_id: locationId,
           order_type: orderType,
           delivery_address: orderType === 'delivery' ? deliveryAddress : null,
@@ -628,11 +653,15 @@ export default function CartScreen() {
         throw placeError;
       }
       const orderData = { id: placed.order_id as string };
+      checkoutKey.current = null;
 
       queryClient.invalidateQueries({ queryKey: ['promotions'] });
       queryClient.invalidateQueries({ queryKey: ['usedPromoCodes'] });
       queryClient.invalidateQueries({ queryKey: ['profile'] });
       queryClient.invalidateQueries({ queryKey: ['wheelPromo'] });
+      queryClient.invalidateQueries({ queryKey: ['usualOrder'] });
+      queryClient.invalidateQueries({ queryKey: ['usualItem'] });
+      queryClient.invalidateQueries({ queryKey: ['storeRush'] });
 
       // A guest's checkout details are the only name and phone their
       // account will have -- verifying their email just made it a real
@@ -732,12 +761,17 @@ export default function CartScreen() {
                     : isCateringOrder
                     ? 'Choose a date & time'
                     : asapAvailable
-                    ? `ASAP (~${estimateReadyMinutes(orderType, itemCount)} min)`
+                    ? `ASAP (~${estimateReadyMinutes(orderType, itemCount, rushMinutes)} min)`
                     : 'Closed -- choose a time'}
                 </Text>
                 {!isCateringOrder && !asapAvailable && (
                   <Text className="text-[13px] font-inter-semibold text-amber-700 mt-0.5" numberOfLines={1}>
                     We're closed now -- ordering ahead
+                  </Text>
+                )}
+                {!isCateringOrder && asapAvailable && !selectedSlot && rushMinutes > 0 && (
+                  <Text className="text-[13px] font-inter-semibold text-amber-700 mt-0.5" numberOfLines={1}>
+                    Busy right now -- we've allowed a little extra time
                   </Text>
                 )}
               </View>
@@ -1313,7 +1347,7 @@ export default function CartScreen() {
         }}
         orderDays={orderDays}
         asapAvailable={asapAvailable}
-        asapLabel={`${estimateReadyMinutes(orderType, itemCount)} min`}
+        asapLabel={`${estimateReadyMinutes(orderType, itemCount, rushMinutes)} min`}
         selected={selectedSlot}
         days={isCateringOrder ? cateringDays : undefined}
       />

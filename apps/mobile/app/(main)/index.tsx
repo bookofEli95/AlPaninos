@@ -37,7 +37,8 @@ import { useCartStore } from '../../store/cartStore';
 import SkeletonBox from '../../components/Skeleton';
 import { useLocationStore } from '../../store/locationStore';
 import { useNavStore } from '../../store/navStore';
-import { reorderUsualItem } from '../../lib/reorder';
+import { reorderFromOrder, reorderUsualItem } from '../../lib/reorder';
+import { useStoreRush } from '../../hooks/useStoreRush';
 import { distanceKm } from '../../lib/geo';
 import { storeStatus } from '../../lib/hours';
 import { useLocations } from '../../hooks/useLocations';
@@ -521,6 +522,30 @@ export default function HomeScreen() {
     enabled: !isAnonymous && !!userId,
   });
 
+  // Their whole usual order (the same items and options, placed at least
+  // twice) -- shown instead of the single usual item when it's more than
+  // one thing.
+  const { data: usualOrder } = useQuery({
+    queryKey: ['usualOrder', userId],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc('get_usual_order');
+      if (error) throw error;
+      return (data?.[0] ?? null) as {
+        order_id: string;
+        times_ordered: number;
+        location_id: string;
+        item_names: string[] | null;
+        image_url: string | null;
+        item_count: number;
+      } | null;
+    },
+    enabled: !isAnonymous && !!userId,
+  });
+  const showUsualOrder = !!usualOrder && usualOrder.item_count >= 2;
+
+  // Extra minutes while the store's busy (hooks/useStoreRush).
+  const rushMinutes = useStoreRush(selectedStoreId);
+
   const { data: drops } = useDrops(selectedStoreId);
   const featuredDrop = drops?.[0] ?? null;
 
@@ -613,6 +638,44 @@ export default function HomeScreen() {
     }
   };
 
+  // The whole usual order into the cart, like Order Again. A cart that
+  // already has things in it (from this store) is replaced, so it asks
+  // first; one from another store is handled by switchStore.
+  const handleOrderUsualOrder = () => {
+    if (!usualOrder) return;
+    const go = async () => {
+      setAddingUsual(true);
+      try {
+        const usualStore = locations?.find((l: any) => l.id === usualOrder.location_id);
+        if (!(await switchStore(usualOrder.location_id, usualStore?.name))) return;
+        const { locationId: orderLocationId, skippedCount } = await reorderFromOrder(usualOrder.order_id);
+        setLocationId(orderLocationId);
+        router.push('/(main)/cart');
+        if (skippedCount > 0) {
+          Alert.alert(
+            'Heads Up',
+            skippedCount === 1
+              ? "One item from your usual isn't available right now, so it was left out."
+              : `${skippedCount} items from your usual aren't available right now, so they were left out.`
+          );
+        }
+      } catch (e: any) {
+        Alert.alert("Couldn't add your usual", e.message);
+      } finally {
+        setAddingUsual(false);
+      }
+    };
+    const cart = useCartStore.getState();
+    if (cart.items.length > 0 && cart.locationId === usualOrder.location_id) {
+      Alert.alert('Start Over With Your Usual?', "This replaces what's in your cart right now.", [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Replace', onPress: go },
+      ]);
+      return;
+    }
+    go();
+  };
+
   const handleUseMyLocation = async () => {
     setLocatingUser(true);
     try {
@@ -648,17 +711,17 @@ export default function HomeScreen() {
   // No hours on file counts as open, rather than telling everyone to order ahead.
   const storeOpen = !selectedStatus || selectedStatus.open || !selectedStatus.label;
   const orderSize = Math.max(itemCount, 1);
-  const pickupMinutes = estimateReadyMinutes('pickup', orderSize);
-  const deliveryMinutes = estimateReadyMinutes('delivery', orderSize);
+  const pickupMinutes = estimateReadyMinutes('pickup', orderSize, rushMinutes);
+  const deliveryMinutes = estimateReadyMinutes('delivery', orderSize, rushMinutes);
   // The same rule as the cart (lib/orderTiming): "ready in ~20 min" only
   // when the store can make it now; otherwise the earliest time it can,
   // e.g. "Order ahead for tomorrow at 11:30 AM".
   const orderAheadLine = (type: 'pickup' | 'delivery') => {
-    const first = getOrderDays(selectedStore?.hours, type, orderSize, now)[0]?.slots[0];
+    const first = getOrderDays(selectedStore?.hours, type, orderSize, rushMinutes, now)[0]?.slots[0];
     return first ? `Order ahead for ${formatDayAndTime(first.time, now)}` : 'Order ahead for later';
   };
-  const pickupNow = canOrderAsap(selectedStore?.hours, 'pickup', orderSize, now);
-  const deliveryNow = canOrderAsap(selectedStore?.hours, 'delivery', orderSize, now);
+  const pickupNow = canOrderAsap(selectedStore?.hours, 'pickup', orderSize, rushMinutes, now);
+  const deliveryNow = canOrderAsap(selectedStore?.hours, 'delivery', orderSize, rushMinutes, now);
 
   return (
     <View className="flex-1 bg-[#FAF6F0]">
@@ -742,7 +805,11 @@ export default function HomeScreen() {
               <HeroOrderButton
                 title="Pickup"
                 icon="bag-handle"
-                sub={pickupNow ? `Ready in about ${pickupMinutes} min` : orderAheadLine('pickup')}
+                sub={
+                  pickupNow
+                    ? `${rushMinutes > 0 ? 'Busy right now -- ready' : 'Ready'} in about ${pickupMinutes} min`
+                    : orderAheadLine('pickup')
+                }
                 selected={chosen === 'pickup'}
                 loading={going === 'pickup'}
                 disabled={!selectedStoreId || !!going}
@@ -873,8 +940,42 @@ export default function HomeScreen() {
             </TouchableOpacity>
           )}
 
-          {/* One-tap repeat */}
-          {usualItem && (
+          {/* One-tap repeat: the whole usual order when there is one */}
+          {showUsualOrder && usualOrder && (
+            <TouchableOpacity
+              onPress={handleOrderUsualOrder}
+              disabled={addingUsual}
+              activeOpacity={0.85}
+              className="bg-white rounded-2xl border border-stone-200 shadow-sm p-3.5 mb-4 flex-row items-center"
+            >
+              {usualOrder.image_url ? (
+                <Image source={{ uri: usualOrder.image_url }} className="w-14 h-14 rounded-xl mr-3 bg-stone-100" resizeMode="cover" />
+              ) : (
+                <View className="w-14 h-14 rounded-xl bg-[#FAF6F0] items-center justify-center mr-3">
+                  <Ionicons name="bag-handle" size={22} color="#A61C14" />
+                </View>
+              )}
+              <View className="flex-1 mr-2">
+                <Text className="text-[10px] font-inter-bold uppercase tracking-wider text-[#A61C14]">Your Usual Order</Text>
+                <Text className="text-[15px] font-inter-bold text-[#1C1917] leading-5" numberOfLines={2}>
+                  {(usualOrder.item_names ?? []).join(' · ')}
+                </Text>
+                <Text className="text-stone-400 text-xs">
+                  {usualOrder.item_count} items · ordered {usualOrder.times_ordered} times
+                </Text>
+              </View>
+              <View className="bg-[#A61C14] px-3.5 py-2 rounded-xl items-center justify-center">
+                {addingUsual ? (
+                  <ActivityIndicator color="#F4ECE1" size="small" />
+                ) : (
+                  <Text className="text-[#F4ECE1] font-inter-bold text-xs">Reorder</Text>
+                )}
+              </View>
+            </TouchableOpacity>
+          )}
+
+          {/* ...else the single usual item */}
+          {!showUsualOrder && usualItem && (
             <TouchableOpacity
               onPress={handleOrderUsual}
               disabled={addingUsual}

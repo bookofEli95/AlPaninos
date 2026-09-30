@@ -11,7 +11,10 @@ const REWARD_TIERS = [
   { cost: 1200, one: 'a free sandwich', many: (n: number) => `${n} free sandwiches` },
   { cost: 600, one: 'a free specialty side', many: (n: number) => `${n} free specialty sides` },
   { cost: 300, one: 'a free drink', many: (n: number) => `${n} free drinks` },
+  { cost: 150, one: 'a free dip', many: (n: number) => `${n} free dips` },
 ];
+// The cheapest reward -- a balance at least this has something to redeem.
+export const FIRST_REWARD_POINTS = 150;
 
 // What a points balance buys at the biggest tier it reaches, e.g.
 // "2 free sandwiches" -- null below the cheapest reward.

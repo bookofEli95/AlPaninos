@@ -48,8 +48,8 @@ const INK = '#1C1917';
 
 // Same costs and tiers as redeem_points_reward() (the panino_points
 // migration) -- the server is the source of truth, this is display only.
-// The track on the points card is drawn to scale: 300 sits a quarter of the
-// way along, 600 halfway, 1,200 at the end.
+// The track on the points card is drawn to scale: 150 sits an eighth of the
+// way along, 300 a quarter, 600 halfway, 1,200 at the end.
 const REWARD_TIERS: {
   tier: string;
   cost: number;
@@ -57,9 +57,10 @@ const REWARD_TIERS: {
   title: string;
   icon: keyof typeof Ionicons.glyphMap;
 }[] = [
+  { tier: 'dip', cost: 150, short: 'Free Dip', title: 'Free Dip', icon: 'water' },
   { tier: 'beverage', cost: 300, short: 'Free Drink', title: 'Free Beverage', icon: 'cafe' },
   { tier: 'specialty_side', cost: 600, short: 'Free Side', title: 'Free Specialty Side', icon: 'fast-food' },
-  { tier: 'sandwich', cost: 1200, short: 'Free Sandwich', title: 'Free Signature Sandwich', icon: 'restaurant' },
+  { tier: 'sandwich', cost: 1200, short: 'Sandwich', title: 'Free Signature Sandwich', icon: 'restaurant' },
 ];
 const TOP_TIER = REWARD_TIERS[REWARD_TIERS.length - 1].cost;
 
@@ -617,7 +618,7 @@ export default function ProfileScreen() {
                       styles.stopLabel,
                       {
                         left: `${(t.cost / TOP_TIER) * 100}%`,
-                        transform: [{ translateX: i === REWARD_TIERS.length - 1 ? -34 : -20 }],
+                        transform: [{ translateX: i === REWARD_TIERS.length - 1 ? -30 : -17 }],
                       },
                       points >= t.cost ? { color: GOLD } : null,
                     ]}
@@ -1023,7 +1024,7 @@ const styles = StyleSheet.create({
   },
   stopLabel: {
     position: 'absolute',
-    width: 40,
+    width: 34,
     textAlign: 'center',
     color: 'rgba(244,236,225,0.75)',
     fontFamily: 'Inter_700Bold',
