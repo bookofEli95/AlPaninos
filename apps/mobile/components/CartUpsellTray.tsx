@@ -132,98 +132,92 @@ export default function CartUpsellTray({
 
   if (buckets.length === 0) return null;
 
+  // All the suggestions in one short row (not a block per kind), each card
+  // saying what it's for -- "Make it a meal", "Dunk it", "Sweet finish".
+  const cards = buckets.flatMap((bucket) => bucket.items.map((upsellItem) => ({ bucket, upsellItem })));
+  if (cards.length === 0) return null;
+
   return (
-    <View className="mt-2 mb-2">
-      {buckets.map((bucket) => (
-        <View key={bucket.key} className="mb-4">
-          <Text className="text-base font-inter-bold text-[#1C1917] mb-2">{bucket.title}</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 8 }}>
-            {bucket.items.map((upsellItem) => {
-              const qty =
-                cartItems.find((i) => i.menuItemId === upsellItem.id && i.modifiers.length === 0)?.quantity || 0;
-              return (
-                <View
-                  key={upsellItem.id}
-                  className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden mr-3 flex-col justify-between"
-                  style={{ width: 128 }}
+    <View className="mt-4">
+      <Text className="text-xs font-inter-bold uppercase tracking-wider text-stone-500 mb-2 px-1">Goes great with</Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingRight: 8 }}
+        style={{ marginHorizontal: -16 }}
+      >
+        <View style={{ width: 16 }} />
+        {cards.map(({ bucket, upsellItem }) => {
+          const qty = cartItems.find((i) => i.menuItemId === upsellItem.id && i.modifiers.length === 0)?.quantity || 0;
+          const add = () =>
+            incrementSimpleItem(
+              {
+                menuItemId: upsellItem.id,
+                name: upsellItem.name,
+                basePrice: upsellItem.base_price,
+                imageUrl: upsellItem.image_url,
+              },
+              locationId
+            );
+          return (
+            <View
+              key={`${bucket.key}-${upsellItem.id}`}
+              className="bg-white rounded-2xl border border-stone-200 flex-row items-center mr-2.5 p-2"
+              style={{ width: 216 }}
+            >
+              {upsellItem.image_url ? (
+                <Image source={{ uri: upsellItem.image_url }} className="w-12 h-12 rounded-xl bg-stone-200" resizeMode="cover" />
+              ) : (
+                <View className="w-12 h-12 rounded-xl bg-[#FAF6F0]" />
+              )}
+              <View className="flex-1 ml-2.5 mr-1.5">
+                <Text className="text-[10px] font-inter-bold uppercase tracking-wider text-[#A61C14]" numberOfLines={1}>
+                  {bucket.title}
+                </Text>
+                <Text className="text-[13px] font-inter-semibold text-[#1C1917] leading-4" numberOfLines={2}>
+                  {upsellItem.name}
+                </Text>
+                <Text className="text-xs font-inter-bold text-stone-500 mt-0.5">+${upsellItem.base_price.toFixed(2)}</Text>
+              </View>
+              {upsellItem.hasModifiers ? (
+                <TouchableOpacity
+                  onPress={() => router.push({ pathname: `/(main)/item/${upsellItem.id}`, params: { returnTo: 'cart' } })}
+                  accessibilityLabel={`Choose options for ${upsellItem.name}`}
+                  className="w-8 h-8 rounded-full bg-[#A61C14] items-center justify-center"
                 >
-                  <View>
-                    {upsellItem.image_url ? (
-                      <Image source={{ uri: upsellItem.image_url }} className="w-full h-20 bg-stone-200" resizeMode="cover" />
-                    ) : (
-                      <View className="w-full h-20 bg-[#FAF6F0] items-center justify-center" />
-                    )}
-                    <View className="px-2.5 pt-2.5">
-                      <Text className="text-[#1C1917] font-inter-semibold text-[13px]" numberOfLines={2}>
-                        {upsellItem.name}
-                      </Text>
-                      <Text className="text-[#A61C14] font-inter-bold text-[13px] mt-1">
-                        +${upsellItem.base_price.toFixed(2)}
-                      </Text>
-                    </View>
-                  </View>
-                  <View className="p-2.5">
-                    {upsellItem.hasModifiers ? (
-                      <TouchableOpacity
-                        onPress={() =>
-                          router.push({ pathname: `/(main)/item/${upsellItem.id}`, params: { returnTo: 'cart' } })
-                        }
-                        className="bg-[#A61C14] rounded-lg h-8 items-center justify-center active:bg-[#85140E]"
-                      >
-                        <Text className="text-[#F4ECE1] font-inter-bold text-[13px]">Customize</Text>
-                      </TouchableOpacity>
-                    ) : qty === 0 ? (
-                      <TouchableOpacity
-                        onPress={() =>
-                          incrementSimpleItem(
-                            {
-                              menuItemId: upsellItem.id,
-                              name: upsellItem.name,
-                              basePrice: upsellItem.base_price,
-                              imageUrl: upsellItem.image_url,
-                            },
-                            locationId
-                          )
-                        }
-                        className="bg-[#A61C14] rounded-lg h-8 flex-row items-center justify-center active:bg-[#85140E]"
-                      >
-                        <Ionicons name="add" size={14} color="#F4ECE1" />
-                        <Text className="text-[#F4ECE1] font-inter-bold text-[13px] ml-0.5">Add</Text>
-                      </TouchableOpacity>
-                    ) : (
-                      <View className="flex-row items-center justify-between bg-stone-100 rounded-lg h-8 px-1 border border-stone-200">
-                        <TouchableOpacity
-                          onPress={() => decrementSimpleItem(upsellItem.id)}
-                          className="bg-white w-6 h-6 rounded-md items-center justify-center shadow-sm"
-                        >
-                          <Ionicons name="remove" size={12} color="#1C1917" />
-                        </TouchableOpacity>
-                        <Text className="font-inter-bold text-[#1C1917] text-[13px]">{qty}</Text>
-                        <TouchableOpacity
-                          onPress={() =>
-                            incrementSimpleItem(
-                              {
-                                menuItemId: upsellItem.id,
-                                name: upsellItem.name,
-                                basePrice: upsellItem.base_price,
-                                imageUrl: upsellItem.image_url,
-                              },
-                              locationId
-                            )
-                          }
-                          className="bg-white w-6 h-6 rounded-md items-center justify-center shadow-sm"
-                        >
-                          <Ionicons name="add" size={12} color="#1C1917" />
-                        </TouchableOpacity>
-                      </View>
-                    )}
-                  </View>
+                  <Ionicons name="chevron-forward" size={16} color="#F4ECE1" />
+                </TouchableOpacity>
+              ) : qty === 0 ? (
+                <TouchableOpacity
+                  onPress={add}
+                  accessibilityLabel={`Add ${upsellItem.name}`}
+                  className="w-8 h-8 rounded-full bg-[#A61C14] items-center justify-center"
+                >
+                  <Ionicons name="add" size={18} color="#F4ECE1" />
+                </TouchableOpacity>
+              ) : (
+                <View className="items-center bg-stone-100 rounded-full" style={{ padding: 2 }}>
+                  <TouchableOpacity
+                    onPress={add}
+                    accessibilityLabel={`One more ${upsellItem.name}`}
+                    className="w-6 h-6 rounded-full bg-white items-center justify-center"
+                  >
+                    <Ionicons name="add" size={13} color="#1C1917" />
+                  </TouchableOpacity>
+                  <Text className="text-xs font-inter-bold text-[#1C1917]">{qty}</Text>
+                  <TouchableOpacity
+                    onPress={() => decrementSimpleItem(upsellItem.id)}
+                    accessibilityLabel={`One less ${upsellItem.name}`}
+                    className="w-6 h-6 rounded-full bg-white items-center justify-center"
+                  >
+                    <Ionicons name="remove" size={13} color="#1C1917" />
+                  </TouchableOpacity>
                 </View>
-              );
-            })}
-          </ScrollView>
-        </View>
-      ))}
+              )}
+            </View>
+          );
+        })}
+      </ScrollView>
     </View>
   );
 }

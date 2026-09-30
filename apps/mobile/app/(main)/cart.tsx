@@ -19,6 +19,7 @@ import CountryPickerSheet from '../../components/CountryPickerSheet';
 import TimeSlotPickerSheet from '../../components/TimeSlotPickerSheet';
 import OrderTypeSheet from '../../components/OrderTypeSheet';
 import CartUpsellTray from '../../components/CartUpsellTray';
+import CartLine from '../../components/CartLine';
 import { redeemReferralCode } from '../../lib/referrals';
 import { useStoreRush } from '../../hooks/useStoreRush';
 import AvailableDeals from '../../components/AvailableDeals';
@@ -43,7 +44,6 @@ import {
 import { distanceKm } from '../../lib/geo';
 import { Country, DEFAULT_COUNTRY, formatPhoneNumber, isValidPhoneForCountry, parsePhone } from '../../lib/countries';
 import { tabularNums } from '../../lib/typography';
-import { groupRepeats } from '../../lib/modifiers';
 import { pointsForSubtotal, pointsProgressLabel } from '../../lib/points';
 import { useProfile } from '../../hooks/useProfile';
 import { useCartTotals, fetchMenuItemInfo, menuItemInfoKey } from '../../hooks/useCartTotals';
@@ -713,18 +713,25 @@ export default function CartScreen() {
 
   return (
     <View className="flex-1 bg-[#FAF6F0] pt-12">
-      <View className="flex-row items-center justify-between px-4 mb-2">
-        <View className="flex-row items-center">
+      <View className="flex-row items-center justify-between px-4 mb-1">
+        <View className="flex-row items-center flex-1">
           <TouchableOpacity
             onPress={goBack}
-            className="flex-row items-center py-2 pr-4 -ml-2"
+            className="py-2 pr-2 -ml-2"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityLabel="Back"
           >
-            <Ionicons name="chevron-back" size={26} color="#A61C14" />
-            <Text className="text-[#A61C14] font-inter-bold text-base">Back</Text>
+            <Ionicons name="chevron-back" size={28} color="#A61C14" />
           </TouchableOpacity>
-          <Text className="text-2xl font-display-bold ml-1 text-[#1C1917] tracking-tight">
-            Cart{itemCount > 0 ? ` (${itemCount})` : ''}
-          </Text>
+          <View>
+            <Text className="text-2xl font-display-bold text-[#1C1917] tracking-tight">Your Cart</Text>
+            {itemCount > 0 && (
+              <Text className="text-xs font-inter-semibold text-stone-500 -mt-0.5">
+                {itemCount} {itemCount === 1 ? 'item' : 'items'}
+                {locationName ? ` · ${locationName}` : ''}
+              </Text>
+            )}
+          </View>
         </View>
 
         {items.length > 0 && (
@@ -737,91 +744,12 @@ export default function CartScreen() {
             }}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityLabel="Clear cart"
-            className="items-center px-2 py-1 mt-2 mr-3"
+            className="px-3 py-1.5 rounded-full border border-stone-200 bg-white"
           >
-            <Ionicons name="trash-outline" size={24} color="#A61C14" />
-            <Text className="text-[#A61C14] font-inter-semibold text-xs mt-0.5">Clear</Text>
+            <Text className="text-stone-500 font-inter-semibold text-[13px]">Clear</Text>
           </TouchableOpacity>
         )}
       </View>
-
-      {items.length > 0 && (
-        <View className="mx-4 mb-3 bg-white p-3.5 rounded-2xl border border-stone-200 shadow-sm">
-          <View className="flex-row items-center justify-between">
-            <View className="flex-row items-center flex-1 mr-2">
-              <View className="w-9 h-9 rounded-full bg-[#FAF6F0] items-center justify-center mr-3 border border-stone-200">
-                <Ionicons name={orderType === 'delivery' ? 'bicycle' : 'bag-handle'} size={18} color="#A61C14" />
-              </View>
-              <View className="flex-1">
-                {/* Tapping the order type opens the same Pickup / Delivery
-                    sheet as the menu's pill. */}
-                <TouchableOpacity
-                  onPress={() => setOrderTypeSheetVisible(true)}
-                  className="flex-row items-center self-start"
-                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                >
-                  <Text className="text-xs font-inter-bold uppercase tracking-wider text-stone-500">
-                    {orderType === 'delivery' ? 'Delivery' : `Pickup${locationName ? ` • ${locationName}` : ''}`}
-                  </Text>
-                  <Ionicons name="chevron-down" size={11} color="#78716C" style={{ marginLeft: 3 }} />
-                </TouchableOpacity>
-                <Text
-                  className={`text-sm font-inter-bold ${isCateringOrder && !selectedSlot ? 'text-[#A61C14]' : 'text-[#1C1917]'}`}
-                  numberOfLines={1}
-                >
-                  {selectedSlot
-                    ? `${orderType === 'delivery' ? 'Arriving' : 'Ready'} ${formatDayAndTime(selectedSlot)}`
-                    : isCateringOrder
-                    ? 'Choose a date & time'
-                    : asapAvailable
-                    ? `ASAP (~${estimateReadyMinutes(orderType, itemCount, rushMinutes)} min)`
-                    : 'Closed -- choose a time'}
-                </Text>
-                {!isCateringOrder && !asapAvailable && (
-                  <Text className="text-[13px] font-inter-semibold text-amber-700 mt-0.5" numberOfLines={1}>
-                    We're closed now -- ordering ahead
-                  </Text>
-                )}
-                {!isCateringOrder && asapAvailable && !selectedSlot && rushMinutes > 0 && (
-                  <Text className="text-[13px] font-inter-semibold text-amber-700 mt-0.5" numberOfLines={1}>
-                    Busy right now -- we've allowed a little extra time
-                  </Text>
-                )}
-              </View>
-            </View>
-            <TouchableOpacity
-              onPress={() => setTimePickerVisible(true)}
-              className="bg-[#FAF6F0] px-3 py-1.5 rounded-xl border border-stone-200"
-            >
-              <Text className="text-[13px] font-inter-bold text-[#A61C14]">{isCateringOrder && !selectedSlot ? 'Choose' : 'Change'}</Text>
-            </TouchableOpacity>
-          </View>
-          {orderType === 'delivery' && (
-            <View className="mt-2.5 pt-2.5 border-t border-stone-100">
-              <TouchableOpacity onPress={() => setOrderTypeSheetVisible(true)} activeOpacity={0.7}>
-                <View className="flex-row items-center justify-between mb-0.5">
-                  <Text className="text-xs font-inter-bold uppercase tracking-wider text-stone-500">
-                    Delivering To
-                  </Text>
-                  <Text className="text-[13px] font-inter-bold text-[#A61C14]">{deliveryAddress ? 'Change' : 'Add'}</Text>
-                </View>
-                <Text className={`text-sm font-inter-semibold ${deliveryAddress ? 'text-[#1C1917]' : 'text-[#A61C14]'}`}>
-                  {deliveryAddress || 'Tap to add your delivery address'}
-                </Text>
-              </TouchableOpacity>
-              {outOfCateringRange && (
-                <View className="flex-row items-start mt-1.5 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
-                  <Ionicons name="warning-outline" size={13} color="#B45309" style={{ marginTop: 1 }} />
-                  <Text className="text-amber-800 text-[13px] font-inter-semibold ml-1.5 flex-1">
-                    About {Math.round(cateringDistanceKm!)} km away -- catering delivery is up to {CATERING_MAX_DELIVERY_KM} km.
-                    Switch to pickup, or use a closer address.
-                  </Text>
-                </View>
-              )}
-            </View>
-          )}
-        </View>
-      )}
 
       <ScrollView
         ref={scrollRef}
@@ -858,8 +786,85 @@ export default function CartScreen() {
                 is the section held in place when cart lines above it are
                 added or removed (see maintainVisibleContentPosition). */}
             <View>
+            {/* How and when */}
+            <View className="mt-1 bg-white p-3.5 rounded-2xl border border-stone-200 shadow-sm">
+                <View className="flex-row items-center justify-between">
+                  <View className="flex-row items-center flex-1 mr-2">
+                    <View className="w-9 h-9 rounded-full bg-[#FAF6F0] items-center justify-center mr-3 border border-stone-200">
+                      <Ionicons name={orderType === 'delivery' ? 'bicycle' : 'bag-handle'} size={18} color="#A61C14" />
+                    </View>
+                    <View className="flex-1">
+                      {/* Tapping the order type opens the same Pickup / Delivery
+                          sheet as the menu's pill. */}
+                      <TouchableOpacity
+                        onPress={() => setOrderTypeSheetVisible(true)}
+                        className="flex-row items-center self-start"
+                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                      >
+                        <Text className="text-xs font-inter-bold uppercase tracking-wider text-stone-500">
+                          {orderType === 'delivery' ? 'Delivery' : `Pickup${locationName ? ` • ${locationName}` : ''}`}
+                        </Text>
+                        <Ionicons name="chevron-down" size={11} color="#78716C" style={{ marginLeft: 3 }} />
+                      </TouchableOpacity>
+                      <Text
+                        className={`text-sm font-inter-bold ${isCateringOrder && !selectedSlot ? 'text-[#A61C14]' : 'text-[#1C1917]'}`}
+                        numberOfLines={1}
+                      >
+                        {selectedSlot
+                          ? `${orderType === 'delivery' ? 'Arriving' : 'Ready'} ${formatDayAndTime(selectedSlot)}`
+                          : isCateringOrder
+                          ? 'Choose a date & time'
+                          : asapAvailable
+                          ? `ASAP (~${estimateReadyMinutes(orderType, itemCount, rushMinutes)} min)`
+                          : 'Closed -- choose a time'}
+                      </Text>
+                      {!isCateringOrder && !asapAvailable && (
+                        <Text className="text-[13px] font-inter-semibold text-amber-700 mt-0.5" numberOfLines={1}>
+                          We're closed now -- ordering ahead
+                        </Text>
+                      )}
+                      {!isCateringOrder && asapAvailable && !selectedSlot && rushMinutes > 0 && (
+                        <Text className="text-[13px] font-inter-semibold text-amber-700 mt-0.5" numberOfLines={1}>
+                          Busy right now -- we've allowed a little extra time
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => setTimePickerVisible(true)}
+                    className="bg-[#FAF6F0] px-3 py-1.5 rounded-xl border border-stone-200"
+                  >
+                    <Text className="text-[13px] font-inter-bold text-[#A61C14]">{isCateringOrder && !selectedSlot ? 'Choose' : 'Change'}</Text>
+                  </TouchableOpacity>
+                </View>
+                {orderType === 'delivery' && (
+                  <View className="mt-2.5 pt-2.5 border-t border-stone-100">
+                    <TouchableOpacity onPress={() => setOrderTypeSheetVisible(true)} activeOpacity={0.7}>
+                      <View className="flex-row items-center justify-between mb-0.5">
+                        <Text className="text-xs font-inter-bold uppercase tracking-wider text-stone-500">
+                          Delivering To
+                        </Text>
+                        <Text className="text-[13px] font-inter-bold text-[#A61C14]">{deliveryAddress ? 'Change' : 'Add'}</Text>
+                      </View>
+                      <Text className={`text-sm font-inter-semibold ${deliveryAddress ? 'text-[#1C1917]' : 'text-[#A61C14]'}`}>
+                        {deliveryAddress || 'Tap to add your delivery address'}
+                      </Text>
+                    </TouchableOpacity>
+                    {outOfCateringRange && (
+                      <View className="flex-row items-start mt-1.5 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
+                        <Ionicons name="warning-outline" size={13} color="#B45309" style={{ marginTop: 1 }} />
+                        <Text className="text-amber-800 text-[13px] font-inter-semibold ml-1.5 flex-1">
+                          About {Math.round(cateringDistanceKm!)} km away -- catering delivery is up to {CATERING_MAX_DELIVERY_KM} km.
+                          Switch to pickup, or use a closer address.
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+            </View>
+
             {isCateringOrder && (
-              <View className="mb-3 p-4 bg-white rounded-2xl border border-[#A61C14] shadow-sm">
+              <View className="mt-3 p-4 bg-white rounded-2xl border border-[#A61C14] shadow-sm">
                 <View className="flex-row items-center mb-1">
                   <Ionicons name="people" size={16} color="#A61C14" />
                   <Text className="text-[#A61C14] font-inter-extrabold text-[13px] uppercase tracking-wider ml-1.5">
@@ -921,101 +926,36 @@ export default function CartScreen() {
               </View>
             )}
 
-            {items.map(item => (
-              <View key={item.cartItemId} className="bg-white p-4 rounded-2xl border border-stone-200 mb-3 shadow-sm">
-                <View className="flex-row justify-between items-start">
-                  {item.imageUrl ? (
-                    <Image source={{ uri: item.imageUrl }} className="w-14 h-14 rounded-xl bg-stone-100 mr-3" resizeMode="cover" />
-                  ) : (
-                    <View className="w-14 h-14 rounded-xl bg-[#FAF6F0] items-center justify-center mr-3">
-                      <Ionicons name="restaurant" size={20} color="#A8A29E" />
-                    </View>
-                  )}
-                  <View className="flex-1 pr-3">
-                    <View className="flex-row items-center flex-wrap mb-1">
-                      <Text className="text-base font-inter-bold text-[#1C1917]">{item.name}</Text>
-                      {item.promoCode && (
-                        <View className="bg-[#A61C14] rounded-full px-2 py-0.5 ml-2">
-                          <Text className="text-[#F4ECE1] text-[11px] font-inter-bold">FREE</Text>
-                        </View>
-                      )}
-                    </View>
-                    {/* A regular item in a catering cart goes out with the
-                        catering order, not now -- said on the line itself
-                        so nobody expects it for lunch today. */}
-                    {isCateringOrder && !cateringItemIds?.has(item.menuItemId) && (
-                      <View className="flex-row items-center self-start bg-[#FAF6F0] border border-[#F0B4AC] rounded-md px-2 py-0.5 mb-1.5">
-                        <Ionicons name="calendar-outline" size={11} color="#A61C14" />
-                        <Text className="text-[#A61C14] text-xs font-inter-semibold ml-1">
-                          {selectedSlot
-                            ? `Comes with your catering ${orderType === 'delivery' ? 'delivery' : 'pickup'}, ${formatDayAndTime(selectedSlot)}`
-                            : 'Comes with your catering order'}
-                        </Text>
-                      </View>
-                    )}
-                    {item.modifiers.length > 0 && (
-                      <View className="flex-row flex-wrap mt-1">
-                        {groupRepeats(item.modifiers, (mod) => mod.optionId).map(({ item: mod, count }) => (
-                          <View
-                            key={mod.optionId}
-                            className="bg-[#FAF6F0] border border-stone-200 rounded-md px-2 py-0.5 mr-1.5 mb-1.5"
-                          >
-                            <Text className="text-stone-600 text-[13px] font-inter-medium">
-                              + {count > 1 ? `${count}× ` : ''}{mod.name}
-                              {!item.promoCode && mod.price > 0 ? ` ($${(mod.price * count).toFixed(2)})` : ''}
-                            </Text>
-                          </View>
-                        ))}
-                      </View>
-                    )}
-                    {item.specialInstructions && (
-                      <Text className="text-stone-400 text-[13px] italic mt-0.5">
-                        "{item.specialInstructions}"
-                      </Text>
-                    )}
-                  </View>
-                  <Text className="text-base font-inter-bold text-[#1C1917]" style={tabularNums}>
-                    ${item.totalPrice.toFixed(2)}
-                  </Text>
+            {/* The order: every line in one card */}
+            <Text className="text-xs font-inter-bold uppercase tracking-wider text-stone-500 mt-5 mb-2 px-1">
+              Your Order
+            </Text>
+            <View className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+              {items.map((item, index) => (
+                <CartLine
+                  key={item.cartItemId}
+                  item={item}
+                  rewardTitle={item.promoCode ? rewardTitles?.get(item.promoCode) ?? null : null}
+                  // A regular item in a catering cart goes out with the
+                  // catering order, not now -- said on the line itself so
+                  // nobody expects it for lunch today.
+                  note={
+                    isCateringOrder && !cateringItemIds?.has(item.menuItemId)
+                      ? selectedSlot
+                        ? `Comes with your catering ${orderType === 'delivery' ? 'delivery' : 'pickup'}, ${formatDayAndTime(selectedSlot)}`
+                        : 'Comes with your catering order'
+                      : null
+                  }
+                  onChangeQuantity={(quantity) => updateItemQuantity(item.cartItemId, quantity)}
+                />
+              ))}
+              <TouchableOpacity onPress={goBack} activeOpacity={0.7} className="flex-row items-center px-3.5 py-3">
+                <View className="w-7 h-7 rounded-full bg-[#FAF6F0] border border-stone-200 items-center justify-center mr-2.5">
+                  <Ionicons name="add" size={16} color="#A61C14" />
                 </View>
-                <View className="flex-row justify-between items-center mt-3 pt-2.5 border-t border-stone-100">
-                  <TouchableOpacity
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-                      removeItem(item.cartItemId);
-                    }}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    <Text className="text-stone-400 font-inter-medium text-[13px]">Remove</Text>
-                  </TouchableOpacity>
-                  {item.promoCode ? (
-                    <Text className="text-[13px] font-inter-semibold text-stone-500">Qty: {item.quantity}</Text>
-                  ) : (
-                    <View className="flex-row items-center bg-stone-100 rounded-lg p-1 border border-stone-200">
-                      <TouchableOpacity
-                        onPress={() => {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                          updateItemQuantity(item.cartItemId, item.quantity - 1);
-                        }}
-                        className="bg-white w-7 h-7 rounded-md items-center justify-center shadow-sm"
-                      >
-                        <Ionicons name="remove" size={14} color="#1C1917" />
-                      </TouchableOpacity>
-                      <Text className="font-inter-bold text-[#1C1917] text-sm w-7 text-center">{item.quantity}</Text>
-                      <TouchableOpacity
-                        onPress={() => {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                          updateItemQuantity(item.cartItemId, item.quantity + 1);
-                        }}
-                        className="bg-white w-7 h-7 rounded-md items-center justify-center shadow-sm"
-                      >
-                        <Ionicons name="add" size={14} color="#1C1917" />
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                </View>
-              </View>
-            ))}
+                <Text className="text-[#A61C14] font-inter-bold text-sm">Add more items</Text>
+              </TouchableOpacity>
+            </View>
 
             </View>
 
@@ -1025,51 +965,10 @@ export default function CartScreen() {
               <CartUpsellTray items={items} locationId={locationId} cartTotal={cartTotal} />
             )}
 
-            <View className="my-2 p-3.5 bg-white rounded-2xl border border-stone-200 shadow-sm">
-              {rewardLines.length > 0 && (
-                <View className="mb-3 pb-3 border-b border-stone-100">
-                  <View className="flex-row items-center mb-2">
-                    <Ionicons name="gift" size={15} color="#A61C14" />
-                    <Text className="text-[13px] font-inter-bold text-[#1C1917] ml-1.5 flex-1">
-                      {rewardLines.length === 1 ? 'Your reward' : `Your rewards · ${rewardLines.length} free items`}
-                    </Text>
-                    <Text className="text-[13px] font-inter-bold text-green-700">On us</Text>
-                  </View>
-                  {rewardLines.map((line) => (
-                    <View
-                      key={line.cartItemId}
-                      className="flex-row items-center bg-[#FFFBEB] border border-[#FFC72C] rounded-xl pl-2.5 pr-2 py-2 mb-1.5"
-                    >
-                      <View className="w-9 h-9 rounded-lg bg-[#7A0E0A] items-center justify-center mr-2.5">
-                        <Ionicons name="gift" size={17} color="#FFC72C" />
-                      </View>
-                      <View className="flex-1 mr-2">
-                        <Text className="text-[11px] font-inter-bold uppercase tracking-wider text-[#92400E]" numberOfLines={1}>
-                          {rewardTitles?.get(line.promoCode!) ?? 'Reward'}
-                        </Text>
-                        <Text className="text-sm font-inter-bold text-[#1C1917]" numberOfLines={1}>
-                          {line.name}
-                        </Text>
-                      </View>
-                      <Text className="text-[13px] font-inter-extrabold text-[#A61C14] mr-2">FREE</Text>
-                      <TouchableOpacity
-                        onPress={() => {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                          removeItem(line.cartItemId);
-                        }}
-                        hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
-                        accessibilityLabel={`Remove ${line.name} (reward)`}
-                      >
-                        <Ionicons name="close-circle" size={22} color="#A8A29E" />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                  <Text className="text-xs text-stone-500 mt-0.5">
-                    Removing one puts the reward back in Deals -- it isn't used up.
-                  </Text>
-                </View>
-              )}
-
+            <Text className="text-xs font-inter-bold uppercase tracking-wider text-stone-500 mt-5 mb-2 px-1">
+              Savings
+            </Text>
+            <View className="p-3.5 bg-white rounded-2xl border border-stone-200 shadow-sm">
               {appliedPromo ? (
                 <PromoCoupon
                   promo={appliedPromo}
@@ -1129,7 +1028,7 @@ export default function CartScreen() {
             </View>
 
             {isCateringOrder && (
-              <View className="my-2 p-4 bg-white rounded-2xl border border-stone-200 shadow-sm">
+              <View className="mt-4 p-4 bg-white rounded-2xl border border-stone-200 shadow-sm">
                 <Text className="text-base font-inter-bold text-[#1C1917] mb-3">Catering Details</Text>
                 <TextInput
                   className="bg-[#FAF6F0] border border-stone-300 px-3 py-2.5 rounded-xl text-sm text-[#1C1917]"
@@ -1185,7 +1084,7 @@ export default function CartScreen() {
             )}
 
             {isAnonymous && (
-              <View className="my-2 p-4 bg-white rounded-2xl border border-stone-200 shadow-sm">
+              <View className="mt-4 p-4 bg-white rounded-2xl border border-stone-200 shadow-sm">
                 <View className="flex-row items-center justify-between mb-3">
                   <Text className="text-base font-inter-bold text-[#1C1917]">Contact & Pickup Info</Text>
                   <View className="bg-stone-100 px-2 py-0.5 rounded-full">
@@ -1314,44 +1213,64 @@ export default function CartScreen() {
                 onChangeSms={setNotifySms}
               />
             )}
+
+            {/* What it comes to */}
+            <Text className="text-xs font-inter-bold uppercase tracking-wider text-stone-500 mt-5 mb-2 px-1">
+              Summary
+            </Text>
+            <View className="p-4 bg-white rounded-2xl border border-stone-200 shadow-sm mb-2">
+              <View className="flex-row justify-between items-center mb-1.5">
+                <Text className="text-sm font-inter-medium text-stone-600">Subtotal</Text>
+                <Text className="text-sm font-inter-semibold text-[#1C1917]" style={tabularNums}>
+                  ${cartTotal.toFixed(2)}
+                </Text>
+              </View>
+              {discountAmount > 0 && (
+                <View className="flex-row justify-between items-center mb-1.5">
+                  <View className="flex-row items-center flex-1 mr-2">
+                    <Ionicons name="pricetag" size={13} color="#15803D" />
+                    <Text className="text-sm font-inter-bold text-green-700 ml-1" numberOfLines={1}>
+                      {appliedPromo?.title || 'Deal'}
+                    </Text>
+                  </View>
+                  <Text className="text-sm font-inter-extrabold text-green-700" style={tabularNums}>
+                    -${discountAmount.toFixed(2)}
+                  </Text>
+                </View>
+              )}
+              <View className="flex-row justify-between items-center">
+                <Text className="text-sm font-inter-medium text-stone-600">Tax</Text>
+                <Text className="text-sm font-inter-semibold text-[#1C1917]" style={tabularNums}>
+                  ${taxAmount.toFixed(2)}
+                </Text>
+              </View>
+              <View className="flex-row justify-between items-center mt-3 pt-3 border-t border-stone-100">
+                <Text className="text-base font-inter-bold text-[#1C1917]">Total</Text>
+                <Text className="text-lg font-inter-extrabold text-[#1C1917]" style={tabularNums}>
+                  ${grandTotal.toFixed(2)}
+                </Text>
+              </View>
+              {pointsEarned > 0 && (
+                <View className="flex-row items-center bg-[#FAF6F0] rounded-lg px-2.5 py-1.5 mt-3">
+                  <Ionicons name="star" size={14} color="#A61C14" />
+                  <Text className="text-[13px] text-[#1C1917] ml-1.5 flex-1" numberOfLines={2}>
+                    <Text className="font-inter-bold">Earns {pointsEarned.toLocaleString()} PaninoPoints</Text>
+                    <Text className="text-stone-500"> · {pointsHint}</Text>
+                  </Text>
+                </View>
+              )}
+            </View>
           </>
         )}
       </ScrollView>
 
       {items.length > 0 && (
-        <View className="px-5 pt-3 pb-8 border-t border-stone-200 bg-white shadow-lg">
-          <View className="flex-row justify-between items-center mb-1.5">
-            <Text className="text-sm font-inter-medium text-stone-600">Subtotal</Text>
-            <Text
-              className={`text-sm font-inter-semibold ${discountAmount > 0 ? 'text-stone-400 line-through' : 'text-[#1C1917]'}`}
-              style={tabularNums}
-            >
-              ${cartTotal.toFixed(2)}
-            </Text>
-          </View>
+        <View className="px-4 pt-3 pb-8 border-t border-stone-200 bg-white">
           {discountAmount > 0 && (
-            <View className="flex-row justify-between items-center mb-1.5">
-              <View className="flex-row items-center">
-                <Ionicons name="pricetag" size={13} color="#15803D" />
-                <Text className="text-sm font-inter-bold text-green-700 ml-1">You save ({appliedPromo?.code})</Text>
-              </View>
-              <Text className="text-sm font-inter-extrabold text-green-700" style={tabularNums}>-${discountAmount.toFixed(2)}</Text>
-            </View>
+            <Text className="text-center text-[13px] font-inter-bold text-green-700 mb-2">
+              You're saving ${discountAmount.toFixed(2)} on this order
+            </Text>
           )}
-          <View className="flex-row justify-between items-center mb-2">
-            <Text className="text-sm font-inter-medium text-stone-600">Tax</Text>
-            <Text className="text-sm font-inter-semibold text-[#1C1917]" style={tabularNums}>${taxAmount.toFixed(2)}</Text>
-          </View>
-          {pointsEarned > 0 && (
-            <View className="flex-row items-center bg-[#FAF6F0] rounded-lg px-2.5 py-1.5 mb-3">
-              <Ionicons name="star" size={14} color="#A61C14" />
-              <Text className="text-[13px] text-[#1C1917] ml-1.5 flex-1" numberOfLines={1}>
-                <Text className="font-inter-bold">Earns {pointsEarned.toLocaleString()} PaninoPoints</Text>
-                <Text className="text-stone-500"> • {pointsHint}</Text>
-              </Text>
-            </View>
-          )}
-
           <TouchableOpacity
             className={`py-4 px-5 rounded-2xl items-center shadow-sm flex-row justify-between ${
               checkoutBlockedLabel ? 'bg-stone-300' : 'bg-[#A61C14] active:bg-[#85140E]'
