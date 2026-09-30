@@ -36,7 +36,18 @@ import { registerForPushNotificationsAsync, savePushToken } from "../lib/pushNot
 import AlertHost from "../components/AlertHost";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
-const queryClient = new QueryClient();
+// Data counts as fresh for 30 seconds: popping out of the app briefly (to
+// copy an email code, say) and straight back doesn't reload everything on
+// screen, but a real break does (see the focus hookup below). Screens that
+// must be current (orders, deals, profile) reload themselves when opened,
+// whatever this says; a query can set its own staleTime.
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30 * 1000,
+    },
+  },
+});
 
 // Coming back to the app counts as "focus" for React Query (on a phone it
 // doesn't know otherwise): anything on screen that's out of date reloads,
