@@ -742,6 +742,7 @@ export default function CartScreen() {
                 { text: 'Clear', style: 'destructive', onPress: clearCart },
               ]);
             }}
+            disabled={isSubmitting}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityLabel="Clear cart"
             className="px-3 py-1.5 rounded-full border border-stone-200 bg-white"
@@ -751,8 +752,12 @@ export default function CartScreen() {
         )}
       </View>
 
+      {/* While the order is being placed, nothing in the cart can be changed
+          (a Clear or a - / + mid-order would be lost or leave an empty cart
+          if it fails). */}
       <ScrollView
         ref={scrollRef}
+        pointerEvents={isSubmitting ? 'none' : 'auto'}
         className="flex-1 px-4"
         contentContainerStyle={{ paddingBottom: keyboardHeight + 20 }}
         keyboardShouldPersistTaps="handled"
