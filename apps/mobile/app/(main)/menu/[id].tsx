@@ -34,7 +34,10 @@ export default function MenuScreen() {
   }, [hasStore, locationLoaded, savedLocationId, router]);
 
   const [orderTypeModalVisible, setOrderTypeModalVisible] = useState(false);
-  const { orderType, deliveryAddress } = useCartStore();
+  // Just these two -- the whole store would re-render the menu on every
+  // cart change.
+  const orderType = useCartStore((state) => state.orderType);
+  const deliveryAddress = useCartStore((state) => state.deliveryAddress);
   const session = useAuthStore(state => state.session);
 
   // Reaching the menu -- however they got here -- means an order's
