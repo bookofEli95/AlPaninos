@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useCartStore } from './cartStore';
 
 // Everything evaluatePromo() (lib/promoEligibility.ts) needs to price a
 // promo against the current cart -- built from a promotions row by
@@ -42,3 +43,13 @@ export const usePromoStore = create<PromoState>((set) => ({
   appliedPromo: null,
   setAppliedPromo: (promo) => set({ appliedPromo: promo }),
 }));
+
+// An emptied cart (Clear Cart, or the last item taken out) is a fresh
+// start, so whatever deal was applied comes off too -- a Mix & Match whose
+// meals were just cleared shouldn't still say "Applied" on Deals. It's one
+// tap to put back on.
+useCartStore.subscribe((state, previous) => {
+  if (previous.items.length > 0 && state.items.length === 0 && usePromoStore.getState().appliedPromo) {
+    usePromoStore.getState().setAppliedPromo(null);
+  }
+});

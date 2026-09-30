@@ -579,9 +579,12 @@ export default function ItemDetailScreen() {
                 <Text className="text-xs text-[#78716C] mb-2.5">{DIETARY_DISCLAIMER}</Text>
               )}
 
-              {/* Choices as chips (tap to pick), except count-able ones
-                  (catering), which keep their - / + rows. */}
-              <View className={group.allow_quantity ? 'gap-2' : 'flex-row flex-wrap gap-2'}>
+              {/* Choices as a two-column grid of same-size tiles (tap to
+                  pick) -- picking one only changes its colours and fills its
+                  circle (one choice) or box (several), so nothing ever
+                  resizes or jumps to another line. Count-able ones
+                  (catering) keep their - / + rows. */}
+              <View style={group.allow_quantity ? { gap: 8 } : { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -4 }}>
                 {group.modifier_options?.map((option: any) => {
                   const isSelected = selectedInGroup.includes(option.id);
 
@@ -638,33 +641,59 @@ export default function ItemDetailScreen() {
                   }
 
                   return (
-                    <TouchableOpacity
-                      key={option.id}
-                      onPress={() => handleToggleOption(group.id, option.id, group.max_selections)}
-                      activeOpacity={0.8}
-                      className={`flex-row items-center px-4 py-2.5 rounded-full border ${
-                        isSelected ? 'bg-[#A61C14] border-[#A61C14]' : 'bg-white border-stone-300'
-                      }`}
-                      style={isSelected ? shadowSm : undefined}
-                    >
-                      {isSelected && (
-                        <Ionicons name="checkmark" size={15} color="#F4ECE1" style={{ marginRight: 4 }} />
-                      )}
-                      <Text
-                        className={`text-[15px] ${
-                          isSelected ? 'font-inter-bold text-[#F4ECE1]' : 'font-inter-semibold text-[#1C1917]'
-                        }`}
+                    <View key={option.id} style={{ width: '50%', padding: 4 }}>
+                      <TouchableOpacity
+                        onPress={() => handleToggleOption(group.id, option.id, group.max_selections)}
+                        activeOpacity={0.8}
+                        accessibilityRole={isSingleChoice ? 'radio' : 'checkbox'}
+                        accessibilityState={{ checked: isSelected }}
+                        style={{
+                          flex: 1,
+                          minHeight: 58,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          paddingLeft: 12,
+                          paddingRight: 10,
+                          paddingVertical: 9,
+                          borderRadius: 16,
+                          borderWidth: 1.5,
+                          borderColor: isSelected ? '#A61C14' : '#E7E5E4',
+                          backgroundColor: isSelected ? '#FDF1EF' : '#FFFFFF',
+                        }}
                       >
-                        {option.name}
-                      </Text>
-                      {!promoCode && option.price_adjustment > 0 && (
-                        <Text
-                          className={`font-inter-bold text-sm ml-1.5 ${isSelected ? 'text-[#FFC72C]' : 'text-[#A61C14]'}`}
+                        <View style={{ flex: 1, marginRight: 8 }}>
+                          <Text className="text-[15px] leading-5 font-inter-semibold text-[#1C1917]" numberOfLines={2}>
+                            {option.name}
+                          </Text>
+                          {!promoCode && option.price_adjustment > 0 && (
+                            <Text className="text-[13px] font-inter-bold text-[#A61C14] mt-0.5">
+                              +${option.price_adjustment.toFixed(2)}
+                            </Text>
+                          )}
+                        </View>
+                        {/* Same size picked or not: a circle for pick-one, a
+                            box for pick-several. */}
+                        <View
+                          style={{
+                            width: 22,
+                            height: 22,
+                            borderRadius: isSingleChoice ? 11 : 6,
+                            borderWidth: 2,
+                            borderColor: isSelected ? '#A61C14' : '#D6D3D1',
+                            backgroundColor: isSelected && !isSingleChoice ? '#A61C14' : '#FFFFFF',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
                         >
-                          +${option.price_adjustment.toFixed(2)}
-                        </Text>
-                      )}
-                    </TouchableOpacity>
+                          {isSelected &&
+                            (isSingleChoice ? (
+                              <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#A61C14' }} />
+                            ) : (
+                              <Ionicons name="checkmark" size={14} color="#FFFFFF" />
+                            ))}
+                        </View>
+                      </TouchableOpacity>
+                    </View>
                   );
                 })}
               </View>
