@@ -27,7 +27,7 @@ import {
   fetchEligiblePrizeItems,
   fetchPrizeShowcaseImage,
   isPickAnItemPrize,
-  itemHasModifiers,
+  rewardNeedsItemScreen,
 } from '../../lib/prizeRedemption';
 import { formatPhoneNumber, parsePhone } from '../../lib/countries';
 import AccountSetupSheet from '../../components/AccountSetupSheet';
@@ -315,8 +315,8 @@ export default function ProfileScreen() {
   // Same as Deals: an item with options opens on its own screen with the
   // pick list left open behind it, so back returns to the list as it was.
   const giveFreeItem = (target: EligiblePrizeItem, promo: any) => {
-    itemHasModifiers(target.id).then((hasModifiers) => {
-      if (hasModifiers) {
+    rewardNeedsItemScreen(target.id, promo).then((openScreen) => {
+      if (openScreen) {
         router.push({
           pathname: `/(main)/item/${target.id}`,
           params: { promoCode: promo.code, promoTitle: promo.title, returnTo: 'profile' },

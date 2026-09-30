@@ -15,7 +15,7 @@ import {
   EligiblePrizeItem,
   fetchEligiblePrizeItems,
   isPickAnItemPrize,
-  itemHasModifiers,
+  rewardNeedsItemScreen,
 } from '../lib/prizeRedemption';
 import { fetchMenuItemInfo, menuItemInfoKey } from '../hooks/useCartTotals';
 import PrizeItemPicker from './PrizeItemPicker';
@@ -45,6 +45,7 @@ export default function AvailableDeals({ locationId }: { locationId: string }) {
   const userId = session?.user?.id;
   const items = useCartStore((state) => state.items);
   const orderType = useCartStore((state) => state.orderType);
+  const setOrderType = useCartStore((state) => state.setOrderType);
   const addFreeItem = useCartStore((state) => state.addFreeItem);
   const { appliedPromo, setAppliedPromo } = usePromoStore();
   const [open, setOpen] = useState(false);
@@ -126,9 +127,13 @@ export default function AvailableDeals({ locationId }: { locationId: string }) {
         };
       })
       // Free-item rewards first, then what saves the most, then what's
-      // closest to working.
+      // closest to working -- and deals for the other order type (pickup
+      // only, while ordering delivery) last.
       .sort((a: DealRow, b: DealRow) => {
         if (a.freeItem !== b.freeItem) return a.freeItem ? -1 : 1;
+        const aWrong = !!a.promo.order_type && a.promo.order_type !== orderType;
+        const bWrong = !!b.promo.order_type && b.promo.order_type !== orderType;
+        if (aWrong !== bWrong) return aWrong ? 1 : -1;
         return b.savings - a.savings;
       });
   }, [promotions, usedCodes, menuItemInfoMap, categories, items, orderType, appliedPromo?.code]);
@@ -147,9 +152,9 @@ export default function AvailableDeals({ locationId }: { locationId: string }) {
   const summary = bestRow?.applied ? `${count} · best deal applied` : count;
 
   const giveFreeItem = async (target: EligiblePrizeItem, promo: any) => {
-    if (await itemHasModifiers(target.id)) {
-      // Its choices (bread, sauce...) still need picking -- the item screen
-      // adds it free with this code.
+    if (await rewardNeedsItemScreen(target.id, promo)) {
+      // Its choices and kitchen notes on its own screen, which adds it free
+      // with this code (only a plain drink goes straight in).
       router.push({
         pathname: `/(main)/item/${target.id}`,
         params: { promoCode: promo.code, promoTitle: promo.title, returnTo: 'cart' },
@@ -179,6 +184,30 @@ export default function AvailableDeals({ locationId }: { locationId: string }) {
       }
       return;
     }
+    // For the other order type: offer to switch instead of applying a deal
+    // that can't take anything off.
+    if (promo.order_type && promo.order_type !== orderType) {
+      const needed = promo.order_type as 'pickup' | 'delivery';
+      Alert.alert(
+        needed === 'pickup' ? 'Pickup Orders Only' : 'Delivery Orders Only',
+        `${promo.title} is for ${needed} orders, and you're ordering ${orderType}. Switch your order to ${needed} to use it?`,
+        [
+          { text: `Keep ${orderType === 'pickup' ? 'Pickup' : 'Delivery'}`, style: 'cancel' },
+          {
+            text: `Switch to ${needed === 'pickup' ? 'Pickup' : 'Delivery'}`,
+            onPress: () => {
+              setOrderType(needed);
+              applyRow(promo);
+            },
+          },
+        ]
+      );
+      return;
+    }
+    applyRow(promo);
+  };
+
+  const applyRow = (promo: any) => {
     // Resolved here so the promo box shows its real state straight away
     // (same as typing the code in).
     const applied = appliedPromoFromRow(promo);

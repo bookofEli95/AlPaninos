@@ -24,7 +24,7 @@ import {
   EligiblePrizeItem,
   fetchEligiblePrizeItems,
   isPickAnItemPrize,
-  itemHasModifiers,
+  rewardNeedsItemScreen,
 } from '../../lib/prizeRedemption';
 import PrizeItemPicker from '../../components/PrizeItemPicker';
 import SkeletonBox from '../../components/Skeleton';
@@ -55,6 +55,13 @@ export default function DealsScreen() {
   const { appliedPromo, setAppliedPromo } = usePromoStore();
   const items = useCartStore((state) => state.items);
   const addFreeItem = useCartStore((state) => state.addFreeItem);
+  const orderType = useCartStore((state) => state.orderType);
+  const setOrderType = useCartStore((state) => state.setOrderType);
+  // A pickup-only deal while ordering delivery (or the reverse).
+  const wrongOrderType = useCallback(
+    (promo: any) => !!promo?.order_type && promo.order_type !== orderType,
+    [orderType]
+  );
   const removeItemsByPromoCode = useCartStore((state) => state.removeItemsByPromoCode);
 
   const [toast, setToast] = useState<string | null>(null);
@@ -116,9 +123,17 @@ export default function DealsScreen() {
 
   // The customer's own prizes first -- they're what people are most drawn
   // to -- then everything else, newest first.
+  // ...and deals that don't fit this order (pickup-only while ordering
+  // delivery) last.
   const sortedPromotions = useMemo(
-    () => (promotions ? [...promotions].sort((a: any, b: any) => Number(!!b.user_id) - Number(!!a.user_id)) : promotions),
-    [promotions]
+    () =>
+      promotions
+        ? [...promotions].sort(
+            (a: any, b: any) =>
+              Number(!!b.user_id) - Number(!!a.user_id) || Number(wrongOrderType(a)) - Number(wrongOrderType(b))
+          )
+        : promotions,
+    [promotions, wrongOrderType]
   );
 
   // A photo of the food each deal is for, picked at random from the right
@@ -258,12 +273,13 @@ export default function DealsScreen() {
 
   const isAlreadyUsed = (item: any) => isPromoUsed(item, usedCodes);
 
-  // An item with options opens on its own screen, and the pick list stays
-  // open behind it -- back from there lands here with the list as it was.
-  // It closes once the reward is in the cart.
+  // The item opens on its own screen (options, kitchen notes -- see
+  // rewardNeedsItemScreen), and the pick list stays open behind it: back
+  // from there lands here with the list as it was. It closes once the
+  // reward is in the cart. A plain drink goes straight in.
   const giveFreeItem = (target: EligiblePrizeItem, promo: any) => {
-    itemHasModifiers(target.id).then((hasModifiers) => {
-      if (hasModifiers) {
+    rewardNeedsItemScreen(target.id, promo).then((openScreen) => {
+      if (openScreen) {
         router.push({
           pathname: `/(main)/item/${target.id}`,
           params: { promoCode: promo.code, promoTitle: promo.title, returnTo: 'deals' },
@@ -280,7 +296,31 @@ export default function DealsScreen() {
     });
   };
 
-  const handleTogglePromo = async (item: any) => {
+  // A deal for the other order type: say so, and offer to switch rather
+  // than applying something that can't take anything off.
+  const handleTogglePromo = (item: any) => {
+    if (wrongOrderType(item) && appliedPromo?.code !== item.code && !isAlreadyUsed(item)) {
+      const needed = item.order_type as 'pickup' | 'delivery';
+      Alert.alert(
+        needed === 'pickup' ? 'Pickup Orders Only' : 'Delivery Orders Only',
+        `${item.title} is for ${needed} orders, and you're ordering ${orderType}. Switch your order to ${needed} to use it?`,
+        [
+          { text: `Keep ${orderType === 'pickup' ? 'Pickup' : 'Delivery'}`, style: 'cancel' },
+          {
+            text: `Switch to ${needed === 'pickup' ? 'Pickup' : 'Delivery'}`,
+            onPress: () => {
+              setOrderType(needed);
+              activateDeal(item);
+            },
+          },
+        ]
+      );
+      return;
+    }
+    activateDeal(item);
+  };
+
+  const activateDeal = async (item: any) => {
     if (!item.code || isAlreadyUsed(item) || resolvingCode) return;
 
     if (isPickAnItemPrize(item)) {
@@ -505,6 +545,11 @@ export default function DealsScreen() {
               used={!!item.code && isAlreadyUsed(item)}
               loading={resolvingCode === item.code}
               isItemPrize={isItemPrize}
+              notice={
+                wrongOrderType(item) && !isApplied
+                  ? `${item.order_type === 'pickup' ? 'Pickup' : 'Delivery'} orders only -- you're ordering ${orderType}`
+                  : null
+              }
               onPress={() => handleTogglePromo(item)}
             />
           );

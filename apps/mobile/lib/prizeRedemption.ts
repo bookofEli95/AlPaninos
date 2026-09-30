@@ -87,3 +87,12 @@ export async function itemHasModifiers(itemId: string): Promise<boolean> {
     .eq('menu_item_id', itemId);
   return (count ?? 0) > 0;
 }
+
+// Whether a free reward item goes straight into the cart, or opens its own
+// screen first. It opens its screen unless it's a drink with nothing to
+// choose -- so a free sandwich (or side, or dip) can still get its options
+// and kitchen notes ("no onions"). Drinks have no notes to add.
+export async function rewardNeedsItemScreen(itemId: string, promo: { category_name?: string | null }): Promise<boolean> {
+  if ((promo.category_name ?? '').trim().toLowerCase() !== 'drinks') return true;
+  return itemHasModifiers(itemId);
+}

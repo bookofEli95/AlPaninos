@@ -40,6 +40,7 @@ export default function DealCard({
   used,
   loading,
   isItemPrize,
+  notice,
   onPress,
 }: {
   promo: any;
@@ -49,6 +50,9 @@ export default function DealCard({
   used: boolean;
   loading: boolean;
   isItemPrize: boolean;
+  // Why it doesn't fit the current order ("Pickup orders only -- you're
+  // ordering delivery"): shown on the card, which is dimmed a little.
+  notice?: string | null;
   onPress: () => void;
 }) {
   const personal = !!promo.user_id;
@@ -109,6 +113,7 @@ export default function DealCard({
             personal && styles.cardPersonal,
             applied && styles.cardApplied,
             used && { opacity: 0.5 },
+            !used && !!notice && { opacity: 0.8 },
           ]}
         >
           {/* The value, over the food */}
@@ -158,6 +163,12 @@ export default function DealCard({
                     <Text style={styles.tagText}>{tag}</Text>
                   </View>
                 ))}
+              </View>
+            )}
+            {!used && !!notice && (
+              <View style={styles.notice}>
+                <Ionicons name="information-circle" size={13} color="#B45309" />
+                <Text style={styles.noticeText}>{notice}</Text>
               </View>
             )}
 
@@ -311,6 +322,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     marginTop: 6,
+  },
+  notice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 2,
+    marginBottom: 4,
+  },
+  noticeText: {
+    flex: 1,
+    marginLeft: 4,
+    color: '#B45309',
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 12,
+    lineHeight: 16,
   },
   tag: {
     backgroundColor: PAGE,

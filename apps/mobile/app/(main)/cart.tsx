@@ -54,7 +54,7 @@ const hapticError = () => Haptics.notificationAsync(Haptics.NotificationFeedback
 export default function CartScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { items, locationId, removeItem, updateItemQuantity, clearCart, orderType, deliveryAddress, removeItemsByPromoCode } = useCartStore();
+  const { items, locationId, removeItem, updateItemQuantity, clearCart, orderType, deliveryAddress } = useCartStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { session } = useAuthStore();
   // Verifying their email at checkout turns a guest's session into a real
@@ -110,8 +110,21 @@ export default function CartScreen() {
     total: grandTotal,
     unmetReason: promoUnmetReason,
   } = useCartTotals();
-  const rewardPromoCodes = Array.from(new Set(items.map((item) => item.promoCode).filter((c): c is string => !!c)));
-  const activePromoCode = appliedPromo?.code ?? rewardPromoCodes[0] ?? null;
+  // Free reward items (wheel prizes, points rewards, the birthday treat):
+  // each is its own line, listed by what it is ("Free Signature Sandwich")
+  // with its own remove -- however many are in the cart.
+  const rewardLines = items.filter((item) => !!item.promoCode);
+  const rewardCodes = Array.from(new Set(rewardLines.map((item) => item.promoCode!))).sort();
+  const { data: rewardTitles } = useQuery({
+    queryKey: ['rewardTitles', rewardCodes.join(',')],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from('promotions').select('code, title').in('code', rewardCodes);
+      if (error) throw error;
+      return new Map<string, string>((data || []).map((p: any) => [p.code, p.title]));
+    },
+    enabled: rewardCodes.length > 0,
+    staleTime: Infinity,
+  });
 
   const browsingLocationId = useLocationStore(state => state.locationId);
   const goBack = useCallback(() => {
@@ -1013,17 +1026,58 @@ export default function CartScreen() {
             )}
 
             <View className="my-2 p-3.5 bg-white rounded-2xl border border-stone-200 shadow-sm">
-              {activePromoCode ? (
+              {rewardLines.length > 0 && (
+                <View className="mb-3 pb-3 border-b border-stone-100">
+                  <View className="flex-row items-center mb-2">
+                    <Ionicons name="gift" size={15} color="#A61C14" />
+                    <Text className="text-[13px] font-inter-bold text-[#1C1917] ml-1.5 flex-1">
+                      {rewardLines.length === 1 ? 'Your reward' : `Your rewards · ${rewardLines.length} free items`}
+                    </Text>
+                    <Text className="text-[13px] font-inter-bold text-green-700">On us</Text>
+                  </View>
+                  {rewardLines.map((line) => (
+                    <View
+                      key={line.cartItemId}
+                      className="flex-row items-center bg-[#FFFBEB] border border-[#FFC72C] rounded-xl pl-2.5 pr-2 py-2 mb-1.5"
+                    >
+                      <View className="w-9 h-9 rounded-lg bg-[#7A0E0A] items-center justify-center mr-2.5">
+                        <Ionicons name="gift" size={17} color="#FFC72C" />
+                      </View>
+                      <View className="flex-1 mr-2">
+                        <Text className="text-[11px] font-inter-bold uppercase tracking-wider text-[#92400E]" numberOfLines={1}>
+                          {rewardTitles?.get(line.promoCode!) ?? 'Reward'}
+                        </Text>
+                        <Text className="text-sm font-inter-bold text-[#1C1917]" numberOfLines={1}>
+                          {line.name}
+                        </Text>
+                      </View>
+                      <Text className="text-[13px] font-inter-extrabold text-[#A61C14] mr-2">FREE</Text>
+                      <TouchableOpacity
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                          removeItem(line.cartItemId);
+                        }}
+                        hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+                        accessibilityLabel={`Remove ${line.name} (reward)`}
+                      >
+                        <Ionicons name="close-circle" size={22} color="#A8A29E" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                  <Text className="text-xs text-stone-500 mt-0.5">
+                    Removing one puts the reward back in Deals -- it isn't used up.
+                  </Text>
+                </View>
+              )}
+
+              {appliedPromo ? (
                 <PromoCoupon
                   promo={appliedPromo}
-                  code={activePromoCode}
+                  code={appliedPromo.code}
                   saved={discountAmount}
-                  unmetReason={appliedPromo ? promoUnmetReason : null}
+                  unmetReason={promoUnmetReason}
                   paidSubtotal={items.filter((i) => !i.promoCode).reduce((sum, i) => sum + i.totalPrice, 0)}
-                  onRemove={() => {
-                    if (appliedPromo) setAppliedPromo(null);
-                    else removeItemsByPromoCode(activePromoCode);
-                  }}
+                  onRemove={() => setAppliedPromo(null)}
                 />
               ) : !promoInputOpen ? (
                 <TouchableOpacity
