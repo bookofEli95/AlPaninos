@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 import { useCartStore } from '../../store/cartStore';
 import { useLocations } from '../../hooks/useLocations';
-import { isOpenNow, getTodayHoursLabel } from '../../lib/hours';
+import { storeStatus } from '../../lib/hours';
 import AccountSetupSheet from '../../components/AccountSetupSheet';
 import GuestJoinCard from '../../components/GuestJoinCard';
 import { confirmSwitchToExistingAccount, signOutToLogin as signOutToLoginScreen, welcomeNewAccount } from '../../lib/guestSession';
@@ -120,8 +120,10 @@ export default function MoreScreen() {
               Our Stores
             </Text>
             {locations.map((location: any) => {
-              const open = isOpenNow(location.hours);
-              const hoursLabel = getTodayHoursLabel(location.hours);
+              // Same wording as Home's store cards: "Open until 9PM",
+              // "Opens tomorrow at 11AM"...
+              const status = storeStatus(location.hours);
+              const open = status.open;
 
               return (
                 <View key={location.id} className="bg-white rounded-2xl border border-stone-200 shadow-sm p-4 mb-3">
@@ -139,13 +141,12 @@ export default function MoreScreen() {
 
                   <View className="flex-row items-center justify-between mt-3 pt-2.5 border-t border-stone-100">
                     <View className="flex-row items-center flex-1 mr-2">
-                      <View className={`w-2 h-2 rounded-full mr-1.5 ${open ? 'bg-emerald-500' : 'bg-stone-300'}`} />
+                      <View className={`w-2 h-2 rounded-full mr-1.5 ${open ? 'bg-emerald-500' : 'bg-amber-400'}`} />
                       <Text
-                        className={`text-[13px] font-inter-semibold ${open ? 'text-emerald-700' : 'text-stone-500'}`}
+                        className={`text-[13px] font-inter-semibold ${open ? 'text-emerald-700' : 'text-stone-600'}`}
                         numberOfLines={1}
                       >
-                        {open ? 'Open now' : 'Closed'}
-                        {hoursLabel ? ` • Today ${hoursLabel}` : ''}
+                        {status.label || (open ? 'Open now' : 'Closed')}
                       </Text>
                     </View>
 

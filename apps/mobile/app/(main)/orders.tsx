@@ -199,25 +199,25 @@ export default function OrdersScreen() {
               className={`bg-white p-4 rounded-3xl mb-3 shadow-sm border ${isFinished ? 'border-stone-200' : 'border-[#A61C14]'}`}
               activeOpacity={0.85}
             >
+              {/* Status on the left, date on the right -- the store has its
+                  own line below, so nothing gets cut off. */}
               <View className="flex-row justify-between items-center mb-3">
                 <View className="flex-row items-center flex-1 mr-2">
                   {!isFinished && (
-                    <View className="flex-row items-center bg-[#A61C14] rounded-full px-2 py-0.5 mr-2">
+                    <View className="flex-row items-center bg-[#A61C14] rounded-full px-2 py-1 mr-2">
                       <View className="w-1.5 h-1.5 rounded-full bg-[#FFC72C] mr-1" />
                       <Text className="text-[#F4ECE1] font-inter-extrabold text-xs">LIVE</Text>
                     </View>
                   )}
-                  <Text className="text-stone-600 text-sm font-inter-semibold" numberOfLines={1}>
-                    {new Date(item.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })} ·{' '}
-                    {item.order_type === 'delivery' ? 'Delivery' : 'Pickup'}
-                    {item.locations?.name ? ` · ${item.locations.name}` : ''}
-                  </Text>
+                  {item.status && (
+                    <View className={`${badge.bg} px-2.5 py-1 rounded-full`}>
+                      <Text className={`${badge.text} font-inter-bold text-[13px]`}>{badge.label}</Text>
+                    </View>
+                  )}
                 </View>
-                {item.status && (
-                  <View className={`${badge.bg} px-2.5 py-1 rounded-full`}>
-                    <Text className={`${badge.text} font-inter-bold text-[13px]`}>{badge.label}</Text>
-                  </View>
-                )}
+                <Text className="text-stone-500 text-sm font-inter-semibold">
+                  {new Date(item.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                </Text>
               </View>
 
               {/* What was in it */}
@@ -251,6 +251,10 @@ export default function OrdersScreen() {
                   </View>
                   <Text className="font-inter-extrabold text-base text-[#A61C14] mt-0.5" style={tabularNums}>
                     ${Number(item.total_amount).toFixed(2)}
+                  </Text>
+                  <Text className="text-stone-500 text-[13px] font-inter-medium mt-0.5" numberOfLines={1}>
+                    {item.order_type === 'delivery' ? 'Delivery' : 'Pickup'}
+                    {item.locations?.name ? ` · ${item.locations.name}` : ''}
                   </Text>
                 </View>
               </View>

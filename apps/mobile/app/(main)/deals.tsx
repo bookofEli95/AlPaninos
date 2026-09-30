@@ -377,7 +377,7 @@ export default function DealsScreen() {
           <View className="bg-white border border-stone-200 px-3 py-1.5 rounded-full flex-row items-center shadow-sm">
             <Ionicons name="sparkles" size={14} color="#A61C14" />
             <Text className="text-[#1C1917] font-inter-bold text-xs ml-1.5">
-              {currentPoints} pts
+              {currentPoints.toLocaleString()} pts
             </Text>
           </View>
         )}
@@ -421,7 +421,7 @@ export default function DealsScreen() {
                     PaninoPoints Balance
                   </Text>
                   <Text className="text-3xl font-display-bold text-[#1C1917] tracking-tight mt-0.5">
-                    {currentPoints}{' '}
+                    {currentPoints.toLocaleString()}{' '}
                     <Text className="text-sm font-inter-semibold text-stone-500">pts</Text>
                   </Text>
                 </View>
