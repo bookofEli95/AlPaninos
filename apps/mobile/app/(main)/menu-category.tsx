@@ -94,14 +94,21 @@ export default function MenuCategoryScreen() {
     [promotions, categoryId, categoryName, usedCodes]
   );
   const dealApplied = !!categoryDeal && appliedCode === categoryDeal.code;
+  // Something from this category is already in the cart (and paid for, not
+  // a free reward) -- i.e. there's a saving to go and see.
+  const hasQualifyingItem = useMemo(
+    () => cartItems.some((c) => !c.promoCode && (items || []).some((i: any) => i.id === c.menuItemId)),
+    [cartItems, items]
+  );
 
   // Tapping the banner: a Mix & Match opens its builder; any other deal on
-  // this category applies right here (they're already where its food is);
-  // once applied, it opens the cart to see the saving.
+  // this category applies right here (they're already where its food is).
+  // Once applied it opens the cart -- but only when there's something in it
+  // the deal applies to; before that, the banner just says to pick below.
   const handleDealPress = () => {
     if (!categoryDeal) return;
     if (dealApplied) {
-      router.push('/(main)/cart');
+      if (hasQualifyingItem) router.push('/(main)/cart');
       return;
     }
     if (isBundleDeal(categoryDeal)) {
@@ -171,6 +178,7 @@ export default function MenuCategoryScreen() {
         <TouchableOpacity
           activeOpacity={0.85}
           onPress={handleDealPress}
+          disabled={dealApplied && !hasQualifyingItem}
           className={`mx-4 mb-3 rounded-2xl flex-row items-center px-3 py-2.5 ${dealApplied ? 'bg-[#15803D]' : 'bg-[#A61C14]'}`}
         >
           <View className="bg-[#FFC72C] rounded-xl px-2.5 py-1.5 mr-3">
@@ -184,14 +192,24 @@ export default function MenuCategoryScreen() {
             </Text>
             <Text className="text-[#F4ECE1] opacity-80 text-[13px] font-inter-medium" numberOfLines={1}>
               {dealApplied
-                ? 'Applied -- tap to see your saving in the cart'
+                ? hasQualifyingItem
+                  ? 'Applied -- tap to see your saving'
+                  : 'Applied -- now pick one below'
                 : isBundleDeal(categoryDeal)
                 ? 'Tap to build your deal'
                 : 'Tap to apply this deal'}
             </Text>
           </View>
           <Ionicons
-            name={dealApplied ? 'checkmark-circle' : isBundleDeal(categoryDeal) ? 'arrow-forward' : 'add-circle'}
+            name={
+              dealApplied
+                ? hasQualifyingItem
+                  ? 'arrow-forward-circle'
+                  : 'checkmark-circle'
+                : isBundleDeal(categoryDeal)
+                ? 'arrow-forward'
+                : 'add-circle'
+            }
             size={20}
             color="#FFC72C"
           />
