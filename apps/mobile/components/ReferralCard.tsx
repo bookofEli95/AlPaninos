@@ -12,9 +12,12 @@ export default function ReferralCard({ compact = false }: { compact?: boolean })
   const { data: referral, isLoading } = useMyReferral();
   const [copied, setCopied] = useState(false);
 
+  // The loading box has its own key and the card's shadow: without them the
+  // card would be drawn into the loading box's place, and adding the shadow
+  // to an existing view is what NativeWind can't do (it crashed Profile).
   if (!referral?.code) {
     return isLoading && !compact ? (
-      <View className="bg-white rounded-3xl border border-stone-200 p-5 mt-4 items-center">
+      <View key="loading" className="bg-white rounded-3xl border border-stone-200 shadow-sm p-5 mt-4 items-center">
         <ActivityIndicator color="#A61C14" />
       </View>
     ) : null;
@@ -58,7 +61,7 @@ export default function ReferralCard({ compact = false }: { compact?: boolean })
   const earned = referral.friends_ordered * REFERRAL_AMOUNT;
 
   return (
-    <View className="bg-white rounded-3xl border border-stone-200 shadow-sm p-5 mt-4">
+    <View key="card" className="bg-white rounded-3xl border border-stone-200 shadow-sm p-5 mt-4">
       <View className="flex-row items-center mb-2">
         <View className="w-11 h-11 rounded-full bg-[#A61C14] items-center justify-center mr-3">
           <Ionicons name="people" size={20} color="#FFC72C" />
