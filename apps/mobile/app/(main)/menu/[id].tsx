@@ -1,7 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, Image, ScrollView, Dimensions, StyleSheet } from 'react-native';
 import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
-import { getDaypart } from '../../../lib/daypart';
 import { dealValue } from '../../../components/DealCard';
 import { isPromoUsed, useUsedPromoCodes } from '../../../hooks/useUsedPromoCodes';
 import { bestCategoryDeal } from '../../../lib/categoryDeals';
@@ -142,23 +141,31 @@ export default function MenuScreen() {
     [activePromotions, usedCodes]
   );
 
-  // "Popular right now": what this store sells most at this time of day
-  // (same list and cache as Home's time-of-day picks).
-  const daypart = getDaypart();
+  // This store's real best sellers (get_popular_items: units ordered in
+  // the last 60 days). Called "Popular right now" only when there are real
+  // sales behind it -- with too few orders yet, the list is the signature
+  // sandwiches, and says so.
   const { data: popular } = useQuery({
-    queryKey: ['daypartPicks', locationId, daypart.daypart],
+    queryKey: ['popularItems', locationId],
     queryFn: async () => {
-      const { data, error } = await (supabase as any).rpc('get_daypart_picks', {
+      const { data, error } = await (supabase as any).rpc('get_popular_items', {
         p_location_id: locationId,
-        p_daypart: daypart.daypart,
-        p_limit: 6,
+        p_limit: 8,
       });
       if (error) throw error;
-      return (data || []) as { id: string; name: string; base_price: number; image_url: string | null; location_id: string }[];
+      return (data || []) as {
+        id: string;
+        name: string;
+        base_price: number;
+        image_url: string | null;
+        location_id: string;
+        sold: number;
+      }[];
     },
     enabled: !!locationId,
-    staleTime: 5 * 60000,
+    staleTime: 10 * 60000,
   });
+  const popularIsReal = Number(popular?.[0]?.sold ?? 0) >= 3;
 
   if (isLoading) {
     return (
@@ -341,8 +348,10 @@ export default function MenuScreen() {
           {!!popular?.length && (
             <View className="mb-5">
               <View className="flex-row items-center px-4 mb-2.5">
-                <Ionicons name="flame" size={16} color="#A61C14" />
-                <Text className="text-[#1C1917] font-display-bold text-lg ml-1.5">Popular right now</Text>
+                <Ionicons name={popularIsReal ? 'flame' : 'star'} size={16} color="#A61C14" />
+                <Text className="text-[#1C1917] font-display-bold text-lg ml-1.5">
+                  {popularIsReal ? 'Popular right now' : 'Our signatures'}
+                </Text>
               </View>
               <ScrollView
                 horizontal
