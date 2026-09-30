@@ -23,37 +23,92 @@ export function formatSlotTime(date: Date): string {
   return `${h}:${m.toString().padStart(2, '0')} ${suffix}`;
 }
 
-// An uncertain "~15-20 min" invites repeated checking and in-person "is it
-// ready yet" queue pressure; a committed clock time doesn't. Slots start at
-// the earliest the kitchen could realistically have it ready (rounded up to
-// a clean 15-minute mark) and run every 15 minutes all the way to today's
-// closing time -- e.g. ordering at noon still offers an 8pm slot if the
-// store's open that late. No artificial cap: this feeds a scrollable
-// dropdown (cart.tsx), not a row of chips, so a long list isn't a problem.
-export function getPickupSlots(
+// The store's opening/closing time on a given calendar day, as Dates.
+function hoursOn(hours: WeekHours, date: Date): { openAt: Date; closeAt: Date } | null {
+  const day = hours[DAY_NAMES[date.getDay()]];
+  if (!day) return null;
+  const [openH, openM] = day.open.split(':').map(Number);
+  const [closeH, closeM] = day.close.split(':').map(Number);
+  return {
+    openAt: new Date(date.getFullYear(), date.getMonth(), date.getDate(), openH, openM),
+    closeAt: new Date(date.getFullYear(), date.getMonth(), date.getDate(), closeH, closeM),
+  };
+}
+
+// Whether an order can be made right now ("ASAP"): the store is open, and
+// the order can be ready before it closes. No hours on file counts as open
+// (the same as Home). When this is false, the order has to be scheduled
+// for a time the store is open (getOrderDays).
+export function canOrderAsap(
   hours: WeekHours | null | undefined,
   orderType: 'pickup' | 'delivery',
-  itemCount: number
-): PickupSlot[] {
-  const today = hours?.[DAY_NAMES[new Date().getDay()]];
-  if (!today) return [];
+  itemCount: number,
+  now: Date = new Date()
+): boolean {
+  if (!hours) return true;
+  const today = hoursOn(hours, now);
+  if (!today) return false;
+  const readyAt = now.getTime() + estimateReadyMinutes(orderType, itemCount) * 60000;
+  return now >= today.openAt && now < today.closeAt && readyAt <= today.closeAt.getTime();
+}
 
-  const minMinutes = estimateReadyMinutes(orderType, itemCount);
-  const now = new Date();
-  const earliest = new Date(now.getTime() + minMinutes * 60000);
-  earliest.setMinutes(Math.ceil(earliest.getMinutes() / SLOT_INTERVAL_MINUTES) * SLOT_INTERVAL_MINUTES, 0, 0);
+export type OrderDay = { date: Date; label: string; slots: PickupSlot[] };
 
-  const [closeH, closeM] = today.close.split(':').map(Number);
-  const closeAt = new Date(now);
-  closeAt.setHours(closeH, closeM, 0, 0);
+// Every time an order can be ready for, grouped by day: the rest of today
+// (if the store's still open, or opens later today) and the next days it
+// opens -- up to three days with times. Each day's times run every 15
+// minutes from the earliest the kitchen could have it ready (the order
+// size's prep time after now, or after opening if it isn't open yet) until
+// closing. A committed clock time beats an open-ended "~20 min": it stops
+// the "is it ready yet" checking.
+export function getOrderDays(
+  hours: WeekHours | null | undefined,
+  orderType: 'pickup' | 'delivery',
+  itemCount: number,
+  now: Date = new Date()
+): OrderDay[] {
+  if (!hours) return [];
+  const prepMs = estimateReadyMinutes(orderType, itemCount) * 60000;
+  const days: OrderDay[] = [];
 
-  const slots: PickupSlot[] = [];
-  let slotTime = new Date(earliest);
-  while (slotTime <= closeAt) {
-    slots.push({ time: new Date(slotTime), label: formatSlotTime(slotTime) });
-    slotTime = new Date(slotTime.getTime() + SLOT_INTERVAL_MINUTES * 60000);
+  for (let ahead = 0; ahead < 8 && days.length < 3; ahead++) {
+    const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + ahead);
+    const open = hoursOn(hours, date);
+    if (!open) continue;
+
+    const earliest = new Date(Math.max(now.getTime(), open.openAt.getTime()) + prepMs);
+    earliest.setMinutes(Math.ceil(earliest.getMinutes() / SLOT_INTERVAL_MINUTES) * SLOT_INTERVAL_MINUTES, 0, 0);
+
+    const slots: PickupSlot[] = [];
+    for (let t = earliest; t <= open.closeAt; t = new Date(t.getTime() + SLOT_INTERVAL_MINUTES * 60000)) {
+      slots.push({ time: new Date(t), label: formatSlotTime(t) });
+    }
+    if (!slots.length) continue;
+
+    const label =
+      ahead === 0
+        ? 'Today'
+        : ahead === 1
+        ? 'Tomorrow'
+        : date.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' });
+    days.push({ date, label, slots });
   }
-  return slots;
+  return days;
+}
+
+// A chosen time that's still possible: in the future by at least the prep
+// time, and inside the store's hours that day.
+export function isOrderTimeAvailable(
+  time: Date,
+  hours: WeekHours | null | undefined,
+  orderType: 'pickup' | 'delivery',
+  itemCount: number,
+  now: Date = new Date()
+): boolean {
+  if (time.getTime() < now.getTime() + estimateReadyMinutes(orderType, itemCount) * 60000 - 60000) return false;
+  if (!hours) return true;
+  const day = hoursOn(hours, time);
+  return !!day && time >= day.openAt && time <= day.closeAt;
 }
 
 export function getEtaDisplay(

@@ -8,7 +8,7 @@ import { supabase } from '../../../lib/supabase';
 import { useBackHandler } from '../../../hooks/useBackHandler';
 import { Ionicons } from '@expo/vector-icons';
 import SkeletonBox from '../../../components/Skeleton';
-import { getEtaDisplay } from '../../../lib/orderTiming';
+import { formatDayAndTime, getEtaDisplay } from '../../../lib/orderTiming';
 import { reorderFromOrder } from '../../../lib/reorder';
 import { tabularNums } from '../../../lib/typography';
 import { groupRepeats } from '../../../lib/modifiers';
@@ -445,6 +445,10 @@ export default function OrderDetailScreen() {
                 <Text className="text-[#F4ECE1] opacity-90 text-[15px] font-inter-medium text-center mt-1">
                   {order.is_catering
                     ? "We'll call you to confirm the details before we start."
+                    : order.requested_ready_at
+                    ? `Scheduled -- ${order.order_type === 'delivery' ? 'arriving' : 'ready'} ${formatDayAndTime(
+                        new Date(order.requested_ready_at)
+                      )}. Follow along right here.`
                     : "We're firing up the press. Follow along right here."}
                 </Text>
                 {!order.is_catering && !session?.user?.is_anonymous && orderPoints > 0 && (

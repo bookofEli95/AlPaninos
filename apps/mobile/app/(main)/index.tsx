@@ -47,7 +47,7 @@ import { getDaypart } from '../../lib/daypart';
 import { dropLabel, dropState } from '../../lib/drops';
 import { switchStore } from '../../lib/storeSwitch';
 import { useCartBarSpace } from '../../hooks/useCartBarSpace';
-import { estimateReadyMinutes, getEtaDisplay } from '../../lib/orderTiming';
+import { canOrderAsap, estimateReadyMinutes, formatDayAndTime, getEtaDisplay, getOrderDays } from '../../lib/orderTiming';
 import OrderTypeSheet from '../../components/OrderTypeSheet';
 
 // Home: a full-screen showcase of the food, and one decision -- Pickup or
@@ -647,8 +647,18 @@ export default function HomeScreen() {
   const headline = daypart.daypart === 'lunch' ? 'Lunch, hot off\nthe press.' : 'Dinner, hot off\nthe press.';
   // No hours on file counts as open, rather than telling everyone to order ahead.
   const storeOpen = !selectedStatus || selectedStatus.open || !selectedStatus.label;
-  const pickupMinutes = estimateReadyMinutes('pickup', Math.max(itemCount, 1));
-  const deliveryMinutes = estimateReadyMinutes('delivery', Math.max(itemCount, 1));
+  const orderSize = Math.max(itemCount, 1);
+  const pickupMinutes = estimateReadyMinutes('pickup', orderSize);
+  const deliveryMinutes = estimateReadyMinutes('delivery', orderSize);
+  // The same rule as the cart (lib/orderTiming): "ready in ~20 min" only
+  // when the store can make it now; otherwise the earliest time it can,
+  // e.g. "Order ahead for tomorrow at 11:30 AM".
+  const orderAheadLine = (type: 'pickup' | 'delivery') => {
+    const first = getOrderDays(selectedStore?.hours, type, orderSize, now)[0]?.slots[0];
+    return first ? `Order ahead for ${formatDayAndTime(first.time, now)}` : 'Order ahead for later';
+  };
+  const pickupNow = canOrderAsap(selectedStore?.hours, 'pickup', orderSize, now);
+  const deliveryNow = canOrderAsap(selectedStore?.hours, 'delivery', orderSize, now);
 
   return (
     <View className="flex-1 bg-[#FAF6F0]">
@@ -732,7 +742,7 @@ export default function HomeScreen() {
               <HeroOrderButton
                 title="Pickup"
                 icon="bag-handle"
-                sub={storeOpen ? `Ready in about ${pickupMinutes} min` : 'Order ahead for later'}
+                sub={pickupNow ? `Ready in about ${pickupMinutes} min` : orderAheadLine('pickup')}
                 selected={chosen === 'pickup'}
                 loading={going === 'pickup'}
                 disabled={!selectedStoreId || !!going}
@@ -742,8 +752,8 @@ export default function HomeScreen() {
                 title="Delivery"
                 icon="bicycle"
                 sub={
-                  !storeOpen
-                    ? 'Order ahead for later'
+                  !deliveryNow
+                    ? orderAheadLine('delivery')
                     : deliveryAddress
                     ? `About ${deliveryMinutes} min to ${deliveryAddress.split(',')[0]}`
                     : `About ${deliveryMinutes} min to your door`

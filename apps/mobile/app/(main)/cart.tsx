@@ -24,7 +24,13 @@ import PromoCoupon from '../../components/PromoCoupon';
 import AccountSetupSheet from '../../components/AccountSetupSheet';
 import { welcomeNewAccount } from '../../lib/guestSession';
 import { isValidEmail } from '../../lib/passwordStrength';
-import { estimateReadyMinutes, formatDayAndTime, getPickupSlots } from '../../lib/orderTiming';
+import {
+  canOrderAsap,
+  estimateReadyMinutes,
+  formatDayAndTime,
+  getOrderDays,
+  isOrderTimeAvailable,
+} from '../../lib/orderTiming';
 import {
   CATERING_MAX_DELIVERY_KM,
   CATERING_MIN_SUBTOTAL,
@@ -118,9 +124,23 @@ export default function CartScreen() {
 
 
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
-  const pickupSlots = useMemo(
-    () => getPickupSlots(locationHours, orderType, itemCount),
-    [locationHours, orderType, itemCount]
+  // When the order can be ready: ASAP only while the store's open (and can
+  // finish it before closing); otherwise a time when it's open -- today
+  // later, or the next days it opens (lib/orderTiming). Re-read on every
+  // visit to the cart, so the clock moving on is picked up.
+  const [clockTick, setClockTick] = useState(0);
+  useFocusEffect(
+    useCallback(() => {
+      setClockTick((t) => t + 1);
+    }, [])
+  );
+  const asapAvailable = useMemo(
+    () => canOrderAsap(locationHours, orderType, itemCount),
+    [locationHours, orderType, itemCount, clockTick]
+  );
+  const orderDays = useMemo(
+    () => getOrderDays(locationHours, orderType, itemCount),
+    [locationHours, orderType, itemCount, clockTick]
   );
 
   // Any catering package in the cart switches the whole order to catering
@@ -170,6 +190,20 @@ export default function CartScreen() {
   useEffect(() => {
     setSelectedSlot(null);
   }, [locationId]);
+
+  // Store closed (no ASAP): start them on the earliest time it's open, so
+  // the cart never says "ASAP" for a closed store -- they can change it.
+  // A time that's no longer possible (the clock moved past it) is dropped.
+  useEffect(() => {
+    if (isCateringOrder) return;
+    if (selectedSlot && !isOrderTimeAvailable(selectedSlot, locationHours, orderType, itemCount)) {
+      setSelectedSlot(null);
+      return;
+    }
+    if (!selectedSlot && !asapAvailable && orderDays[0]?.slots[0]) {
+      setSelectedSlot(orderDays[0].slots[0].time);
+    }
+  }, [isCateringOrder, selectedSlot, asapAvailable, orderDays, locationHours, orderType, itemCount]);
 
   // Why Place Order is greyed out, if it is -- shown on the button itself.
   // Below the catering minimum, Place Order isn't a dead end: tapping it
@@ -406,6 +440,25 @@ export default function CartScreen() {
       Alert.alert('Missing Address', 'Please add a delivery address before checking out.');
       setOrderTypeSheetVisible(true);
       return;
+    }
+
+    // Checked again at the moment of ordering (the clock may have moved on
+    // since the cart opened): no "ASAP" while the store's closed, and a
+    // chosen time has to still be possible.
+    if (!isCateringOrder) {
+      if (selectedSlot && !isOrderTimeAvailable(selectedSlot, locationHours, orderType, itemCount)) {
+        hapticError();
+        setSelectedSlot(null);
+        Alert.alert('Time No Longer Available', 'That time has passed or the store is closed then. Please choose another time.');
+        setTimePickerVisible(true);
+        return;
+      }
+      if (!selectedSlot && !canOrderAsap(locationHours, orderType, itemCount)) {
+        hapticError();
+        Alert.alert("We're Closed Right Now", 'Choose a time when the store is open to order ahead.');
+        setTimePickerVisible(true);
+        return;
+      }
     }
 
     if (isCateringOrder) {
@@ -674,8 +727,15 @@ export default function CartScreen() {
                     ? `${orderType === 'delivery' ? 'Arriving' : 'Ready'} ${formatDayAndTime(selectedSlot)}`
                     : isCateringOrder
                     ? 'Choose a date & time'
-                    : `ASAP (~${estimateReadyMinutes(orderType, itemCount)} min)`}
+                    : asapAvailable
+                    ? `ASAP (~${estimateReadyMinutes(orderType, itemCount)} min)`
+                    : 'Closed -- choose a time'}
                 </Text>
+                {!isCateringOrder && !asapAvailable && (
+                  <Text className="text-[13px] font-inter-semibold text-amber-700 mt-0.5" numberOfLines={1}>
+                    We're closed now -- ordering ahead
+                  </Text>
+                )}
               </View>
             </View>
             <TouchableOpacity
@@ -1247,7 +1307,8 @@ export default function CartScreen() {
           setSelectedSlot(slot);
           setTimePickerVisible(false);
         }}
-        slots={pickupSlots}
+        orderDays={orderDays}
+        asapAvailable={asapAvailable}
         asapLabel={`${estimateReadyMinutes(orderType, itemCount)} min`}
         selected={selectedSlot}
         days={isCateringOrder ? cateringDays : undefined}

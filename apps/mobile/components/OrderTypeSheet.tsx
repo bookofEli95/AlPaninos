@@ -7,7 +7,7 @@ import { useAuthStore } from '../store/authStore';
 import { useCartStore } from '../store/cartStore';
 import { useLocationStore } from '../store/locationStore';
 import { useLocations } from '../hooks/useLocations';
-import { isOpenNow, getTodayHoursLabel } from '../lib/hours';
+import { storeStatus } from '../lib/hours';
 import { switchStore } from '../lib/storeSwitch';
 import AddressAutocomplete from './AddressAutocomplete';
 
@@ -111,7 +111,9 @@ export default function OrderTypeSheet({ visible, onClose, onStoreChanged, fallb
               </Text>
               {locations.map((loc: any) => {
                 const selected = loc.id === currentLocationId;
-                const open = isOpenNow(loc.hours);
+                // Same wording as Home: "Open until 4PM", "Opens tomorrow at 11AM".
+                const status = storeStatus(loc.hours);
+                const open = status.open;
                 return (
                   <TouchableOpacity
                     key={loc.id}
@@ -134,7 +136,7 @@ export default function OrderTypeSheet({ visible, onClose, onStoreChanged, fallb
                       <View className="flex-row items-center mt-0.5">
                         <View className={`w-1.5 h-1.5 rounded-full mr-1 ${open ? 'bg-emerald-500' : 'bg-stone-300'}`} />
                         <Text className={`text-xs font-inter-semibold ${open ? 'text-emerald-700' : 'text-stone-500'}`}>
-                          {open ? 'Open' : 'Closed'} • {getTodayHoursLabel(loc.hours)}
+                          {status.label || (open ? 'Open' : 'Closed')}
                         </Text>
                       </View>
                     </View>

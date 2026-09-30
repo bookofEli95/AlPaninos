@@ -1,29 +1,39 @@
 import { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { PickupSlot } from '../lib/orderTiming';
+import { OrderDay } from '../lib/orderTiming';
 import { CateringDay } from '../lib/catering';
 
 type Props = {
   visible: boolean;
   onClose: () => void;
   onSelect: (slot: Date | null) => void;
-  slots: PickupSlot[];
+  // Regular orders: the times the store can have it ready, by day
+  // (lib/orderTiming getOrderDays), and whether "ASAP" is possible right
+  // now -- it isn't while the store is closed.
+  orderDays: OrderDay[];
+  asapAvailable: boolean;
   asapLabel: string;
   selected: Date | null;
   // Catering mode: pick a day first, then a time on it -- and no ASAP
   // option, since catering is always scheduled ahead (see lib/catering.ts).
-  // When set, slots/asapLabel are ignored.
+  // When set, orderDays/asapLabel are ignored.
   days?: CateringDay[];
 };
 
 // Same top-anchored overlay pattern as CountryPickerSheet -- a scrollable
-// dropdown rather than a wrapped row of chips, since getPickupSlots now
-// returns every 15-minute slot up to closing (could be dozens on a slow
-// morning), not a handful capped to the next couple hours. A chip row would
-// either wrap into a wall of buttons or hide most of the day; a dropdown
-// list scales to as many options as the store's hours allow.
-export default function TimeSlotPickerSheet({ visible, onClose, onSelect, slots, asapLabel, selected, days }: Props) {
+// list, since there's a time every 15 minutes up to closing, for today and
+// the next days the store opens.
+export default function TimeSlotPickerSheet({
+  visible,
+  onClose,
+  onSelect,
+  orderDays,
+  asapAvailable,
+  asapLabel,
+  selected,
+  days,
+}: Props) {
   const [dayIndex, setDayIndex] = useState(0);
 
   // Reopening lands on the day of the time already chosen (or the first
@@ -146,37 +156,55 @@ export default function TimeSlotPickerSheet({ visible, onClose, onSelect, slots,
         </View>
 
         <ScrollView>
-          <TouchableOpacity
-            className={`flex-row items-center justify-between py-3.5 border-b border-stone-200 ${
-              selected === null ? 'bg-[#FAF6F0]' : ''
-            }`}
-            onPress={() => onSelect(null)}
-          >
-            <Text className={`text-base ${selected === null ? 'font-inter-bold text-[#A61C14]' : 'text-[#1C1917]'}`}>
-              ASAP (~{asapLabel})
-            </Text>
-            {selected === null && <Ionicons name="checkmark" size={20} color="#A61C14" />}
-          </TouchableOpacity>
+          {asapAvailable ? (
+            <TouchableOpacity
+              className={`flex-row items-center justify-between py-3.5 border-b border-stone-200 ${
+                selected === null ? 'bg-[#FAF6F0]' : ''
+              }`}
+              onPress={() => onSelect(null)}
+            >
+              <Text className={`text-base ${selected === null ? 'font-inter-bold text-[#A61C14]' : 'text-[#1C1917]'}`}>
+                ASAP (~{asapLabel})
+              </Text>
+              {selected === null && <Ionicons name="checkmark" size={20} color="#A61C14" />}
+            </TouchableOpacity>
+          ) : (
+            <View className="flex-row items-center bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 mb-1">
+              <Ionicons name="moon-outline" size={16} color="#B45309" />
+              <Text className="text-amber-800 text-sm font-inter-semibold ml-2 flex-1">
+                We're closed right now -- choose a time when we're open.
+              </Text>
+            </View>
+          )}
 
-          {slots.map((slot) => {
-            const isSelected = selected?.getTime() === slot.time.getTime();
-            return (
-              <TouchableOpacity
-                key={slot.time.toISOString()}
-                className="flex-row items-center justify-between py-3.5 border-b border-stone-100"
-                onPress={() => onSelect(slot.time)}
-              >
-                <Text className={`text-base ${isSelected ? 'font-inter-bold text-[#A61C14]' : 'text-[#1C1917]'}`}>
-                  {slot.label}
-                </Text>
-                {isSelected && <Ionicons name="checkmark" size={20} color="#A61C14" />}
-              </TouchableOpacity>
-            );
-          })}
+          {orderDays.map((day) => (
+            <View key={day.date.toISOString()}>
+              <Text className="text-[13px] font-inter-bold uppercase tracking-wider text-stone-500 mt-4 mb-1">
+                {day.label}
+              </Text>
+              {day.slots.map((slot) => {
+                const isSelected = selected?.getTime() === slot.time.getTime();
+                return (
+                  <TouchableOpacity
+                    key={slot.time.toISOString()}
+                    className="flex-row items-center justify-between py-3.5 border-b border-stone-100"
+                    onPress={() => onSelect(slot.time)}
+                  >
+                    <Text className={`text-base ${isSelected ? 'font-inter-bold text-[#A61C14]' : 'text-[#1C1917]'}`}>
+                      {slot.label}
+                    </Text>
+                    {isSelected && <Ionicons name="checkmark" size={20} color="#A61C14" />}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ))}
 
-          {slots.length === 0 && (
+          {orderDays.length === 0 && (
             <Text className="text-center text-[#78716C] mt-6">
-              No later times available today -- ASAP is the only option left.
+              {asapAvailable
+                ? 'No later times available -- ASAP is the only option.'
+                : 'No times are available right now. Please check back later.'}
             </Text>
           )}
         </ScrollView>
