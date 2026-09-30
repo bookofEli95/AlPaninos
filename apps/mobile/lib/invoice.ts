@@ -159,9 +159,17 @@ export async function emailInvoice(order: any): Promise<string> {
     body: { order_id: order.id, pdf_base64: base64 },
   });
   if (error) {
-    // The function's own message ("already emailed 5 times", ...) is in the
-    // response body; fall back to a general one.
+    // The function's own message ("already emailed 5 times", "email login
+    // refused"...) is in the response body. Without one: no connection, or
+    // the function isn't on the server (it's deployed separately from the
+    // database -- see functions/email-invoice/index.ts).
     let message = "The invoice couldn't be emailed right now. Please try again in a minute.";
+    const status = (error as any).context?.status;
+    if ((error as any).name === 'FunctionsFetchError') {
+      message = "Couldn't reach our server. Check your connection and try again.";
+    } else if (status === 404) {
+      message = "Emailing invoices isn't switched on yet. Use Save as PDF for now.";
+    }
     try {
       const body = await (error as any).context?.json?.();
       if (body?.error) message = body.error;

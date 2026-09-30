@@ -163,6 +163,17 @@ Deno.serve(async (req) => {
     return reply(200, { sent_to: to });
   } catch (e) {
     console.error(e);
+    // Say which part failed, so it can be fixed rather than guessed at.
+    const code = (e as any)?.code;
+    const responseCode = Number((e as any)?.responseCode);
+    if (code === 'EAUTH' || responseCode === 534 || responseCode === 535) {
+      return reply(502, {
+        error: "Invoice email isn't working on our end (the store's email login was refused). Use Save as PDF for now.",
+      });
+    }
+    if (['ESOCKET', 'ECONNECTION', 'ETIMEDOUT', 'EDNS'].includes(code)) {
+      return reply(502, { error: "Couldn't reach the email server. Please try again in a minute, or use Save as PDF." });
+    }
     return reply(500, { error: "The invoice couldn't be emailed right now. Please try again in a minute." });
   }
 });
