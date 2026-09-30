@@ -30,6 +30,7 @@ import PrizeItemPicker from '../../components/PrizeItemPicker';
 import SkeletonBox from '../../components/Skeleton';
 import AccountSetupSheet from '../../components/AccountSetupSheet';
 import ChallengeCard from '../../components/ChallengeCard';
+import ReferralCard from '../../components/ReferralCard';
 import DealCard from '../../components/DealCard';
 import DealBuilderSheet from '../../components/DealBuilderSheet';
 import { isBundleDeal, useDealBuilderStore } from '../../store/dealBuilderStore';
@@ -444,6 +445,8 @@ export default function DealsScreen() {
               </Text>
             </View>
             )}
+
+            {!isAnonymous && <ReferralCard compact />}
 
             {!isAnonymous && !!challenges?.length && (
               <View className="mb-2">

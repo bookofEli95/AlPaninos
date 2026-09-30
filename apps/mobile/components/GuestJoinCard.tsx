@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 const PERKS = [
   { icon: 'color-wand-outline', text: 'A free spin on the welcome prize wheel' },
   { icon: 'gift-outline', text: '10 PaninoPoints per $1 toward free drinks, sides and sandwiches' },
+  { icon: 'balloon-outline', text: 'A free Mob sandwich on your birthday' },
   { icon: 'receipt-outline', text: 'Your order history and receipts, on any device' },
 ];
 

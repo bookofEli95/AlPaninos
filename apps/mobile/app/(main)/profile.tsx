@@ -36,6 +36,9 @@ import { confirmSwitchToExistingAccount, signOutToLogin, welcomeNewAccount } fro
 import { useProfile } from '../../hooks/useProfile';
 import { needsPassword } from '../../lib/account';
 import { useCartBarSpace } from '../../hooks/useCartBarSpace';
+import ReferralCard from '../../components/ReferralCard';
+import BirthdaySheet from '../../components/BirthdaySheet';
+import { BIRTHDAY_TREAT, formatBirthday, tooCloseForThisYear } from '../../lib/birthday';
 
 const RED = '#A61C14';
 const RED_DARK = '#85140E';
@@ -130,12 +133,15 @@ function AccountRow({
   icon,
   label,
   detail,
+  highlight,
   onPress,
   last,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   detail?: string | null;
+  // The detail in red, as an invitation (e.g. no birthday saved yet).
+  highlight?: boolean;
   onPress: () => void;
   last?: boolean;
 }) {
@@ -151,7 +157,10 @@ function AccountRow({
       <View className="flex-1 mr-2">
         <Text className="text-[15px] font-inter-semibold text-[#1C1917]">{label}</Text>
         {!!detail && (
-          <Text className="text-xs text-[#78716C] mt-0.5" numberOfLines={1}>
+          <Text
+            className={`text-xs mt-0.5 ${highlight ? 'text-[#A61C14] font-inter-semibold' : 'text-[#78716C]'}`}
+            numberOfLines={1}
+          >
             {detail}
           </Text>
         )}
@@ -200,6 +209,32 @@ export default function ProfileScreen() {
     staleTime: Infinity,
   });
 
+  // This year's birthday treat, while it's waiting (an expired one isn't
+  // returned -- see the promotions read policy).
+  const { data: birthdayPromo } = useQuery({
+    queryKey: ['birthdayPromo', userId],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('promotions')
+        .select('*')
+        .eq('user_id', userId!)
+        .eq('is_active', true)
+        .ilike('code', 'BDAY%')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !isAnonymous && !!userId,
+  });
+  const { data: birthdayImage } = useQuery({
+    queryKey: ['prizeShowcase', birthdayPromo?.code],
+    queryFn: () => fetchPrizeShowcaseImage(birthdayPromo!.category_name, birthdayPromo!.item_name_patterns),
+    enabled: !!birthdayPromo?.category_name,
+    staleTime: Infinity,
+  });
+
   // Shared with Home's "Your usual" card (same key and query).
   const { data: usualItem } = useQuery({
     queryKey: ['usualItem', userId],
@@ -234,6 +269,8 @@ export default function ProfileScreen() {
       if (!userId) return;
       queryClient.invalidateQueries({ queryKey: ['profile', userId] });
       queryClient.invalidateQueries({ queryKey: ['wheelPromo', userId] });
+      queryClient.invalidateQueries({ queryKey: ['birthdayPromo', userId] });
+      queryClient.invalidateQueries({ queryKey: ['referral', userId] });
       // Checkout doesn't invalidate these, so without this they'd stay
       // stale after placing a new order.
       queryClient.invalidateQueries({ queryKey: ['orderCount', userId] });
@@ -263,7 +300,8 @@ export default function ProfileScreen() {
   const items = useCartStore(state => state.items);
   const addFreeItem = useCartStore(state => state.addFreeItem);
   const removeItemsByPromoCode = useCartStore(state => state.removeItemsByPromoCode);
-  const [resolvingPrize, setResolvingPrize] = useState(false);
+  // The code of the prize being looked up, so only its button spins.
+  const [resolvingCode, setResolvingCode] = useState<string | null>(null);
   const [picker, setPicker] = useState<{ promo: any; items: EligiblePrizeItem[] } | null>(null);
 
   const giveFreeItem = (target: EligiblePrizeItem, promo: any) => {
@@ -289,7 +327,7 @@ export default function ProfileScreen() {
       Alert.alert('Choose a Location', 'Pick a location from the menu first, then come back to redeem this.');
       return;
     }
-    setResolvingPrize(true);
+    setResolvingCode(promo.code);
     try {
       const eligibleItems = await fetchEligiblePrizeItems(promo, locationId);
       if (eligibleItems.length === 0) {
@@ -300,23 +338,27 @@ export default function ProfileScreen() {
         setPicker({ promo, items: eligibleItems });
       }
     } finally {
-      setResolvingPrize(false);
+      setResolvingCode(null);
     }
   };
 
-  const prizeInCart = !!wheelPromo && items.some((i) => i.promoCode === wheelPromo.code);
+  const inCart = (promo: any) => !!promo && items.some((i) => i.promoCode === promo.code);
+  const prizeInCart = inCart(wheelPromo);
+  const birthdayInCart = inCart(birthdayPromo);
 
-  const handlePressPrize = () => {
-    if (!wheelPromo) return;
-    if (!isPickAnItemPrize(wheelPromo)) {
-      handleCopyCode(wheelPromo.code);
+  // A free-item prize (the wheel's, or the birthday treat): into the cart,
+  // or back out if it's already there.
+  const handlePressPrize = (promo: any) => {
+    if (!promo) return;
+    if (!isPickAnItemPrize(promo)) {
+      handleCopyCode(promo.code);
       return;
     }
-    if (prizeInCart) {
-      removeItemsByPromoCode(wheelPromo.code);
+    if (inCart(promo)) {
+      removeItemsByPromoCode(promo.code);
       return;
     }
-    resolveAndRedeem(wheelPromo);
+    resolveAndRedeem(promo);
   };
 
   const handlePointsRedeemed = async (code: string, pointsSpent: number) => {
@@ -357,6 +399,31 @@ export default function ProfileScreen() {
         },
       },
     ]);
+  };
+
+  // Birthday: picked once in a sheet; after that it's shown, not edited.
+  const [birthdaySheetVisible, setBirthdaySheetVisible] = useState(false);
+  const birthdayLabel = formatBirthday(profile?.birth_month, profile?.birth_day);
+  const handleBirthdayRow = () => {
+    if (birthdayLabel) {
+      Alert.alert(
+        `Your Birthday: ${birthdayLabel}`,
+        "It's locked in so birthday treats can't be moved around. If it's wrong, let us know through Customer Support on the More tab."
+      );
+      return;
+    }
+    setBirthdaySheetVisible(true);
+  };
+  const handleBirthdaySaved = (month: number, day: number) => {
+    setBirthdaySheetVisible(false);
+    queryClient.invalidateQueries({ queryKey: ['profile', userId] });
+    const label = formatBirthday(month, day);
+    Alert.alert(
+      'Birthday Saved! 🎉',
+      tooCloseForThisYear(month, day)
+        ? `Birthday treats need a week's notice, so your first one (${BIRTHDAY_TREAT}) comes next year around ${label}. Happy early birthday!`
+        : `Around ${label}, ${BIRTHDAY_TREAT} will be waiting for you in Deals -- on us.`
+    );
   };
 
   // Each Account row opens just its own part of Edit Profile.
@@ -653,14 +720,14 @@ export default function ProfileScreen() {
                 </Text>
                 {isPickAnItemPrize(wheelPromo) ? (
                   <TouchableOpacity
-                    onPress={handlePressPrize}
-                    disabled={resolvingPrize}
+                    onPress={() => handlePressPrize(wheelPromo)}
+                    disabled={resolvingCode !== null}
                     activeOpacity={0.85}
                     className={`flex-row items-center justify-center rounded-full px-4 py-2 self-start ${
                       prizeInCart ? 'border border-[#FFC72C]' : 'bg-[#FFC72C]'
                     }`}
                   >
-                    {resolvingPrize ? (
+                    {resolvingCode === wheelPromo.code ? (
                       <ActivityIndicator size="small" color={prizeInCart ? GOLD : RED_DARK} />
                     ) : prizeInCart ? (
                       <>
@@ -687,6 +754,60 @@ export default function ProfileScreen() {
                     </Text>
                   </>
                 )}
+              </View>
+            </Animated.View>
+          )}
+
+          {/* The birthday treat, as a ticket like the wheel prize */}
+          {birthdayPromo && (
+            <Animated.View entering={FadeInDown.duration(500).delay(260)} style={styles.ticket}>
+              <View style={styles.ticketImageWrap}>
+                {birthdayImage ? (
+                  <Image source={{ uri: birthdayImage }} style={styles.ticketImage} resizeMode="cover" />
+                ) : (
+                  <Ionicons name="gift" size={34} color={GOLD} />
+                )}
+              </View>
+              <View style={styles.ticketTear}>
+                {Array.from({ length: 9 }).map((_, i) => (
+                  <View key={i} style={styles.ticketDash} />
+                ))}
+              </View>
+              <View className="flex-1 py-3.5 pr-4 pl-3.5 justify-center">
+                <Text className="text-[10px] font-inter-extrabold text-[#FFC72C] tracking-widest mb-0.5">
+                  HAPPY BIRTHDAY 🎂
+                </Text>
+                <Text className="text-[15px] font-display-bold text-[#F4ECE1]" numberOfLines={2}>
+                  {birthdayPromo.title}
+                </Text>
+                {!!birthdayPromo.expires_at && (
+                  <Text className="text-stone-400 text-[11px] mt-0.5 mb-2.5">
+                    Good until{' '}
+                    {new Date(new Date(birthdayPromo.expires_at).getTime() - 60000).toLocaleDateString(undefined, {
+                      month: 'long',
+                      day: 'numeric',
+                    })}
+                  </Text>
+                )}
+                <TouchableOpacity
+                  onPress={() => handlePressPrize(birthdayPromo)}
+                  disabled={resolvingCode !== null}
+                  activeOpacity={0.85}
+                  className={`flex-row items-center justify-center rounded-full px-4 py-2 self-start ${
+                    birthdayInCart ? 'border border-[#FFC72C]' : 'bg-[#FFC72C]'
+                  }`}
+                >
+                  {resolvingCode === birthdayPromo.code ? (
+                    <ActivityIndicator size="small" color={birthdayInCart ? GOLD : RED_DARK} />
+                  ) : birthdayInCart ? (
+                    <>
+                      <Ionicons name="checkmark-circle" size={14} color={GOLD} style={{ marginRight: 5 }} />
+                      <Text className="text-[#FFC72C] font-inter-bold text-xs">In Your Cart -- Tap to Remove</Text>
+                    </>
+                  ) : (
+                    <Text className="text-[#7A0E0A] font-inter-extrabold text-xs tracking-wide">REDEEM NOW</Text>
+                  )}
+                </TouchableOpacity>
               </View>
             </Animated.View>
           )}
@@ -725,6 +846,11 @@ export default function ProfileScreen() {
             </View>
           </Animated.View>
 
+          {/* Give $5, Get $5 */}
+          <Animated.View entering={FadeInDown.duration(500).delay(330)}>
+            <ReferralCard />
+          </Animated.View>
+
           {/* Account */}
           <Animated.View entering={FadeInDown.duration(500).delay(360)}>
             <Text className="text-xs font-inter-bold uppercase tracking-wider text-stone-500 mt-6 mb-2 px-1">
@@ -748,6 +874,13 @@ export default function ProfileScreen() {
                 label="Delivery Address"
                 detail={profile?.address || 'Add an address'}
                 onPress={() => editSection('address')}
+              />
+              <AccountRow
+                icon="gift-outline"
+                label="Birthday"
+                detail={birthdayLabel ?? `Add it -- get ${BIRTHDAY_TREAT} 🎂`}
+                highlight={!birthdayLabel}
+                onPress={handleBirthdayRow}
               />
               <AccountRow
                 icon="time-outline"
@@ -797,6 +930,10 @@ export default function ProfileScreen() {
           }}
           onClose={() => setPicker(null)}
         />
+      )}
+
+      {birthdaySheetVisible && (
+        <BirthdaySheet onClose={() => setBirthdaySheetVisible(false)} onSaved={handleBirthdaySaved} />
       )}
     </View>
   );

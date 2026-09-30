@@ -17,6 +17,7 @@ import { useNavStore } from '../../store/navStore';
 import { tabularNums } from '../../lib/typography';
 import { useCartTotals } from '../../hooks/useCartTotals';
 import { useTabBadges } from '../../hooks/useTabBadges';
+import { useBirthdayTreat } from '../../lib/birthday';
 
 // Small dot on a tab icon's top-right corner.
 function TabDot({ color }: { color: string }) {
@@ -90,6 +91,7 @@ export default function MainLayout() {
     segments.includes('deal-pick' as any);
 
   const { hasActiveOrder, hasNewPrize, markPrizesSeen, refreshIfStale } = useTabBadges();
+  useBirthdayTreat();
   const onDeals = segments.includes('deals');
   useEffect(() => {
     refreshIfStale();

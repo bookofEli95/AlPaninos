@@ -19,6 +19,7 @@ import CountryPickerSheet from '../../components/CountryPickerSheet';
 import TimeSlotPickerSheet from '../../components/TimeSlotPickerSheet';
 import OrderTypeSheet from '../../components/OrderTypeSheet';
 import CartUpsellTray from '../../components/CartUpsellTray';
+import { redeemReferralCode } from '../../lib/referrals';
 import AvailableDeals from '../../components/AvailableDeals';
 import PromoCoupon from '../../components/PromoCoupon';
 import AccountSetupSheet from '../../components/AccountSetupSheet';
@@ -298,13 +299,16 @@ export default function CartScreen() {
     if (!promoCode.trim()) return;
     setApplyingPromo(true);
     try {
-      const { data: promo, error } = await (supabase as any)
+      let { data: promo, error } = await (supabase as any)
         .from('promotions')
         .select('*')
         .ilike('code', promoCode.trim())
         .eq('is_active', true)
         .maybeSingle();
       if (error) throw error;
+      // Not a deal's code -- maybe a friend's (Give $5, Get $5), which gives
+      // this customer their own $5-off deal to apply.
+      if (!promo) promo = await redeemReferralCode(promoCode);
       if (!promo) {
         hapticError();
         Alert.alert('Invalid Code', "That promo code doesn't exist or is no longer active.");

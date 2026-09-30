@@ -54,6 +54,24 @@ export default function DealCard({
   const personal = !!promo.user_id;
   const value = dealValue(promo);
   const tags = describePromoRequirements(promo);
+  // Personal deals say where they came from (see the referrals_and_birthdays
+  // migration for the BDAY / FRIEND / THANKS codes).
+  const code = String(promo.code ?? '').toUpperCase();
+  const badge = code.startsWith('BDAY')
+    ? 'BIRTHDAY TREAT'
+    : code.startsWith('FRIEND')
+    ? 'FRIEND GIFT'
+    : code.startsWith('THANKS')
+    ? 'THANK YOU'
+    : 'YOUR PRIZE';
+  // "Ends Oct 7" for a deal that runs out (expires_at is the moment after
+  // its last day).
+  const endsLabel = promo.expires_at
+    ? `Ends ${new Date(new Date(promo.expires_at).getTime() - 60000).toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+      })}`
+    : null;
 
   // A small squeeze under the finger, so the tap feels answered.
   const scale = useSharedValue(1);
@@ -122,7 +140,7 @@ export default function DealCard({
             {personal && (
               <View style={styles.prizeBadge}>
                 <Ionicons name="star" size={10} color={RED_DARK} />
-                <Text style={styles.prizeBadgeText}>YOUR PRIZE</Text>
+                <Text style={styles.prizeBadgeText}>{badge}</Text>
               </View>
             )}
             <Text style={styles.title} numberOfLines={2}>
@@ -145,7 +163,9 @@ export default function DealCard({
 
             <View style={styles.footer}>
               <Text style={styles.code} numberOfLines={1}>
-                {used ? 'Already used' : isItemPrize ? 'Free menu item' : promo.code ? `Code ${promo.code}` : ''}
+                {used
+                  ? 'Already used'
+                  : endsLabel ?? (isItemPrize ? 'Free menu item' : promo.code ? `Code ${promo.code}` : '')}
               </Text>
               <View
                 style={[

@@ -11,6 +11,8 @@ export type ProfileData = {
   has_spun_wheel: boolean;
   wheel_prize_title: string | null;
   wheel_prize_code: string | null;
+  birth_month: number | null;
+  birth_day: number | null;
 };
 
 // The signed-in customer's full profile row. The one place the
