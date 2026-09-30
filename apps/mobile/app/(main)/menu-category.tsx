@@ -120,6 +120,14 @@ export default function MenuCategoryScreen() {
     setAppliedPromo(appliedPromoFromRow(categoryDeal));
   };
 
+  // The X on an applied deal takes it off again -- for a tap by mistake.
+  // A separate button (not the banner itself), so it can't happen by
+  // accident too; tapping the banner re-applies it.
+  const handleRemoveDeal = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    setAppliedPromo(null);
+  };
+
   // The catering category gets the "how many are you feeding" planner.
   const plannerPackages = useMemo(
     () => (items || []).filter((i: any) => i.is_catering && i.catering_role) as any[],
@@ -175,45 +183,57 @@ export default function MenuCategoryScreen() {
       </View>
 
       {!!categoryDeal && (
-        <TouchableOpacity
-          activeOpacity={0.85}
-          onPress={handleDealPress}
-          disabled={dealApplied && !hasQualifyingItem}
-          className={`mx-4 mb-3 rounded-2xl flex-row items-center px-3 py-2.5 ${dealApplied ? 'bg-[#15803D]' : 'bg-[#A61C14]'}`}
+        <View
+          className={`mx-4 mb-3 rounded-2xl flex-row items-center ${dealApplied ? 'bg-[#15803D]' : 'bg-[#A61C14]'}`}
         >
-          <View className="bg-[#FFC72C] rounded-xl px-2.5 py-1.5 mr-3">
-            <Text className="text-[#7A0E0A] font-inter-extrabold text-sm">
-              {`${dealValue(categoryDeal).big} ${dealValue(categoryDeal).small}`.trim()}
-            </Text>
-          </View>
-          <View className="flex-1 mr-2">
-            <Text className="text-[#F4ECE1] font-inter-bold text-sm" numberOfLines={1}>
-              {categoryDeal.title}
-            </Text>
-            <Text className="text-[#F4ECE1] opacity-80 text-[13px] font-inter-medium" numberOfLines={1}>
-              {dealApplied
-                ? hasQualifyingItem
-                  ? 'Applied -- tap to see your saving'
-                  : 'Applied -- now pick one below'
-                : isBundleDeal(categoryDeal)
-                ? 'Tap to build your deal'
-                : 'Tap to apply this deal'}
-            </Text>
-          </View>
-          <Ionicons
-            name={
-              dealApplied
-                ? hasQualifyingItem
-                  ? 'arrow-forward-circle'
-                  : 'checkmark-circle'
-                : isBundleDeal(categoryDeal)
-                ? 'arrow-forward'
-                : 'add-circle'
-            }
-            size={20}
-            color="#FFC72C"
-          />
-        </TouchableOpacity>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={handleDealPress}
+            disabled={dealApplied && !hasQualifyingItem}
+            className="flex-1 flex-row items-center pl-3 py-2.5 pr-2"
+          >
+            <View className="bg-[#FFC72C] rounded-xl px-2.5 py-1.5 mr-3">
+              <Text className="text-[#7A0E0A] font-inter-extrabold text-sm">
+                {`${dealValue(categoryDeal).big} ${dealValue(categoryDeal).small}`.trim()}
+              </Text>
+            </View>
+            <View className="flex-1 mr-1">
+              <Text className="text-[#F4ECE1] font-inter-bold text-sm" numberOfLines={1}>
+                {categoryDeal.title}
+              </Text>
+              <Text className="text-[#F4ECE1] opacity-80 text-[13px] font-inter-medium" numberOfLines={2}>
+                {dealApplied
+                  ? hasQualifyingItem
+                    ? 'Applied -- tap to see your saving'
+                    : 'Applied -- now pick one below'
+                  : isBundleDeal(categoryDeal)
+                  ? 'Tap to build your deal'
+                  : 'Tap to apply this deal'}
+              </Text>
+            </View>
+            {!dealApplied && (
+              <Ionicons
+                name={isBundleDeal(categoryDeal) ? 'arrow-forward' : 'add-circle'}
+                size={20}
+                color="#FFC72C"
+              />
+            )}
+          </TouchableOpacity>
+
+          {dealApplied && (
+            <TouchableOpacity
+              onPress={handleRemoveDeal}
+              hitSlop={{ top: 10, bottom: 10, left: 6, right: 10 }}
+              accessibilityRole="button"
+              accessibilityLabel="Remove this deal"
+              className="pr-3 py-2.5"
+            >
+              <View className="w-9 h-9 rounded-full bg-white/20 items-center justify-center">
+                <Ionicons name="close" size={20} color="#F4ECE1" />
+              </View>
+            </TouchableOpacity>
+          )}
+        </View>
       )}
 
       {isLoading ? (
