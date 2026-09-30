@@ -1,8 +1,8 @@
 import "../global.css";
 import { useEffect, useState, useRef } from "react";
-import { View, StyleSheet, Dimensions, LogBox } from "react-native";
+import { View, StyleSheet, Dimensions, LogBox, AppState, Platform } from "react-native";
 import { Stack, useRouter, useSegments, SplashScreen } from "expo-router";
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, focusManager } from '@tanstack/react-query';
 import { useFonts } from "expo-font";
 import {
   Inter_400Regular,
@@ -37,6 +37,14 @@ import AlertHost from "../components/AlertHost";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 const queryClient = new QueryClient();
+
+// Coming back to the app counts as "focus" for React Query (on a phone it
+// doesn't know otherwise): anything on screen that's out of date reloads,
+// so the menu, store hours and orders are fresh after the app's been in
+// the background.
+AppState.addEventListener('change', (state) => {
+  if (Platform.OS !== 'web') focusManager.setFocused(state === 'active');
+});
 
 LogBox.ignoreLogs([
   'Cannot connect to Expo CLI',

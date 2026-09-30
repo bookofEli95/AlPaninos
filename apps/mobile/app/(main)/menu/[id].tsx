@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, Image, ScrollView, Dimensions, StyleSheet } from 'react-native';
 import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import { dealValue } from '../../../components/DealCard';
@@ -11,6 +11,7 @@ import { supabase } from '../../../lib/supabase';
 import { useCartStore } from '../../../store/cartStore';
 import { useAuthStore } from '../../../store/authStore';
 import { useNavStore } from '../../../store/navStore';
+import { useLocationStore } from '../../../store/locationStore';
 import SkeletonBox from '../../../components/Skeleton';
 import OrderTypeSheet from '../../../components/OrderTypeSheet';
 import MenuItemGridTile from '../../../components/MenuItemGridTile';
@@ -21,6 +22,17 @@ export default function MenuScreen() {
   const { id: locationId } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
 
+  // Opened without a store (e.g. the app reopened straight onto this tab):
+  // go to the store they used last, or Home if there isn't one -- never an
+  // empty menu.
+  const hasStore = !!locationId && /^[0-9a-f-]{36}$/i.test(locationId);
+  const savedLocationId = useLocationStore((state) => state.locationId);
+  const locationLoaded = useLocationStore((state) => state.isLoaded);
+  useEffect(() => {
+    if (hasStore || !locationLoaded) return;
+    router.replace(savedLocationId ? `/(main)/menu/${savedLocationId}` : '/(main)');
+  }, [hasStore, locationLoaded, savedLocationId, router]);
+
   const [orderTypeModalVisible, setOrderTypeModalVisible] = useState(false);
   const { orderType, deliveryAddress } = useCartStore();
   const session = useAuthStore(state => state.session);
@@ -30,8 +42,8 @@ export default function MenuScreen() {
   const setOrderStarted = useNavStore(state => state.setOrderStarted);
   useFocusEffect(
     useCallback(() => {
-      setOrderStarted(true);
-    }, [setOrderStarted])
+      if (hasStore) setOrderStarted(true);
+    }, [hasStore, setOrderStarted])
   );
 
   const cartItems = useCartStore(state => state.items);
@@ -56,7 +68,7 @@ export default function MenuScreen() {
 
   const [searchQuery, setSearchQuery] = useState('');
 
-  const { data: menuData, isLoading } = useQuery({
+  const { data: menuData, isLoading, error: menuError, refetch: refetchMenu, isRefetching } = useQuery({
     queryKey: ['menu', locationId],
     queryFn: async () => {
       const [catRes, itemRes] = await Promise.all([
@@ -68,7 +80,8 @@ export default function MenuScreen() {
       if (itemRes.error) throw itemRes.error;
 
       return { categories: catRes.data, items: itemRes.data };
-    }
+    },
+    enabled: hasStore,
   });
 
   const categoryNameById = useMemo(() => {
@@ -167,7 +180,30 @@ export default function MenuScreen() {
   });
   const popularIsReal = Number(popular?.[0]?.sold ?? 0) >= 3;
 
-  if (isLoading) {
+  // Couldn't load (no signal, say): say so, with a way to try again,
+  // rather than "No categories yet".
+  if (menuError && !menuData) {
+    return (
+      <View className="flex-1 bg-[#FAF6F0] items-center justify-center px-8">
+        <Ionicons name="cloud-offline-outline" size={40} color="#A61C14" />
+        <Text className="text-[#1C1917] font-inter-bold text-lg mt-3 mb-1 text-center">Couldn't load the menu</Text>
+        <Text className="text-stone-500 text-sm text-center mb-5">Check your connection and try again.</Text>
+        <TouchableOpacity
+          onPress={() => refetchMenu()}
+          disabled={isRefetching}
+          activeOpacity={0.85}
+          className="bg-[#A61C14] px-6 py-3 rounded-xl flex-row items-center"
+        >
+          <Ionicons name="refresh" size={17} color="#F4ECE1" />
+          <Text className="text-[#F4ECE1] font-inter-bold text-base ml-1.5">
+            {isRefetching ? 'Trying...' : 'Try Again'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (!hasStore || isLoading) {
     return (
       <View className="flex-1 bg-[#FAF6F0] pt-12 px-4">
         <SkeletonBox width={140} height={32} style={{ marginBottom: 24 }} />
