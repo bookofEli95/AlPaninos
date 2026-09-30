@@ -156,6 +156,15 @@ export default function ItemDetailScreen() {
     },
   });
 
+  // This screen stays mounted between visits, so it would reopen scrolled
+  // wherever it was left (e.g. back to a reward's list, then the same
+  // sandwich again). Every visit starts at the top.
+  useFocusEffect(
+    useCallback(() => {
+      scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+    }, [])
+  );
+
   useFocusEffect(
     useCallback(() => {
       setQuantity(initialQuantity);
