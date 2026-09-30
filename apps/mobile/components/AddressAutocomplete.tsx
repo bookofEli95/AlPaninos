@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   TextInput,
@@ -20,23 +20,27 @@ type Props = {
   onAddressSelect: (address: string) => void;
   onFocus?: () => void;
   autoFocus?: boolean;
-  // For an inline field that's pre-filled with an existing address (e.g.
-  // switching to delivery reloads your saved address) -- tapping in clears
-  // it immediately instead of making them delete it all first. If they tap
-  // away without picking a new suggestion, it's restored on blur so it
-  // doesn't just look like the address vanished.
-  clearOnFocus?: boolean;
 };
+
+// The address field. Tapping into it keeps the address so it can be edited
+// (add a unit number, fix a typo) -- the X on the right clears it in one
+// tap. A typed address that isn't picked from the suggestions is kept when
+// they tap away; an emptied field goes back to the last address rather than
+// looking like it vanished. When not being edited it shows the start of
+// the address (the street number), not the end.
 
 export default function AddressAutocomplete({
   defaultAddress = '',
   onAddressSelect,
   onFocus,
   autoFocus,
-  clearOnFocus,
 }: Props) {
   const [query, setQuery] = useState(defaultAddress);
   const [results, setResults] = useState<any[]>([]);
+  const [focused, setFocused] = useState(false);
+  const inputRef = useRef<TextInput>(null);
+  // The address last chosen (or given) -- what an emptied field goes back to.
+  const lastAddress = useRef(defaultAddress);
 
   // defaultAddress is only used to seed the initial value with plain
   // useState -- if it arrives later (e.g. fetched from the profile after
@@ -44,6 +48,7 @@ export default function AddressAutocomplete({
   // needs to be picked up explicitly.
   useEffect(() => {
     setQuery(defaultAddress);
+    lastAddress.current = defaultAddress;
   }, [defaultAddress]);
   const API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY;
 
@@ -69,6 +74,7 @@ export default function AddressAutocomplete({
   };
 
   const handleSelect = (description: string) => {
+    lastAddress.current = description;
     setQuery(description);
     setResults([]);
     Keyboard.dismiss();
@@ -119,26 +125,60 @@ export default function AddressAutocomplete({
   };
 
   const handleFocus = () => {
-    if (clearOnFocus) setQuery('');
+    setFocused(true);
     onFocus?.();
   };
 
   const handleBlur = () => {
-    if (clearOnFocus && query.trim() === '') setQuery(defaultAddress);
+    setFocused(false);
+    const typed = query.trim();
+    if (!typed) {
+      setQuery(lastAddress.current);
+      setResults([]);
+      return;
+    }
+    if (typed !== lastAddress.current.trim()) {
+      lastAddress.current = typed;
+      setResults([]);
+      onAddressSelect(typed);
+    }
+  };
+
+  const handleClear = () => {
+    setQuery('');
+    setResults([]);
+    inputRef.current?.focus();
   };
 
   return (
     <View style={styles.container}>
-      <TextInput
-        style={styles.input}
-        placeholder="Enter delivery address..."
-        placeholderTextColor="#9CA3AF"
-        value={query}
-        onChangeText={searchPlaces}
-        onFocus={handleFocus}
-        onBlur={handleBlur}
-        autoFocus={autoFocus}
-      />
+      <View>
+        <TextInput
+          ref={inputRef}
+          style={[styles.input, !!query && { paddingRight: 48 }]}
+          placeholder="Enter delivery address..."
+          placeholderTextColor="#9CA3AF"
+          value={query}
+          onChangeText={searchPlaces}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          onSubmitEditing={() => inputRef.current?.blur()}
+          returnKeyType="done"
+          autoFocus={autoFocus}
+          // Not being edited: show the start of the address, not the end.
+          selection={focused ? undefined : { start: 0, end: 0 }}
+        />
+        {!!query && (
+          <TouchableOpacity
+            onPress={handleClear}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={styles.clearButton}
+            accessibilityLabel="Clear address"
+          >
+            <Ionicons name="close-circle" size={22} color="#A8A29E" />
+          </TouchableOpacity>
+        )}
+      </View>
       <TouchableOpacity
         onPress={handleUseCurrentLocation}
         disabled={locating}
@@ -210,6 +250,13 @@ const styles = StyleSheet.create({
   rowText: {
     color: '#1F2937',
     fontSize: 16,
+  },
+  clearButton: {
+    position: 'absolute',
+    right: 14,
+    top: 0,
+    bottom: 8,
+    justifyContent: 'center',
   },
   locateButton: {
     flexDirection: 'row',

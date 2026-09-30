@@ -154,7 +154,7 @@ export default function OrderTypeSheet({ visible, onClose, onStoreChanged, fallb
           {orderType === 'delivery' && (
             <View className="mb-4">
               <Text className="text-[#1C1917] font-inter-bold text-sm mb-2">Delivering to:</Text>
-              <AddressAutocomplete defaultAddress={deliveryAddress} onAddressSelect={setDeliveryAddress} clearOnFocus />
+              <AddressAutocomplete defaultAddress={deliveryAddress} onAddressSelect={setDeliveryAddress} />
             </View>
           )}
 
