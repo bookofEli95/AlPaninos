@@ -7,15 +7,17 @@ import {
   StyleSheet,
   Dimensions,
   ActivityIndicator,
+  PanResponder,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
-import Svg, { Path, Circle, Line, Ellipse, Defs, RadialGradient, LinearGradient, Stop } from 'react-native-svg';
+import Svg, { Path, Circle, Line, Ellipse, Defs, RadialGradient, LinearGradient, Stop, ClipPath } from 'react-native-svg';
 import Animated, {
   interpolateColor,
   useSharedValue,
   useAnimatedStyle,
   useAnimatedProps,
+  useAnimatedReaction,
   withTiming,
   withRepeat,
   withSpring,
@@ -54,8 +56,19 @@ const LABEL_WIDTH = R * 0.5;
 const LABEL_FONT_SIZE = Math.max(9, Math.round(R / 15));
 const LABEL_LINE_HEIGHT = LABEL_FONT_SIZE + 2;
 const HUB_SIZE = WHEEL_SIZE * 0.24;
+// The winning wedge's highlight starts just outside the logo hub, so the AP
+// in the middle is never covered.
+const HUB_CLEAR = HUB_SIZE / 2 + 3;
 const EXTRA_SPINS = 6;
-const SPIN_DURATION = 4200;
+// Long enough for a proper slow crawl at the end -- click... click...
+// click... -- where the suspense is.
+const SPIN_DURATION = 5200;
+// It drifts just past where it stops, then the pointer's peg rocks it back.
+const OVERSHOOT = 2.5;
+const SETTLE_MS = 420;
+// Where in the winning wedge it stops -- anywhere, as a real wheel would,
+// but never so close to a divider that the pointer looks undecided.
+const LAND_JITTER = WHEEL_SEGMENT_ANGLE / 2 - 7;
 // The pull-back before a spin launches.
 const WIND_UP_MS = 130;
 const LIGHT_COUNT = 28;
@@ -89,6 +102,22 @@ function describeSlice(cx: number, cy: number, r: number, startAngle: number, en
   return [`M ${cx} ${cy}`, `L ${start.x} ${start.y}`, `A ${r} ${r} 0 0 0 ${end.x} ${end.y}`, 'Z'].join(' ');
 }
 
+// A wedge with the middle cut out (from radius r0 out to r1) -- the winning
+// wedge's highlight, which stops short of the logo hub.
+function describeAnnularSector(cx: number, cy: number, r0: number, r1: number, startAngle: number, endAngle: number) {
+  const o1 = polarToCartesian(cx, cy, r1, startAngle);
+  const o2 = polarToCartesian(cx, cy, r1, endAngle);
+  const i2 = polarToCartesian(cx, cy, r0, endAngle);
+  const i1 = polarToCartesian(cx, cy, r0, startAngle);
+  return [
+    `M ${o1.x} ${o1.y}`,
+    `A ${r1} ${r1} 0 0 1 ${o2.x} ${o2.y}`,
+    `L ${i2.x} ${i2.y}`,
+    `A ${r0} ${r0} 0 0 0 ${i1.x} ${i1.y}`,
+    'Z',
+  ].join(' ');
+}
+
 // Lightens (amount > 0) or darkens (< 0) a #RRGGBB colour, for each wedge's
 // shading: darker at the hub, brighter at the rim.
 function shade(hex: string, amount: number) {
@@ -101,14 +130,15 @@ function shade(hex: string, amount: number) {
 }
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+const AnimatedPath = Animated.createAnimatedComponent(Path);
 
 // A ring of bulbs around the wheel with a single "chase head" (marquee-light
 // style) sweeping around them -- driven by one shared clock (phase) rather
 // than each bulb animating independently, so there's exactly one animation
 // loop regardless of LIGHT_COUNT. While the wheel spins (boost 0 -> 1) the
 // bulbs swell and the lit head tightens, on top of the clock running 4x
-// faster. Once a prize is won (celebrate = 1) every other bulb flashes in
-// turn, like a jackpot. Each bulb has a soft glow disc behind it. On the way
+// faster. Once a prize is won (celebrate = 1) light races round both sides
+// into the pointer. Each bulb has a soft glow disc behind it. On the way
 // in, the bulbs switch on one by one around the rim (powered counts up from
 // 0 to LIGHT_COUNT), the newest one flaring bright, like a machine powering
 // up.
@@ -135,8 +165,11 @@ function RimLight({
     if (index >= powered.value) return 0.05;
     if (powered.value < LIGHT_COUNT && index >= powered.value - 1.5) return 1;
     if (celebrateValue > 0.5) {
-      const flip = Math.floor(phaseValue * 6) % 2;
-      return (index + flip) % 2 === 0 ? 1 : 0.25;
+      // Waves of light race round both sides of the rim and meet at the
+      // pointer, where the bulbs stay lit -- every light points at the win.
+      const fromTop = Math.min(index, LIGHT_COUNT - index);
+      const wave = Math.max(0, 1 - Math.abs(fromTop - (1 - phaseValue) * (LIGHT_COUNT / 2)) / 1.8);
+      return fromTop <= 1 ? 1 : 0.2 + wave * 0.8;
     }
     const head = phaseValue * LIGHT_COUNT;
     let dist = Math.abs(head - index);
@@ -288,6 +321,28 @@ function MarqueeLetter({
   return <Animated.Text style={[styles.title, style]}>{char === ' ' ? '\u00A0' : char}</Animated.Text>;
 }
 
+// A wedge's label, turned to point out from the middle.
+function SegmentLabel({ i }: { i: number }) {
+  const seg = WHEEL_SEGMENTS[i];
+  const midAngle = i * WHEEL_SEGMENT_ANGLE + WHEEL_SEGMENT_ANGLE / 2;
+  const { x, y } = polarToCartesian(R, R, LABEL_RADIUS, midAngle);
+  const labelHeight = seg.label.split('\n').length * LABEL_LINE_HEIGHT;
+  return (
+    <View
+      style={{
+        position: 'absolute',
+        left: x - LABEL_WIDTH / 2,
+        top: y - labelHeight / 2,
+        width: LABEL_WIDTH,
+        transform: [{ rotate: `${midAngle}deg` }],
+      }}
+    >
+      {/* Deep red on the gold Grand Prize wedge -- white on gold is hard to read. */}
+      <Text style={[styles.segmentLabel, i === GRAND_PRIZE_INDEX && styles.grandPrizeLabel]}>{seg.label}</Text>
+    </View>
+  );
+}
+
 // The face of the wheel -- wedges, labels and the logo hub -- drawn once and
 // memoised: nothing on it changes after mount except the logo's coin flip,
 // which runs on its own animated value.
@@ -336,29 +391,9 @@ const WheelFace = memo(function WheelFace({ hubFlip }: { hubFlip: SharedValue<nu
       <Circle cx={R} cy={R} r={R - 2} fill="none" stroke={GOLD_LIGHT} strokeWidth={3} />
     </Svg>
 
-    {WHEEL_SEGMENTS.map((seg, i) => {
-      const midAngle = i * WHEEL_SEGMENT_ANGLE + WHEEL_SEGMENT_ANGLE / 2;
-      const { x, y } = polarToCartesian(R, R, LABEL_RADIUS, midAngle);
-      const lineCount = seg.label.split('\n').length;
-      const labelHeight = lineCount * LABEL_LINE_HEIGHT;
-      return (
-        <View
-          key={seg.index}
-          style={{
-            position: 'absolute',
-            left: x - LABEL_WIDTH / 2,
-            top: y - labelHeight / 2,
-            width: LABEL_WIDTH,
-            transform: [{ rotate: `${midAngle}deg` }],
-          }}
-        >
-          {/* Deep red on the gold Grand Prize wedge -- white on gold is hard to read. */}
-          <Text style={[styles.segmentLabel, i === GRAND_PRIZE_INDEX && styles.grandPrizeLabel]}>
-            {seg.label}
-          </Text>
-        </View>
-      );
-    })}
+    {WHEEL_SEGMENTS.map((seg, i) => (
+      <SegmentLabel key={seg.index} i={i} />
+    ))}
 
     <Animated.View
       style={[
@@ -382,6 +417,159 @@ const WheelFace = memo(function WheelFace({ hubFlip }: { hubFlip: SharedValue<nu
     </>
   );
 });
+
+// The winning wedge's moment, drawn over the wheel face (and turning with
+// it, so it's always exactly on the prize):
+//   * every other wedge dims, so the eye goes straight to the winner;
+//   * the winner lifts out of the wheel towards the pointer, in full
+//     colour with its label, glowing gold;
+//   * a gold line races round its edge, rings of light ripple out along it
+//     from the middle to the rim, and then it keeps pulsing.
+// None of it covers the AP logo in the middle.
+const WIN_R0 = HUB_CLEAR;
+const WIN_R1 = R - 2;
+const WIN_PERIMETER = 2 * (WIN_R1 - WIN_R0) + ((WIN_R1 + WIN_R0) * WHEEL_SEGMENT_ANGLE * Math.PI) / 180;
+
+const WinningWedge = memo(function WinningWedge({
+  index,
+  show,
+  dim,
+  pop,
+  trace,
+  ripple,
+  pulse,
+}: {
+  index: number;
+  show: SharedValue<number>;
+  dim: SharedValue<number>;
+  pop: SharedValue<number>;
+  trace: SharedValue<number>;
+  ripple: SharedValue<number>;
+  pulse: SharedValue<number>;
+}) {
+  const seg = WHEEL_SEGMENTS[index];
+  const start = index * WHEEL_SEGMENT_ANGLE;
+  const end = start + WHEEL_SEGMENT_ANGLE;
+  const wedge = describeAnnularSector(R, R, WIN_R0, WIN_R1, start, end);
+  const isBlack = parseInt(seg.color.slice(1), 16) < 0x333333;
+
+  const dimStyle = useAnimatedStyle(() => ({ opacity: dim.value }));
+  const popStyle = useAnimatedStyle(() => ({ opacity: show.value, transform: [{ scale: pop.value }] }));
+  const traceProps = useAnimatedProps(() => ({ strokeDashoffset: WIN_PERIMETER * (1 - trace.value) }));
+  const glowProps = useAnimatedProps(() => ({ strokeOpacity: 0.25 + pulse.value * 0.5 }));
+  const rippleProps = useAnimatedProps(() => ({
+    r: WIN_R0 + (WIN_R1 - WIN_R0) * ripple.value,
+    strokeOpacity: ripple.value <= 0 || ripple.value >= 1 ? 0 : 0.85 * (1 - ripple.value),
+  }));
+
+  return (
+    <>
+      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, dimStyle]}>
+        <Svg width={WHEEL_SIZE} height={WHEEL_SIZE}>
+          {WHEEL_SEGMENTS.map((_, i) =>
+            i === index ? null : (
+              <Path
+                key={i}
+                d={describeAnnularSector(R, R, WIN_R0, WIN_R1, i * WHEEL_SEGMENT_ANGLE, (i + 1) * WHEEL_SEGMENT_ANGLE)}
+                fill="#000000"
+                opacity={0.62}
+              />
+            )
+          )}
+        </Svg>
+      </Animated.View>
+
+      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.winLift, popStyle]}>
+        <Svg width={WHEEL_SIZE} height={WHEEL_SIZE}>
+          <Defs>
+            <RadialGradient id="winSeg" cx={R} cy={R} r={R} gradientUnits="userSpaceOnUse">
+              <Stop offset="0" stopColor={isBlack ? seg.color : shade(seg.color, -0.2)} />
+              <Stop offset="0.55" stopColor={shade(seg.color, 0.08)} />
+              <Stop offset="1" stopColor={shade(seg.color, isBlack ? 0.26 : 0.3)} />
+            </RadialGradient>
+            <ClipPath id="winClip">
+              <Path d={wedge} />
+            </ClipPath>
+          </Defs>
+          <Path d={wedge} fill="url(#winSeg)" />
+          {/* Light rippling out along the wedge */}
+          <AnimatedCircle
+            cx={R}
+            cy={R}
+            fill="none"
+            stroke="#FFFFFF"
+            strokeWidth={14}
+            clipPath="url(#winClip)"
+            animatedProps={rippleProps}
+          />
+          {/* A soft gold glow round the edge, pulsing */}
+          <AnimatedPath
+            d={wedge}
+            fill="none"
+            stroke={GOLD}
+            strokeWidth={9}
+            strokeLinejoin="round"
+            animatedProps={glowProps}
+          />
+          {/* The bright line racing round the edge */}
+          <AnimatedPath
+            d={wedge}
+            fill="none"
+            stroke={GOLD_LIGHT}
+            strokeWidth={3.5}
+            strokeLinejoin="round"
+            strokeDasharray={`${WIN_PERIMETER} ${WIN_PERIMETER}`}
+            animatedProps={traceProps}
+          />
+        </Svg>
+        <SegmentLabel i={index} />
+      </Animated.View>
+    </>
+  );
+});
+
+// One spark of the burst that sprays up out of the pointer when the wheel
+// stops -- up and out in a fan, then falling. All ride one progress clock.
+const BURST_COUNT = 16;
+function BurstParticle({ index, progress }: { index: number; progress: SharedValue<number> }) {
+  const angle = ((-165 + (150 / (BURST_COUNT - 1)) * index) * Math.PI) / 180;
+  const speed = 70 + ((index * 37) % 5) * 16;
+  const size = index % 3 === 0 ? 8 : 5;
+  const color = index % 3 === 0 ? GOLD_LIGHT : index % 3 === 1 ? GOLD : '#FFFFFF';
+  const style = useAnimatedStyle(() => {
+    const p = progress.value;
+    return {
+      opacity: p <= 0 || p >= 1 ? 0 : p < 0.08 ? p * 12 : 1 - p,
+      transform: [
+        { translateX: Math.cos(angle) * speed * p },
+        { translateY: Math.sin(angle) * speed * p + 90 * p * p },
+        { rotate: `${45 + p * 180}deg` },
+        { scale: 1 - p * 0.4 },
+      ],
+    };
+  });
+  return (
+    <Animated.View
+      style={[
+        {
+          position: 'absolute',
+          left: -size / 2,
+          top: -size / 2,
+          width: size,
+          height: size,
+          borderRadius: 1.5,
+          backgroundColor: color,
+          shadowColor: GOLD,
+          shadowOpacity: 1,
+          shadowRadius: 5,
+          shadowOffset: { width: 0, height: 0 },
+        },
+        style,
+      ]}
+    />
+  );
+}
+const BurstParticleMemo = memo(BurstParticle);
 
 // The jackpot's "$0 -> $150" count-up, with a light tick on every $10 and a
 // heavy thud when it lands. Only this little component re-renders while it
@@ -445,6 +633,9 @@ export default function SpinWheelScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [prizeImageUrl, setPrizeImageUrl] = useState<string | null>(null);
   const [imageLoading, setImageLoading] = useState(false);
+  // The prize's wedge, known as soon as the server picks it (before the
+  // wheel turns) so its highlight is ready the instant the wheel stops.
+  const [winIndex, setWinIndex] = useState<number | null>(null);
 
   // Entrance, about 1.25s in all:
   //   * thrown onto the stage -- the wheel spins in (1.5 turns) while
@@ -496,9 +687,24 @@ export default function SpinWheelScreen() {
   const lightsBoost = useSharedValue(0);
   const lightsCelebrate = useSharedValue(0);
   const beamsRotation = useSharedValue(0);
-  // The win: the winning wedge glows under the pointer, then the backdrop
-  // dims in and a gold bloom opens out behind the jackpot card.
-  const winGlow = useSharedValue(0);
+  // The landing (see WinningWedge): the other wedges dim, the winner lifts
+  // out with a gold line racing round it and light rippling along it, the
+  // camera pushes in a touch, the pointer jolts and sparks spray out of it.
+  const winShow = useSharedValue(0);
+  const winDim = useSharedValue(0);
+  const winPop = useSharedValue(1);
+  const winTrace = useSharedValue(0);
+  const winRipple = useSharedValue(0);
+  const winPulse = useSharedValue(0);
+  const focus = useSharedValue(0);
+  const pointerPop = useSharedValue(1);
+  const burst = useSharedValue(0);
+  // A white flash for the Grand Prize.
+  const flash = useSharedValue(0);
+  // 1 while the wheel is turning: each divider passing the pointer clicks.
+  const ticking = useSharedValue(0);
+  // Then the backdrop dims in and a gold bloom opens out behind the jackpot
+  // card.
   const backdrop = useSharedValue(0);
   const bloom = useSharedValue(1);
   const revealTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -510,7 +716,6 @@ export default function SpinWheelScreen() {
   // The jackpot card punching into the middle of the screen.
   const cardScale = useSharedValue(0.3);
   const cardOpacity = useSharedValue(0);
-  const tickTimeouts = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const videoPlayer = useVideoPlayer(require('../../assets/videos/wheel-background.mp4'), (player) => {
     player.loop = true;
@@ -709,12 +914,6 @@ export default function SpinWheelScreen() {
       .finally(() => setImageLoading(false));
   };
 
-  useEffect(() => {
-    return () => {
-      tickTimeouts.current.forEach(clearTimeout);
-    };
-  }, []);
-
   const animatedWheelStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${rotation.value}deg` }],
   }));
@@ -757,7 +956,10 @@ export default function SpinWheelScreen() {
     opacity: buttonIdle.value,
     transform: [{ translateX: -90 + buttonShine.value * 420 }, { rotate: '20deg' }],
   }));
-  const winGlowStyle = useAnimatedStyle(() => ({ opacity: winGlow.value }));
+  const focusStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: focus.value * 10 }, { scale: 1 + focus.value * 0.05 }],
+  }));
+  const flashStyle = useAnimatedStyle(() => ({ opacity: flash.value }));
   const backdropStyle = useAnimatedStyle(() => ({ opacity: backdrop.value }));
   const bloomStyle = useAnimatedStyle(() => ({
     opacity: (1 - bloom.value) * 0.75,
@@ -765,7 +967,11 @@ export default function SpinWheelScreen() {
   }));
   const pointerAnimatedStyle = useAnimatedStyle(() => ({
     opacity: pointerOpacity.value,
-    transform: [{ translateY: pointerDropY.value }, { rotate: `${pointerFlap.value}deg` }],
+    transform: [
+      { translateY: pointerDropY.value },
+      { rotate: `${pointerFlap.value}deg` },
+      { scale: pointerPop.value },
+    ],
   }));
   const sunburstStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${sunburstRotation.value}deg` }] }));
   const prizePopStyle = useAnimatedStyle(() => ({ transform: [{ scale: prizePopScale.value }] }));
@@ -781,20 +987,32 @@ export default function SpinWheelScreen() {
     opacity: 0.5 + 0.5 * Math.sin(lightsPhase.value * Math.PI * 2),
   }));
 
-  // The wheel has stopped: the winning wedge under the pointer flashes gold
-  // (a quick double blink) while the rim lights go jackpot, and a beat later the reveal
-  // takes over -- so the landing is seen first and the card doesn't jump in
-  // on top of it.
+  // The wheel has stopped. The landing gets its own moment before the card
+  // comes in (about a second, longer for the Grand Prize): see WinningWedge
+  // for the wedge itself; around it the rim lights race into the pointer,
+  // the pointer jolts, sparks spray out of it and the view pushes in a touch.
   const handleSpinFinished = useCallback(
     (prize: PrizeResult) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       lightsCelebrate.value = 1;
       if (prize.index >= 0) {
-        winGlow.value = withSequence(
-          withTiming(1, { duration: 70 }),
-          withTiming(0.35, { duration: 90 }),
-          withTiming(1, { duration: 70 })
+        setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {}), 90);
+        winShow.value = withTiming(1, { duration: 60 });
+        winDim.value = withTiming(1, { duration: 280, easing: Easing.out(Easing.quad) });
+        winPop.value = withSpring(1.06, { damping: 7, stiffness: 240, mass: 0.7 });
+        winTrace.value = withTiming(1, { duration: 480, easing: Easing.inOut(Easing.quad) });
+        winRipple.value = withDelay(120, withRepeat(withTiming(1, { duration: 560, easing: Easing.out(Easing.quad) }), 2, false));
+        winPulse.value = withDelay(
+          450,
+          withRepeat(withTiming(1, { duration: 420, easing: Easing.inOut(Easing.sin) }), -1, true)
         );
+        focus.value = withSpring(1, { damping: 15, stiffness: 110 });
+        pointerPop.value = withSequence(
+          withTiming(1.28, { duration: 90, easing: Easing.out(Easing.quad) }),
+          withSpring(1, { damping: 6, stiffness: 180 })
+        );
+        burst.value = 0;
+        burst.value = withTiming(1, { duration: 950, easing: Easing.out(Easing.quad) });
       }
       // The Grand Prize gets the full show on landing: a triple thud, the
       // screen shakes, the gold and red shockwaves and sparks fire again
@@ -831,49 +1049,45 @@ export default function SpinWheelScreen() {
         sparkProgress.value = 0;
         sparkProgress.value = withTiming(1, { duration: 750, easing: Easing.out(Easing.quad) });
         beamsOpacity.value = withSequence(withTiming(1, { duration: 80 }), withTiming(0.5, { duration: 900 }));
+        flash.value = withSequence(withTiming(0.75, { duration: 60 }), withTiming(0, { duration: 480 }));
       }
       revealTimeout.current = setTimeout(
         () => {
           setSpinning(false);
           setResult(prize);
         },
-        prize.index < 0 ? 0 : jackpot ? 650 : 320
+        prize.index < 0 ? 0 : jackpot ? 1700 : 1150
       );
     },
-    [lightsCelebrate, winGlow, shakeX, shakeY, shockwaveScale, shockwaveOpacity, shockwave2Scale, shockwave2Opacity, sparkProgress, beamsOpacity]
+    // Shared values never change identity.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
   );
 
-  // A peg knocking the pointer: it flicks sideways (the wheel turns
-  // clockwise, so the tip is pushed right -- a counter-clockwise turn about
-  // its top) and snaps back.
-  const flickPointer = () => {
-    pointerFlap.value = withSequence(
-      withTiming(-22, { duration: 20, easing: Easing.linear }),
-      withSpring(0, { damping: 9, stiffness: 220 })
-    );
-  };
-
-  // Mimics a mechanical wheel's ratchet -- frequent ticks early, spacing out
-  // as it "slows down", instead of just one haptic at the very end. Each tick
-  // also flicks the pointer.
-  const scheduleTicks = (totalDuration: number) => {
-    tickTimeouts.current.forEach(clearTimeout);
-    const timeouts: ReturnType<typeof setTimeout>[] = [];
-    // Starts as the wind-up (see handleSpin) launches into the spin.
-    let t = WIND_UP_MS;
-    let gap = 45;
-    while (t < totalDuration - 180) {
-      t += gap;
-      timeouts.push(
-        setTimeout(() => {
-          flickPointer();
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-        }, t)
+  // Each divider passing the pointer clicks it: the pointer flicks sideways
+  // (the wheel turns clockwise, so the tip is pushed right -- a
+  // counter-clockwise turn about its top) and snaps back, with a tick you
+  // can feel. Driven by the wheel's actual angle, so every click is a real
+  // peg going by -- a blur of them at first, then slower and slower in the
+  // crawl at the end.
+  const lastTick = useRef(0);
+  const tickHaptic = useCallback(() => {
+    const now = Date.now();
+    if (now - lastTick.current < 40) return;
+    lastTick.current = now;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+  }, []);
+  useAnimatedReaction(
+    () => (ticking.value ? Math.floor(rotation.value / WHEEL_SEGMENT_ANGLE) : null),
+    (current, previous) => {
+      if (current === null || previous === null || current === previous) return;
+      pointerFlap.value = withSequence(
+        withTiming(-22, { duration: 20, easing: Easing.linear }),
+        withSpring(0, { damping: 9, stiffness: 220 })
       );
-      gap = Math.min(gap * 1.15, 360);
+      runOnJS(tickHaptic)();
     }
-    tickTimeouts.current = timeouts;
-  };
+  );
 
   const handleSpin = async () => {
     if (spinning || result || !uiReady) return;
@@ -895,18 +1109,22 @@ export default function SpinWheelScreen() {
 
       const prize: PrizeResult = { index: data.index, title: data.title, code: data.code };
       loadPrizeImage(prize.index);
+      setWinIndex(prize.index);
       const baseOffset =
         (((-(prize.index * WHEEL_SEGMENT_ANGLE + WHEEL_SEGMENT_ANGLE / 2)) % 360) + 360) % 360;
-      const target = EXTRA_SPINS * 360 + baseOffset;
+      // Somewhere inside the prize's wedge, not always dead centre.
+      const target = EXTRA_SPINS * 360 + baseOffset + (Math.random() * 2 - 1) * LAND_JITTER;
 
-      // Wind-up: the wheel pulls back a few degrees, then slingshots
-      // forward. It still ends on exactly `target`, so where it lands is
-      // unchanged.
+      // Wind-up: the wheel pulls back a few degrees and slingshots forward,
+      // runs a touch past where it stops and is rocked back onto it. It
+      // always ends on exactly `target`, inside the prize's wedge.
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-      scheduleTicks(SPIN_DURATION);
+      ticking.value = 1;
       rotation.value = withSequence(
         withTiming(-8, { duration: WIND_UP_MS, easing: Easing.out(Easing.quad) }),
-        withTiming(target, { duration: SPIN_DURATION, easing: Easing.out(Easing.cubic) }, (finished) => {
+        withTiming(target + OVERSHOOT, { duration: SPIN_DURATION, easing: Easing.bezier(0.12, 0.75, 0.2, 1) }),
+        withTiming(target, { duration: SETTLE_MS, easing: Easing.inOut(Easing.quad) }, (finished) => {
+          ticking.value = 0;
           if (finished) runOnJS(handleSpinFinished)(prize);
         })
       );
@@ -915,6 +1133,20 @@ export default function SpinWheelScreen() {
       setErrorMessage(e.message ?? "Couldn't spin the wheel. Please try again.");
     }
   };
+
+  // A flick of the wheel spins it too, like giving a real one a shove. (The
+  // prize is still the server's pick either way.) Always the latest
+  // handleSpin, since the responder is made once.
+  const spinRef = useRef(handleSpin);
+  spinRef.current = handleSpin;
+  const flickResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) + Math.abs(g.dy) > 12,
+      onPanResponderRelease: (_, g) => {
+        if (Math.hypot(g.vx, g.vy) > 0.35) spinRef.current();
+      },
+    })
+  ).current;
 
   const handleContinue = () => {
     router.replace('/(main)');
@@ -967,13 +1199,13 @@ export default function SpinWheelScreen() {
           ))}
         </View>
         <Text className="text-[#FFF4D6] text-center text-xs mt-0.5 max-w-[300px] font-inter-semibold leading-4">
-          Welcome to Al Paninos! One free spin, and every prize is a winner.
+          Welcome to Al Paninos! Tap SPIN or give the wheel a flick -- every prize is a winner.
         </Text>
       </Animated.View>
 
       {/* Wheel Assembly. The pointer and shockwave sit outside the zooming,
           twisting part, so the pointer stays upright as it drops in. */}
-      <View style={{ width: RING_SIZE, height: RING_SIZE + 34, alignItems: 'center' }}>
+      <Animated.View style={[{ width: RING_SIZE, height: RING_SIZE + 34, alignItems: 'center' }, focusStyle]}>
         <Animated.View
           pointerEvents="none"
           style={[styles.shockwaveRing, { width: RING_SIZE, height: RING_SIZE, top: 22 }, shockwaveStyle]}
@@ -996,7 +1228,17 @@ export default function SpinWheelScreen() {
           <PointerMemo />
         </Animated.View>
 
-        <Animated.View style={[entranceWheelStyle, { width: RING_SIZE, height: RING_SIZE, marginTop: 22 }]}>
+        {/* Sparks spraying out of the pointer tip on the win */}
+        <View pointerEvents="none" style={{ position: 'absolute', left: RING_SIZE / 2, top: 22 + RING_MARGIN, zIndex: 31 }}>
+          {Array.from({ length: BURST_COUNT }, (_, i) => (
+            <BurstParticleMemo key={i} index={i} progress={burst} />
+          ))}
+        </View>
+
+        <Animated.View
+          {...flickResponder.panHandlers}
+          style={[entranceWheelStyle, { width: RING_SIZE, height: RING_SIZE, marginTop: 22 }]}
+        >
           {/* A gold glow that breathes around the rim (soft halo on iPhone). */}
           <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.haloGlow, haloStyle]} />
           <GoldRimMemo phase={lightsPhase} boost={lightsBoost} celebrate={lightsCelebrate} powered={lightsPowered} />
@@ -1014,6 +1256,17 @@ export default function SpinWheelScreen() {
             ]}
           >
             <WheelFace hubFlip={hubFlip} />
+            {winIndex !== null && winIndex >= 0 && (
+              <WinningWedge
+                index={winIndex}
+                show={winShow}
+                dim={winDim}
+                pop={winPop}
+                trace={winTrace}
+                ripple={winRipple}
+                pulse={winPulse}
+              />
+            )}
           </Animated.View>
 
           {/* Glass shine across the top of the wheel -- stays put while the
@@ -1027,28 +1280,12 @@ export default function SpinWheelScreen() {
             <Ellipse cx={R} cy={R * 0.52} rx={R * 0.78} ry={R * 0.42} fill="#FFFFFF" opacity={0.13} />
           </Svg>
 
-          {/* The winning wedge, lit up under the pointer when the wheel stops */}
-          <Animated.View
-            pointerEvents="none"
-            style={[{ position: 'absolute', left: RING_MARGIN, top: RING_MARGIN }, winGlowStyle]}
-          >
-            <Svg width={WHEEL_SIZE} height={WHEEL_SIZE}>
-              <Path
-                d={describeSlice(R, R, R - 2, -WHEEL_SEGMENT_ANGLE / 2, WHEEL_SEGMENT_ANGLE / 2)}
-                fill="rgba(255,229,138,0.35)"
-                stroke="#FFFFFF"
-                strokeWidth={3}
-                strokeLinejoin="round"
-              />
-            </Svg>
-          </Animated.View>
-
           {/* The one-off shine that sweeps across the glass on the way in */}
           <View pointerEvents="none" style={styles.shineClip}>
             <Animated.View style={[styles.shineBand, shineStyle]} />
           </View>
         </Animated.View>
-      </View>
+      </Animated.View>
 
       {errorMessage && (
         <Text className="text-[#F4ECE1] bg-[#85140E] px-4 py-2 rounded-xl mt-3 text-center text-xs font-inter-semibold">
@@ -1079,6 +1316,9 @@ export default function SpinWheelScreen() {
         </Animated.View>
       )}
       </Animated.View>
+
+      {/* The Grand Prize's white flash */}
+      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: '#FFFBE6' }, flashStyle]} />
 
       {/* The jackpot card -- punches into the middle of the screen over a
           dimmed (not hidden) wheel, so the rim lights keep flashing around
@@ -1234,6 +1474,14 @@ const styles = StyleSheet.create({
     shadowColor: GOLD,
     shadowOpacity: 1,
     shadowRadius: 30,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  // The lifted winning wedge glows gold round its shape (iPhone draws a
+  // shadow from what's visible, so it follows the wedge).
+  winLift: {
+    shadowColor: GOLD,
+    shadowOpacity: 0.95,
+    shadowRadius: 14,
     shadowOffset: { width: 0, height: 0 },
   },
   shineClip: {
