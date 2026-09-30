@@ -19,6 +19,7 @@ import { usePromoStore } from '../../store/promoStore';
 import { appliedPromoFromRow, hasCategoryScope, resolvePromoCategoryIds } from '../../lib/promoEligibility';
 import { useCartStore } from '../../store/cartStore';
 import { useBackHandler } from '../../hooks/useBackHandler';
+import { isPromoUsed, useUsedPromoCodes } from '../../hooks/useUsedPromoCodes';
 import {
   EligiblePrizeItem,
   fetchEligiblePrizeItems,
@@ -201,19 +202,7 @@ export default function DealsScreen() {
     return photos;
   }, [menuPhotos, sortedPromotions, photoSeed]);
 
-  const { data: usedCodes } = useQuery({
-    queryKey: ['usedPromoCodes', session?.user?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('orders')
-        .select('promo_code')
-        .eq('user_id', session!.user.id)
-        .not('promo_code', 'is', null);
-      if (error) throw error;
-      return new Set((data || []).map((o: any) => o.promo_code.toLowerCase()));
-    },
-    enabled: !!session?.user?.id,
-  });
+  const { data: usedCodes } = useUsedPromoCodes();
 
   const { data: challenges } = useQuery({
     queryKey: ['challenges', session?.user?.id],
@@ -256,8 +245,7 @@ export default function DealsScreen() {
     ]).start(() => setToast(null));
   };
 
-  const isAlreadyUsed = (item: any) =>
-    item.single_use !== false && !!usedCodes?.has(item.code?.toLowerCase());
+  const isAlreadyUsed = (item: any) => isPromoUsed(item, usedCodes);
 
   const giveFreeItem = (target: EligiblePrizeItem, promo: any) => {
     itemHasModifiers(target.id).then((hasModifiers) => {

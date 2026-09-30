@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../lib/supabase';
+import { isPromoUsed, useUsedPromoCodes } from '../hooks/useUsedPromoCodes';
 import { useAuthStore } from '../store/authStore';
 import { useCartStore } from '../store/cartStore';
 import { usePromoStore } from '../store/promoStore';
@@ -67,19 +68,7 @@ export default function AvailableDeals({ locationId }: { locationId: string }) {
     enabled: !!locationId && !!userId,
   });
 
-  const { data: usedCodes } = useQuery({
-    queryKey: ['usedPromoCodes', userId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('orders')
-        .select('promo_code')
-        .eq('user_id', userId!)
-        .not('promo_code', 'is', null);
-      if (error) throw error;
-      return new Set((data || []).map((o: any) => o.promo_code.toLowerCase()));
-    },
-    enabled: !!userId,
-  });
+  const { data: usedCodes } = useUsedPromoCodes();
 
   // What each deal needs to be priced here: every item's category, and this
   // store's category names (a deal names its categories; ids are per store).
@@ -114,7 +103,7 @@ export default function AvailableDeals({ locationId }: { locationId: string }) {
   const rows = useMemo<DealRow[]>(() => {
     if (!promotions || !menuItemInfoMap || !categories) return [];
     return promotions
-      .filter((p: any) => !!p.code && !(p.single_use !== false && usedCodes?.has(p.code.toLowerCase())))
+      .filter((p: any) => !!p.code && !isPromoUsed(p, usedCodes))
       .map((p: any): DealRow => {
         if (isPickAnItemPrize(p)) {
           const inCart = items.some((i) => i.promoCode === p.code);

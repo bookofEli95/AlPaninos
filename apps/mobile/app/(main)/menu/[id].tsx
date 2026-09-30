@@ -3,6 +3,8 @@ import { View, Text, TextInput, TouchableOpacity, FlatList, Image, ScrollView, D
 import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import { getDaypart } from '../../../lib/daypart';
 import { dealValue } from '../../../components/DealCard';
+import { isPromoUsed, useUsedPromoCodes } from '../../../hooks/useUsedPromoCodes';
+import { bestCategoryDeal } from '../../../lib/categoryDeals';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
@@ -107,7 +109,14 @@ export default function MenuScreen() {
     [secretItems]
   );
 
-  const hasDeals = !!activePromotions && activePromotions.length > 0;
+  // Deals this customer can still use -- a single-use deal they've already
+  // redeemed isn't counted or advertised again.
+  const { data: usedCodes } = useUsedPromoCodes();
+  const availablePromotions = useMemo(
+    () => (activePromotions || []).filter((p: any) => !isPromoUsed(p, usedCodes)),
+    [activePromotions, usedCodes]
+  );
+  const hasDeals = availablePromotions.length > 0;
   // The Secret Mob shows when it has drops/items -- or Fan Favourites.
   const { data: fanFavourites } = useFanFavourites(secretCategory ? locationId : null);
   const showSecret = !!secretCategory && (secretItems.length > 0 || !!fanFavourites?.length);
@@ -121,24 +130,16 @@ export default function MenuScreen() {
     return rows;
   }, [menuData]);
 
-  // A deal right on the category it's for ("20% OFF" on The Mob) -- seen
-  // where the food is picked, not only on the Deals tab. Store-wide deals
-  // (not personal prizes, not free items) only.
+  // A deal right on the category it's for ("25% OFF" on The Mob) -- seen
+  // where the food is picked, not only on the Deals tab (lib/categoryDeals).
   const dealTagFor = useCallback(
     (category: any): string | null => {
-      const name = String(category.name).trim().toLowerCase();
-      const promo = (activePromotions || []).find((p: any) => {
-        if (p.user_id || Number(p.discount_percent) >= 100) return false;
-        const names = [...(p.category_names ?? []), p.category_name]
-          .filter(Boolean)
-          .map((n: string) => n.trim().toLowerCase());
-        return p.category_id === category.id || names.includes(name);
-      });
+      const promo = bestCategoryDeal(activePromotions, category, usedCodes);
       if (!promo) return null;
       const value = dealValue(promo);
       return `${value.big} ${value.small}`.trim();
     },
-    [activePromotions]
+    [activePromotions, usedCodes]
   );
 
   // "Popular right now": what this store sells most at this time of day
@@ -241,7 +242,7 @@ export default function MenuScreen() {
                 <Text className="text-[#F4ECE1] font-inter-bold text-sm ml-1.5" numberOfLines={1}>Deals</Text>
               </View>
               <Text className="text-[#F4ECE1] opacity-80 text-xs mt-0.5" numberOfLines={1}>
-                {activePromotions!.length} {activePromotions!.length === 1 ? 'offer' : 'offers'}
+                {availablePromotions.length} {availablePromotions.length === 1 ? 'offer' : 'offers'}
               </Text>
             </TouchableOpacity>
           )}
