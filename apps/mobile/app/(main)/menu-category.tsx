@@ -17,7 +17,7 @@ import { usePromoStore } from '../../store/promoStore';
 import { isBundleDeal, useDealBuilderStore } from '../../store/dealBuilderStore';
 import { dealValue } from '../../components/DealCard';
 import { useUsedPromoCodes } from '../../hooks/useUsedPromoCodes';
-import { bestCategoryDeal } from '../../lib/categoryDeals';
+import { bestCategoryDeal, dealTagLabel } from '../../lib/categoryDeals';
 import { appliedPromoFromRow } from '../../lib/promoEligibility';
 import * as Haptics from 'expo-haptics';
 
@@ -94,6 +94,8 @@ export default function MenuCategoryScreen() {
     [promotions, categoryId, categoryName, usedCodes]
   );
   const dealApplied = !!categoryDeal && appliedCode === categoryDeal.code;
+  // The same deal as a small tag on every tile here ("25% OFF").
+  const categoryDealTag = categoryDeal ? dealTagLabel(categoryDeal) : null;
   // Something from this category is already in the cart (and paid for, not
   // a free reward) -- i.e. there's a saving to go and see.
   const hasQualifyingItem = useMemo(
@@ -264,7 +266,9 @@ export default function MenuCategoryScreen() {
           className="flex-1 px-2"
           contentContainerStyle={{ paddingBottom: cartItems.length > 0 ? 100 : 28 }}
           showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => <MenuItemGridTile item={item} isSimpleCategory={isSimpleCategory} />}
+          renderItem={({ item }) => (
+            <MenuItemGridTile item={item} isSimpleCategory={isSimpleCategory} dealTag={categoryDealTag} />
+          )}
           ListHeaderComponent={
             plannerPackages.length > 0 ? (
               <CateringPlanner packages={plannerPackages} />

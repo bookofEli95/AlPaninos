@@ -1,9 +1,8 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, Image, ScrollView, Dimensions, StyleSheet } from 'react-native';
 import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
-import { dealValue } from '../../../components/DealCard';
 import { isPromoUsed, useUsedPromoCodes } from '../../../hooks/useUsedPromoCodes';
-import { bestCategoryDeal } from '../../../lib/categoryDeals';
+import { bestCategoryDeal, dealTagLabel } from '../../../lib/categoryDeals';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
@@ -150,9 +149,7 @@ export default function MenuScreen() {
   const dealTagFor = useCallback(
     (category: any): string | null => {
       const promo = bestCategoryDeal(activePromotions, category, usedCodes);
-      if (!promo) return null;
-      const value = dealValue(promo);
-      return `${value.big} ${value.small}`.trim();
+      return promo ? dealTagLabel(promo) : null;
     },
     [activePromotions, usedCodes]
   );
@@ -366,9 +363,18 @@ export default function MenuScreen() {
           contentContainerStyle={{ paddingBottom: cartItems.length > 0 ? 110 : 20 }}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
-          renderItem={({ item }) => (
-            <MenuItemGridTile item={item} isSimpleCategory={isSimpleCategoryName(categoryNameById.get(item.category_id))} />
-          )}
+          renderItem={({ item }) => {
+            const categoryName = categoryNameById.get(item.category_id);
+            return (
+              <MenuItemGridTile
+                item={item}
+                isSimpleCategory={isSimpleCategoryName(categoryName)}
+                // The deal on its category -- there's no category banner in
+                // search results to say so.
+                dealTag={categoryName ? dealTagFor({ id: item.category_id, name: categoryName }) : null}
+              />
+            );
+          }}
           ListEmptyComponent={
             <Text className="text-center text-[#78716C] mt-10 text-sm w-full font-inter-medium">
               No items match "{searchQuery.trim()}".

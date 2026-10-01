@@ -25,3 +25,18 @@ export function bestCategoryDeal(
   );
   return matching[0] ?? null;
 }
+
+// The short tag for a category's deal, on its tiles: "25% OFF", "$3 OFF",
+// or for a buy-2-or-more deal "2+ · 20% OFF" (it only kicks in at two).
+export function dealTagLabel(promo: any): string {
+  const pct = Number(promo?.discount_percent) || 0;
+  const amount = Number(promo?.amount_off) || 0;
+  const value =
+    pct > 0
+      ? `${Number.isInteger(pct) ? pct : pct.toFixed(1)}% OFF`
+      : amount > 0
+      ? `$${Number.isInteger(amount) ? amount : amount.toFixed(2)} OFF`
+      : 'DEAL';
+  const min = Number(promo?.min_item_count) || 0;
+  return min >= 2 ? `${min}+ · ${value}` : value;
+}
