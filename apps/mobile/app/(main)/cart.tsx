@@ -380,20 +380,28 @@ export default function CartScreen() {
     };
   }, []);
 
-  useEffect(() => {
-    if (isAnonymous || !session?.user?.id) return;
-    (async () => {
-      const { data, error } = await (supabase as any)
-        .from('profiles')
-        .select('notify_email, notify_sms')
-        .eq('id', session.user.id)
-        .single();
-      if (!error && data) {
-        setNotifyEmail(data.notify_email ?? true);
-        setNotifySms(data.notify_sms ?? false);
-      }
-    })();
-  }, [session?.user?.id, isAnonymous]);
+  // A member's update preferences (More > Notifications), read each time the
+  // cart opens so a change made there counts on the very next order.
+  useFocusEffect(
+    useCallback(() => {
+      if (isAnonymous || !session?.user?.id) return;
+      let active = true;
+      (async () => {
+        const { data, error } = await (supabase as any)
+          .from('profiles')
+          .select('notify_email, notify_sms')
+          .eq('id', session.user.id)
+          .single();
+        if (active && !error && data) {
+          setNotifyEmail(data.notify_email ?? true);
+          setNotifySms(data.notify_sms ?? false);
+        }
+      })();
+      return () => {
+        active = false;
+      };
+    }, [session?.user?.id, isAnonymous])
+  );
 
   useEffect(() => {
     if (!isAnonymous || !session?.user?.id) return;

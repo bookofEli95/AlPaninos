@@ -16,7 +16,7 @@ import { openDirections } from '../../lib/directions';
 
 const MENU_ITEMS = [
   { label: 'Change Location', icon: 'location-outline', route: '/(main)' },
-  { label: 'Settings', icon: 'settings-outline', route: '/(main)/settings' },
+  { label: 'Notifications', icon: 'notifications-outline', route: '/(main)/settings' },
   { label: 'Customer Support', icon: 'help-buoy-outline', route: '/(main)/customer-support' },
   { label: 'Privacy Policy', icon: 'shield-checkmark-outline', route: '/(main)/privacy' },
   { label: 'Terms & Legal', icon: 'document-text-outline', route: '/(main)/legal' },
