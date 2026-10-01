@@ -1,3 +1,4 @@
+import React from 'react';
 import { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -121,6 +122,19 @@ export default function EditProfile() {
     }
   }, [profile, formReady]);
 
+  // Save stays grey until something on screen differs from what's saved.
+  const savedPhone = profile?.phone || '';
+  const typedPhone = phone.trim() ? `+${country.dialCode}${phone.trim()}` : '';
+  const dirty =
+    !!profile &&
+    ((showDetails &&
+      (firstName.trim() !== (profile.first_name || '') ||
+        lastName.trim() !== (profile.last_name || '') ||
+        email.trim() !== (session?.user?.email || ''))) ||
+      (showPhone && typedPhone !== savedPhone) ||
+      (showAddress && address.trim() !== (profile.address || '')) ||
+      showNotify);
+
   const handleSave = async () => {
     setErrorMessage(null);
 
@@ -200,110 +214,144 @@ export default function EditProfile() {
   }
 
   return (
-    <View className="flex-1 bg-[#FAF6F0]">
+    <View className="flex-1 bg-[#FAF6F0] pt-14">
+      <View className="flex-row items-center px-4 mb-1">
+        <TouchableOpacity
+          onPress={goBackToProfile}
+          className="py-2 pr-2 -ml-2"
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityLabel="Back"
+        >
+          <Ionicons name="chevron-back" size={28} color="#A61C14" />
+        </TouchableOpacity>
+        <Text className="text-2xl font-display-bold text-[#1C1917] tracking-tight">
+          {section ? TITLES[section] : 'Edit Profile'}
+        </Text>
+      </View>
+
       <ScrollView
-        className="flex-1 px-6 pt-16"
+        className="flex-1 px-4"
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: cartBarSpace }}
+        contentContainerStyle={{ paddingBottom: cartBarSpace + 32 }}
       >
-        <TouchableOpacity onPress={goBackToProfile} className="flex-row items-center py-2 pr-8 -ml-2 mb-4">
-          <Ionicons name="chevron-back" size={28} color="#A61C14" />
-          <Text className="text-[#A61C14] font-inter-bold text-xl">Back</Text>
-        </TouchableOpacity>
-
-        <Text className="text-3xl font-display-bold text-[#1C1917] mb-6">
-          {section ? TITLES[section] : 'Edit Profile'}
+        <Text className="text-sm text-stone-600 leading-5 mb-4 px-1">
+          {section === 'phone'
+            ? 'So the store can reach you about an order.'
+            : section === 'address'
+            ? 'Your usual delivery address -- you can still change it on any order.'
+            : 'Your name, and the email you sign in with.'}
         </Text>
 
         {errorMessage && <ErrorBanner message={errorMessage} />}
 
-        {showDetails && (
-          <View className="flex-row justify-between mb-4">
-            <TextInput
-              className="bg-white border border-stone-300 p-4 rounded-xl flex-1 mr-2 text-base text-[#1C1917]"
-              placeholder="First Name"
-              placeholderTextColor="#A8A29E"
-              value={firstName}
-              onChangeText={setFirstName}
-            />
-            <TextInput
-              className="bg-white border border-stone-300 p-4 rounded-xl flex-1 ml-2 text-base text-[#1C1917]"
-              placeholder="Last Name"
-              placeholderTextColor="#A8A29E"
-              value={lastName}
-              onChangeText={setLastName}
-            />
-          </View>
-        )}
+        <View className="bg-white rounded-2xl border border-stone-200 shadow-sm p-4">
+          {showDetails && (
+            <>
+              <View className="flex-row" style={{ gap: 10 }}>
+                <View className="flex-1">
+                  <FieldLabel>First name</FieldLabel>
+                  <FieldInput value={firstName} onChangeText={setFirstName} placeholder="First" autoComplete="given-name" />
+                </View>
+                <View className="flex-1">
+                  <FieldLabel>Last name</FieldLabel>
+                  <FieldInput value={lastName} onChangeText={setLastName} placeholder="Last" autoComplete="family-name" />
+                </View>
+              </View>
+              <View className="mt-4">
+                <FieldLabel>Email</FieldLabel>
+                <FieldInput
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="you@example.com"
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  autoComplete="email"
+                />
+                <Text className="text-xs text-[#78716C] mt-1.5 px-0.5">
+                  Changing it? We'll email the new address a link to confirm it first.
+                </Text>
+              </View>
+            </>
+          )}
 
-        {showPhone && (
-          <View className="flex-row mb-4">
-            <TouchableOpacity
-              onPress={() => setCountryPickerVisible(true)}
-              className="flex-row items-center bg-white border border-stone-300 rounded-xl px-3 mr-2"
-            >
-              <Text className="text-base mr-1">{country.flag}</Text>
-              <Text className="text-base font-inter-semibold text-[#1C1917] mr-1">+{country.dialCode}</Text>
-              <Ionicons name="chevron-down" size={14} color="#A8A29E" />
-            </TouchableOpacity>
-            <TextInput
-              className="bg-white border border-stone-300 p-4 rounded-xl flex-1 text-base text-[#1C1917]"
-              placeholder="Phone Number"
-              placeholderTextColor="#A8A29E"
-              keyboardType="phone-pad"
-              value={formatPhoneNumber(phone, country)}
-              onChangeText={(text) => setPhone(text.replace(/[^0-9]/g, ''))}
-            />
-          </View>
-        )}
+          {showPhone && (
+            <View className={showDetails ? 'mt-4' : ''}>
+              <FieldLabel>Phone number</FieldLabel>
+              <View className="flex-row">
+                <TouchableOpacity
+                  onPress={() => setCountryPickerVisible(true)}
+                  activeOpacity={0.8}
+                  className="flex-row items-center bg-[#FAF6F0] border border-stone-200 rounded-xl px-3 mr-2"
+                  accessibilityLabel={`Country code +${country.dialCode}`}
+                >
+                  <Text className="text-base mr-1">{country.flag}</Text>
+                  <Text className="text-base font-inter-semibold text-[#1C1917] mr-1">+{country.dialCode}</Text>
+                  <Ionicons name="chevron-down" size={14} color="#A8A29E" />
+                </TouchableOpacity>
+                <View className="flex-1">
+                  <FieldInput
+                    value={formatPhoneNumber(phone, country)}
+                    onChangeText={(text) => setPhone(text.replace(/[^0-9]/g, ''))}
+                    placeholder="Phone number"
+                    keyboardType="phone-pad"
+                    autoComplete="tel"
+                  />
+                </View>
+              </View>
+            </View>
+          )}
 
-        {showDetails && (
-          <TextInput
-            className="bg-white border border-stone-300 p-4 rounded-xl mb-4 text-base text-[#1C1917]"
-            placeholder="Email"
-            placeholderTextColor="#A8A29E"
-            autoCapitalize="none"
-            keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
-          />
-        )}
+          {showAddress && (
+            <View className={showDetails || showPhone ? 'mt-4' : ''}>
+              <FieldLabel>Delivery address</FieldLabel>
+              <TouchableOpacity
+                onPress={() => setAddressPopupVisible(true)}
+                activeOpacity={0.8}
+                className="flex-row items-center bg-[#FAF6F0] border border-stone-200 rounded-xl px-3.5 py-3.5"
+              >
+                <Ionicons name="location" size={18} color="#A61C14" />
+                <Text
+                  className="flex-1 ml-2.5 text-base"
+                  style={{ color: address ? '#1C1917' : '#A8A29E' }}
+                  numberOfLines={2}
+                >
+                  {address || 'Add your delivery address'}
+                </Text>
+                <Text className="text-[13px] font-inter-bold text-[#A61C14] ml-2">{address ? 'Change' : 'Add'}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
-        {showAddress && (
-          <TouchableOpacity
-            onPress={() => setAddressPopupVisible(true)}
-            className="flex-row items-center bg-white border border-stone-300 p-4 rounded-xl mb-6"
-          >
-            <Ionicons name="location-outline" size={20} color="#A8A29E" />
-            <Text
-              className={`flex-1 ml-3 text-base ${address ? 'text-[#1C1917]' : 'text-[#A8A29E]'}`}
-              numberOfLines={1}
-            >
-              {address || 'Enter delivery address...'}
-            </Text>
-          </TouchableOpacity>
-        )}
-
-        {showNotify && (
-          <NotifyPreferenceToggle
-            notifyEmail={notifyEmail}
-            notifySms={notifySms}
-            onChangeEmail={setNotifyEmail}
-            onChangeSms={setNotifySms}
-          />
-        )}
+          {showNotify && (
+            <View className="mt-4">
+              <NotifyPreferenceToggle
+                notifyEmail={notifyEmail}
+                notifySms={notifySms}
+                onChangeEmail={setNotifyEmail}
+                onChangeSms={setNotifySms}
+              />
+            </View>
+          )}
+        </View>
 
         <TouchableOpacity
-          className="bg-[#A61C14] p-4 rounded-xl mb-12 items-center shadow-md active:bg-[#85140E]"
           onPress={handleSave}
-          disabled={loading}
+          disabled={loading || !dirty}
+          activeOpacity={0.85}
+          className="rounded-2xl py-4 mt-5 items-center flex-row justify-center"
+          style={{ backgroundColor: dirty ? '#A61C14' : '#D6D3D1' }}
         >
           {loading ? (
             <ActivityIndicator color="#F4ECE1" />
           ) : (
-            <Text className="text-[#F4ECE1] text-center font-display text-lg">Save Changes</Text>
+            <>
+              <Ionicons name="checkmark" size={18} color={dirty ? '#F4ECE1' : '#78716C'} />
+              <Text className="font-inter-bold text-base ml-1.5" style={{ color: dirty ? '#F4ECE1' : '#78716C' }}>
+                {dirty ? 'Save Changes' : 'No Changes Yet'}
+              </Text>
+            </>
           )}
         </TouchableOpacity>
       </ScrollView>
@@ -369,5 +417,40 @@ export default function EditProfile() {
         keyboardHeight={keyboardHeight}
       />
     </View>
+  );
+}
+
+// A field's label, small and above it.
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return <Text className="text-xs font-inter-bold uppercase tracking-wider text-stone-500 mb-1.5 px-0.5">{children}</Text>;
+}
+
+// A text field: soft fill, outlined in red while it's being typed in.
+function FieldInput(props: React.ComponentProps<typeof TextInput>) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <TextInput
+      placeholderTextColor="#A8A29E"
+      {...props}
+      onFocus={(e) => {
+        setFocused(true);
+        props.onFocus?.(e);
+      }}
+      onBlur={(e) => {
+        setFocused(false);
+        props.onBlur?.(e);
+      }}
+      style={{
+        backgroundColor: focused ? '#FFFFFF' : '#FAF6F0',
+        borderWidth: 1,
+        borderColor: focused ? '#A61C14' : '#E7E5E4',
+        borderRadius: 12,
+        paddingHorizontal: 14,
+        paddingVertical: 13,
+        fontSize: 16,
+        color: '#1C1917',
+        fontFamily: 'Inter_500Medium',
+      }}
+    />
   );
 }
