@@ -60,20 +60,16 @@ export default function MenuItemGridTile({ item, isSimpleCategory }: Props) {
 
   return (
     <View className="w-1/2 p-2">
+      {/* A quick-add tile (drinks, extras) adds one wherever it's tapped --
+          picture, name or price -- like its Add / + button; the - still
+          takes one off. Any other tile opens the item. */}
       <TouchableOpacity
-        disabled={canQuickAdd}
-        activeOpacity={canQuickAdd ? 1 : 0.7}
-        onPress={() => router.push(`/(main)/item/${item.id}`)}
+        activeOpacity={canQuickAdd ? 0.85 : 0.7}
+        onPress={canQuickAdd ? addOne : () => router.push(`/(main)/item/${item.id}`)}
+        accessibilityLabel={canQuickAdd ? `Add ${item.name}` : undefined}
         className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden"
       >
-        {/* On a quick-add tile the picture works like the Add / + button. */}
-        {canQuickAdd ? (
-          <TouchableOpacity onPress={addOne} activeOpacity={0.8} accessibilityLabel={`Add ${item.name}`}>
-            {picture}
-          </TouchableOpacity>
-        ) : (
-          picture
-        )}
+        {picture}
         <View className="p-3">
           <Text className="text-[#1C1917] font-inter-bold text-sm" numberOfLines={2}>
             {item.name}
