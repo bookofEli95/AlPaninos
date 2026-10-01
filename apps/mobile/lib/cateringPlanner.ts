@@ -9,6 +9,8 @@ export type PlannerPackage = {
   serves_min: number | null;
   serves_max: number | null;
   catering_role: string | null;
+  location_id?: string;
+  image_url?: string | null;
 };
 
 export type PlanLine = { pkg: PlannerPackage; quantity: number };
@@ -78,4 +80,16 @@ export function planCatering(people: number, packages: PlannerPackage[]): Cateri
     mainsServe: mains.reduce((sum, l) => sum + serves(l.pkg) * l.quantity, 0),
     total: lineTotal(mains) + lineTotal(drinks),
   };
+}
+
+// Sides and desserts to round the plan out ("Make it a spread"): every side
+// and dessert package, each with enough of it for everyone -- e.g. 2 Party
+// Fries Trays (8-10 each) for 15 people. Sides first, then desserts, each
+// cheapest first. The customer adds only the ones they want.
+export function suggestAddOns(people: number, packages: PlannerPackage[]): PlanLine[] {
+  const rank = (p: PlannerPackage) => (p.catering_role === 'side' ? 0 : 1);
+  return packages
+    .filter((p) => (p.catering_role === 'side' || p.catering_role === 'dessert') && serves(p) > 0)
+    .map((pkg) => ({ pkg, quantity: Math.max(1, Math.ceil(Math.max(people, 1) / serves(pkg))) }))
+    .sort((a, b) => rank(a.pkg) - rank(b.pkg) || Number(a.pkg.base_price) - Number(b.pkg.base_price));
 }
