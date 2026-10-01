@@ -804,7 +804,7 @@ export default function CartScreen() {
                 <View className="flex-row items-center justify-between">
                   <View className="flex-row items-center flex-1 mr-2">
                     <View className="w-9 h-9 rounded-full bg-[#FAF6F0] items-center justify-center mr-3 border border-stone-200">
-                      <Ionicons name={orderType === 'delivery' ? 'bicycle' : 'bag-handle'} size={18} color="#A61C14" />
+                      <Ionicons name={orderType === 'delivery' ? 'car' : 'storefront'} size={18} color="#A61C14" />
                     </View>
                     <View className="flex-1">
                       {/* Tapping the order type opens the same Pickup / Delivery

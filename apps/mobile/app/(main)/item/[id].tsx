@@ -678,10 +678,10 @@ export default function ItemDetailScreen() {
                       <View className="flex-row items-center flex-1 mr-2">
                         <View
                           style={{
-                            width: 22,
-                            height: 22,
-                            borderRadius: isSingleChoice ? 11 : 6,
-                            borderWidth: 1.5,
+                            width: 20,
+                            height: 20,
+                            borderRadius: isSingleChoice ? 10 : 6,
+                            borderWidth: 1,
                             borderColor: isSelected ? '#A61C14' : '#D6D3D1',
                             backgroundColor: isSelected ? '#A61C14' : '#FAFAF9',
                             alignItems: 'center',
@@ -691,17 +691,17 @@ export default function ItemDetailScreen() {
                         >
                           {isSelected &&
                             (isSingleChoice ? (
-                              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#F4ECE1' }} />
+                              <View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#F4ECE1' }} />
                             ) : (
-                              <Ionicons name="checkmark" size={14} color="#F4ECE1" />
+                              <Ionicons name="checkmark" size={13} color="#F4ECE1" />
                             ))}
                         </View>
-                        <Text className="flex-1 text-[15px] font-inter-semibold text-[#1C1917]">{option.name}</Text>
+                        <Text className="flex-1 text-sm font-inter-medium text-stone-800">{option.name}</Text>
                       </View>
 
                       {!promoCode && option.price_adjustment > 0 && (
                         <Text
-                          className="font-inter-bold text-[13px]"
+                          className="font-inter-bold text-xs"
                           style={{ color: isSelected ? '#A61C14' : '#78716C' }}
                         >
                           +${option.price_adjustment.toFixed(2)}
