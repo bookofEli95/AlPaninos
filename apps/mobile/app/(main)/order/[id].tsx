@@ -745,7 +745,7 @@ export default function OrderDetailScreen() {
                   </>
                 )}
               </TouchableOpacity>
-            )}
+          )}
 
             <Text className="text-xl font-inter-bold mb-3 text-[#1C1917] px-1">
               Items ({order.order_items?.length || 0})
@@ -786,78 +786,93 @@ export default function OrderDetailScreen() {
           </View>
         )}
         ListFooterComponent={
-          isCompleted ? (
-            <View className="mt-2 bg-white border border-stone-200 rounded-3xl p-5 shadow-sm">
-              {rating ? (
-                <>
-                  <Text className="text-lg font-inter-bold text-[#1C1917] mb-2">Your Rating</Text>
-                  <View className="flex-row mb-2">
-                    {[1, 2, 3, 4, 5].map((n) => (
-                      <Ionicons
-                        key={n}
-                        name={n <= rating.rating ? 'star' : 'star-outline'}
-                        size={24}
-                        color="#A61C14"
-                        style={{ marginRight: 4 }}
-                      />
-                    ))}
-                  </View>
-                  {rating.comment && <Text className="text-[#78716C]">{rating.comment}</Text>}
-                  <Text className="text-[#78716C] text-sm mt-2">Thanks for the feedback!</Text>
-                </>
-              ) : (
-                <>
-                  <Text className="text-lg font-inter-bold text-[#1C1917] mb-1">How was your order?</Text>
-                  <Text className="text-[#78716C] text-sm mb-3">Let us know how we did.</Text>
-                  <View className="flex-row mb-4">
-                    {[1, 2, 3, 4, 5].map((n) => (
-                      <TouchableOpacity
-                        key={n}
-                        onPress={() => {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                          setRatingValue(n);
-                        }}
-                        hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-                      >
+          <>
+            {isCompleted && (
+              <View className="mt-2 bg-white border border-stone-200 rounded-3xl p-5 shadow-sm">
+                {rating ? (
+                  <>
+                    <Text className="text-lg font-inter-bold text-[#1C1917] mb-2">Your Rating</Text>
+                    <View className="flex-row mb-2">
+                      {[1, 2, 3, 4, 5].map((n) => (
                         <Ionicons
-                          name={n <= ratingValue ? 'star' : 'star-outline'}
-                          size={32}
+                          key={n}
+                          name={n <= rating.rating ? 'star' : 'star-outline'}
+                          size={24}
                           color="#A61C14"
-                          style={{ marginRight: 6 }}
+                          style={{ marginRight: 4 }}
                         />
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                  <TextInput
-                    className="bg-[#FAF6F0] border border-stone-300 rounded-2xl p-3 text-base text-[#1C1917] mb-3 min-h-[72px]"
-                    placeholder="Tell us what you liked (or what we can improve)"
-                    placeholderTextColor="#A8A29E"
-                    value={ratingComment}
-                    onChangeText={setRatingComment}
-                    onFocus={() => setCommentFocused(true)}
-                    onBlur={() => setCommentFocused(false)}
-                    multiline
-                    textAlignVertical="top"
-                  />
-                  <TouchableOpacity
-                    onPress={handleSubmitRating}
-                    disabled={ratingValue < 1 || submittingRating}
-                    className={`py-3.5 rounded-xl items-center ${
-                      ratingValue < 1 || submittingRating ? 'bg-stone-300' : 'bg-[#A61C14] active:bg-[#85140E]'
-                    }`}
-                  >
-                    {submittingRating ? (
-                      <ActivityIndicator color="#F4ECE1" />
-                    ) : (
-                      <Text className={`font-inter-bold text-base ${ratingValue < 1 ? 'text-stone-500' : 'text-[#F4ECE1]'}`}>
-                        Submit Rating
-                      </Text>
-                    )}
-                  </TouchableOpacity>
-                </>
-              )}
-            </View>
-          ) : null
+                      ))}
+                    </View>
+                    {rating.comment && <Text className="text-[#78716C]">{rating.comment}</Text>}
+                    <Text className="text-[#78716C] text-sm mt-2">Thanks for the feedback!</Text>
+                  </>
+                ) : (
+                  <>
+                    <Text className="text-lg font-inter-bold text-[#1C1917] mb-1">How was your order?</Text>
+                    <Text className="text-[#78716C] text-sm mb-3">Let us know how we did.</Text>
+                    <View className="flex-row mb-4">
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <TouchableOpacity
+                          key={n}
+                          onPress={() => {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                            setRatingValue(n);
+                          }}
+                          hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                        >
+                          <Ionicons
+                            name={n <= ratingValue ? 'star' : 'star-outline'}
+                            size={32}
+                            color="#A61C14"
+                            style={{ marginRight: 6 }}
+                          />
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                    <TextInput
+                      className="bg-[#FAF6F0] border border-stone-300 rounded-2xl p-3 text-base text-[#1C1917] mb-3 min-h-[72px]"
+                      placeholder="Tell us what you liked (or what we can improve)"
+                      placeholderTextColor="#A8A29E"
+                      value={ratingComment}
+                      onChangeText={setRatingComment}
+                      onFocus={() => setCommentFocused(true)}
+                      onBlur={() => setCommentFocused(false)}
+                      multiline
+                      textAlignVertical="top"
+                    />
+                    <TouchableOpacity
+                      onPress={handleSubmitRating}
+                      disabled={ratingValue < 1 || submittingRating}
+                      className={`py-3.5 rounded-xl items-center ${
+                        ratingValue < 1 || submittingRating ? 'bg-stone-300' : 'bg-[#A61C14] active:bg-[#85140E]'
+                      }`}
+                    >
+                      {submittingRating ? (
+                        <ActivityIndicator color="#F4ECE1" />
+                      ) : (
+                        <Text className={`font-inter-bold text-base ${ratingValue < 1 ? 'text-stone-500' : 'text-[#F4ECE1]'}`}>
+                          Submit Rating
+                        </Text>
+                      )}
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
+            )}
+
+            {/* Opens Customer Support with this order already picked. */}
+            <TouchableOpacity
+              onPress={() => router.push({ pathname: '/(main)/customer-support', params: { orderId: order.id } })}
+              activeOpacity={0.8}
+              className="flex-row items-center justify-between bg-white rounded-2xl border border-stone-200 px-4 py-3.5 mt-3"
+            >
+              <View className="flex-row items-center flex-1">
+                <Ionicons name="help-buoy-outline" size={18} color="#A61C14" />
+                <Text className="text-sm font-inter-semibold text-[#1C1917] ml-2.5">Problem with this order? Get help</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={17} color="#A8A29E" />
+            </TouchableOpacity>
+          </>
         }
       />
       {/* The moment the order goes in */}
