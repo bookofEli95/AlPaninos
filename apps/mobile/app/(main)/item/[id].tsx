@@ -594,12 +594,11 @@ export default function ItemDetailScreen() {
                 <Text className="text-xs text-[#78716C] mb-2.5">{DIETARY_DISCLAIMER}</Text>
               )}
 
-              {/* Choices as a two-column grid of same-size tiles (tap to
-                  pick) -- picking one only changes its colours and fills its
-                  circle (one choice) or box (several), so nothing ever
-                  resizes or jumps to another line. Count-able ones
-                  (catering) keep their - / + rows. */}
-              <View style={group.allow_quantity ? { gap: 8 } : { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -4 }}>
+              {/* One full-width row per choice: a box (pick several) or
+                  circle (pick one) on the left, the name, and its price on
+                  the right. Picking one only changes its colours -- nothing
+                  resizes or moves. Count-able ones (catering) have - / +. */}
+              <View style={{ gap: 8 }}>
                 {group.modifier_options?.map((option: any) => {
                   const isSelected = selectedInGroup.includes(option.id);
 
@@ -656,61 +655,59 @@ export default function ItemDetailScreen() {
                   }
 
                   return (
-                    <View key={option.id} style={{ width: '50%', padding: 4 }}>
-                      <TouchableOpacity
-                        onPress={() => handleToggleOption(group.id, option.id, group.max_selections)}
-                        activeOpacity={0.8}
-                        accessibilityRole={isSingleChoice ? 'radio' : 'checkbox'}
-                        accessibilityState={{ checked: isSelected }}
-                        style={{
-                          flex: 1,
-                          minHeight: 58,
+                    <TouchableOpacity
+                      key={option.id}
+                      onPress={() => handleToggleOption(group.id, option.id, group.max_selections)}
+                      activeOpacity={0.8}
+                      accessibilityRole={isSingleChoice ? 'radio' : 'checkbox'}
+                      accessibilityState={{ checked: isSelected }}
+                      style={[
+                        {
                           flexDirection: 'row',
                           alignItems: 'center',
-                          paddingLeft: 12,
-                          paddingRight: 10,
-                          paddingVertical: 9,
+                          justifyContent: 'space-between',
+                          padding: 14,
                           borderRadius: 16,
-                          borderWidth: 1.5,
+                          borderWidth: 1,
                           borderColor: isSelected ? '#A61C14' : '#E7E5E4',
-                          backgroundColor: isSelected ? '#FDF1EF' : '#FFFFFF',
-                        }}
-                      >
-                        <View style={{ flex: 1, marginRight: 8 }}>
-                          {/* The whole name, however long ("Sub Cheese Sauce
-                              for Mozzarella") -- tiles in a row grow together. */}
-                          <Text className="text-[15px] leading-5 font-inter-semibold text-[#1C1917]">
-                            {option.name}
-                          </Text>
-                          {!promoCode && option.price_adjustment > 0 && (
-                            <Text className="text-[13px] font-inter-bold text-[#A61C14] mt-0.5">
-                              +${option.price_adjustment.toFixed(2)}
-                            </Text>
-                          )}
-                        </View>
-                        {/* Same size picked or not: a circle for pick-one, a
-                            box for pick-several. */}
+                          backgroundColor: isSelected ? '#FFFFFF' : 'rgba(255,255,255,0.7)',
+                        },
+                        isSelected ? shadowSm : null,
+                      ]}
+                    >
+                      <View className="flex-row items-center flex-1 mr-2">
                         <View
                           style={{
                             width: 22,
                             height: 22,
                             borderRadius: isSingleChoice ? 11 : 6,
-                            borderWidth: 2,
+                            borderWidth: 1.5,
                             borderColor: isSelected ? '#A61C14' : '#D6D3D1',
-                            backgroundColor: isSelected && !isSingleChoice ? '#A61C14' : '#FFFFFF',
+                            backgroundColor: isSelected ? '#A61C14' : '#FAFAF9',
                             alignItems: 'center',
                             justifyContent: 'center',
+                            marginRight: 12,
                           }}
                         >
                           {isSelected &&
                             (isSingleChoice ? (
-                              <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#A61C14' }} />
+                              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#F4ECE1' }} />
                             ) : (
-                              <Ionicons name="checkmark" size={14} color="#FFFFFF" />
+                              <Ionicons name="checkmark" size={14} color="#F4ECE1" />
                             ))}
                         </View>
-                      </TouchableOpacity>
-                    </View>
+                        <Text className="flex-1 text-[15px] font-inter-semibold text-[#1C1917]">{option.name}</Text>
+                      </View>
+
+                      {!promoCode && option.price_adjustment > 0 && (
+                        <Text
+                          className="font-inter-bold text-[13px]"
+                          style={{ color: isSelected ? '#A61C14' : '#78716C' }}
+                        >
+                          +${option.price_adjustment.toFixed(2)}
+                        </Text>
+                      )}
+                    </TouchableOpacity>
                   );
                 })}
               </View>
