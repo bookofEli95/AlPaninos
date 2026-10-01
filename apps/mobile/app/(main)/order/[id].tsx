@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, TextInput, FlatList, TouchableOpacity, ActivityIndicator, StyleSheet, Keyboard } from 'react-native';
 import { Alert } from '../../../lib/alert';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../../../lib/supabase';
@@ -157,6 +157,13 @@ export default function OrderDetailScreen() {
     const timer = setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 60);
     return () => clearTimeout(timer);
   }, [commentFocused, keyboardHeight]);
+  // This screen stays mounted between visits, so it would reopen scrolled
+  // wherever it was left. Every visit starts at the top, with the status.
+  useFocusEffect(
+    useCallback(() => {
+      listRef.current?.scrollToOffset({ offset: 0, animated: false });
+    }, [])
+  );
   const [reordering, setReordering] = useState(false);
   const [now, setNow] = useState(Date.now());
 
