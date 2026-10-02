@@ -817,7 +817,7 @@ export default function HomeScreen() {
               />
               <HeroOrderButton
                 title="Delivery"
-                icon="bicycle"
+                icon="car"
                 sub={
                   !deliveryNow
                     ? orderAheadLine('delivery')
@@ -1112,7 +1112,7 @@ export default function HomeScreen() {
                     />
                     <StoreOrderButton
                       label="Delivery"
-                      icon="bicycle"
+                      icon="car"
                       loading={going === `${item.id}:delivery`}
                       disabled={!!going}
                       onPress={() => handleGo('delivery', item.id)}
