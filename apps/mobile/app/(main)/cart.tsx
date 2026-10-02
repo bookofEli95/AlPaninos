@@ -18,6 +18,7 @@ import NotifyPreferenceToggle from '../../components/NotifyPreferenceToggle';
 import CountryPickerSheet from '../../components/CountryPickerSheet';
 import TimeSlotPickerSheet from '../../components/TimeSlotPickerSheet';
 import OrderTypeSheet from '../../components/OrderTypeSheet';
+import SavedAddressChips from '../../components/SavedAddressChips';
 import CartUpsellTray from '../../components/CartUpsellTray';
 import CartLine from '../../components/CartLine';
 import { redeemReferralCode } from '../../lib/referrals';
@@ -55,6 +56,7 @@ export default function CartScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { items, locationId, removeItem, updateItemQuantity, clearCart, orderType, deliveryAddress } = useCartStore();
+  const setDeliveryAddress = useCartStore((state) => state.setDeliveryAddress);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { session } = useAuthStore();
   // Verifying their email at checkout turns a guest's session into a real
@@ -863,6 +865,10 @@ export default function CartScreen() {
                         {deliveryAddress || 'Tap to add your delivery address'}
                       </Text>
                     </TouchableOpacity>
+                    {/* Saved Home / Work: switch with one tap */}
+                    <View className="mt-2">
+                      <SavedAddressChips current={deliveryAddress} onPick={setDeliveryAddress} />
+                    </View>
                     {outOfCateringRange && (
                       <View className="flex-row items-start mt-1.5 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
                         <Ionicons name="warning-outline" size={13} color="#B45309" style={{ marginTop: 1 }} />

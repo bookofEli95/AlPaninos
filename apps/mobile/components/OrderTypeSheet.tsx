@@ -24,6 +24,7 @@ import { storeStatus } from '../lib/hours';
 import { canOrderAsap, estimateReadyMinutes } from '../lib/orderTiming';
 import { switchStore } from '../lib/storeSwitch';
 import AddressAutocomplete from './AddressAutocomplete';
+import SavedAddressChips from './SavedAddressChips';
 
 type Props = {
   visible: boolean;
@@ -282,6 +283,10 @@ export default function OrderTypeSheet({ visible, onClose, onStoreChanged, fallb
             <Animated.View entering={FadeIn.duration(200).delay(60)} exiting={FadeOut.duration(120)} className="mb-4">
               <Text className="text-xs font-inter-bold uppercase tracking-wider text-stone-500 mb-2">Delivering to</Text>
               <AddressAutocomplete defaultAddress={deliveryAddress} onAddressSelect={setDeliveryAddress} />
+              {/* Home / Work in one tap, and saving a new one as either */}
+              <View className="mt-2.5">
+                <SavedAddressChips current={deliveryAddress} onPick={setDeliveryAddress} offerSave />
+              </View>
             </Animated.View>
           )}
 
