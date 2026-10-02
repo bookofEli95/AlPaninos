@@ -4,18 +4,27 @@
     "appVersionSource": "remote"
   },
   "build": {
+    "base": {
+      "pnpm": "12.3.4"
+    },
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "extends": "base",
+      "environment": "development"
     },
     "preview": {
       "distribution": "internal",
       "android": {
         "buildType": "apk"
-      }
+      },
+      "extends": "base",
+      "environment": "preview"
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "extends": "base",
+      "environment": "production"
     }
   },
   "submit": {
