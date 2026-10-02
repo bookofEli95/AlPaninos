@@ -46,6 +46,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@babel/core": "^7.29.7",
     "@expo/ngrok": "^4.1.0",
     "@types/react": "~19.2.2",
     "@types/react-native": "^0.73.0",

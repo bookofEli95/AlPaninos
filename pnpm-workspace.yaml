@@ -1,6 +1,9 @@
 packages:
   - 'apps/*'
   - 'packages/*'
+# A flat node_modules, like npm's -- what React Native's build tools expect.
+# (pnpm 11+ reads this here; the node-linker line in .npmrc is ignored.)
+nodeLinker: hoisted
 allowBuilds:
   unrs-resolver: false
 minimumReleaseAgeExclude:
