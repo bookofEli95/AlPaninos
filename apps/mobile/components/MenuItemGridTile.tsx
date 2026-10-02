@@ -7,6 +7,7 @@ import { useCartStore } from '../store/cartStore';
 import { servesLabel } from '../lib/catering';
 import { DropFields, dropLabel, dropState } from '../lib/drops';
 import { tabularNums } from '../lib/typography';
+import { useFavourites } from '../hooks/useFavourites';
 
 const RED = '#A61C14';
 
@@ -29,8 +30,9 @@ type Props = {
   dealTag?: string | null;
 };
 
-// A menu item in a two-across grid: its photo (with any deal on it, and a
-// round + in the corner), name, a short description and the price. Tiles
+// A menu item in a two-across grid: its photo (with any deal on it, a
+// heart to favourite it, and a round + in the corner), name, a short
+// description and the price. Tiles
 // in a row are the same height, price lined up along the bottom.
 //
 // Drinks and extras add straight from the grid -- a tap anywhere adds one,
@@ -42,6 +44,8 @@ export default function MenuItemGridTile({ item, isSimpleCategory, dealTag }: Pr
   const cartItems = useCartStore((state) => state.items);
   const incrementSimpleItem = useCartStore((state) => state.incrementSimpleItem);
   const decrementSimpleItem = useCartStore((state) => state.decrementSimpleItem);
+  const { isFavourite, toggleFavourite } = useFavourites();
+  const hearted = isFavourite(item);
 
   const qty = cartItems.find((i) => i.menuItemId === item.id && i.modifiers.length === 0)?.quantity || 0;
   // A drop that hasn't started can be looked at but not added.
@@ -87,6 +91,17 @@ export default function MenuItemGridTile({ item, isSimpleCategory, dealTag }: Pr
               <Text style={styles.dealTagText}>{dealTag}</Text>
             </View>
           )}
+
+          {/* Heart it: it joins "Your Favourites" at the top of the menu. */}
+          <TouchableOpacity
+            onPress={() => toggleFavourite(item)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityLabel={hearted ? `Remove ${item.name} from favourites` : `Add ${item.name} to favourites`}
+            accessibilityState={{ selected: hearted }}
+            style={styles.heart}
+          >
+            <Ionicons name={hearted ? 'heart' : 'heart-outline'} size={17} color={hearted ? RED : '#57534E'} />
+          </TouchableOpacity>
 
           {/* The corner control: + (adds, or opens to choose options), or a
               counter once a drink/extra is in the cart. */}
@@ -206,6 +221,22 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_800ExtraBold',
     fontSize: 10,
     letterSpacing: 0.3,
+  },
+  heart: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 2,
   },
   plus: {
     position: 'absolute',

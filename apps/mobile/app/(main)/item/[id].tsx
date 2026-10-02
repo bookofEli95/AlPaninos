@@ -21,6 +21,7 @@ import ItemAddOns from '../../../components/ItemAddOns';
 import DietaryTags from '../../../components/DietaryTags';
 import { CATERING_RULES_SUMMARY, servesLabel } from '../../../lib/catering';
 import { optionsConflict } from '../../../lib/modifierConflicts';
+import { useFavourites } from '../../../hooks/useFavourites';
 import { DIETARY_DISCLAIMER } from '../../../lib/dietary';
 import { dropLabel, dropState } from '../../../lib/drops';
 import { shadowSm } from '../../../lib/shadows';
@@ -61,6 +62,7 @@ export default function ItemDetailScreen() {
   const initialQuantity = Math.max(1, Number(qty) || 1);
   const router = useRouter();
   const addItem = useCartStore((state) => state.addItem);
+  const { isFavourite, toggleFavourite } = useFavourites();
 
   const [selections, setSelections] = useState<Record<string, string[]>>({});
   const [quantity, setQuantity] = useState(1);
@@ -470,6 +472,8 @@ export default function ItemDetailScreen() {
     );
   }
 
+  const hearted = isFavourite(data);
+
   return (
     <View className="flex-1 bg-[#FAF6F0] pt-12">
       <ScrollView
@@ -513,7 +517,29 @@ export default function ItemDetailScreen() {
         )}
 
         <View className="mb-2">
-          <Text className="text-2xl font-display-bold text-[#1C1917] tracking-tight">{data.name}</Text>
+          <View className="flex-row items-start">
+            <Text className="flex-1 text-2xl font-display-bold text-[#1C1917] tracking-tight mr-3">{data.name}</Text>
+            {/* Heart it: it joins "Your Favourites" at the top of the menu. */}
+            <TouchableOpacity
+              onPress={() => toggleFavourite(data)}
+              activeOpacity={0.8}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              accessibilityLabel={hearted ? 'Remove from favourites' : 'Add to favourites'}
+              accessibilityState={{ selected: hearted }}
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: '#FFFFFF',
+                borderWidth: 1,
+                borderColor: hearted ? '#F0B4AC' : '#E7E5E4',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Ionicons name={hearted ? 'heart' : 'heart-outline'} size={21} color={hearted ? '#A61C14' : '#57534E'} />
+            </TouchableOpacity>
+          </View>
           {data.description && (
             <Text className="text-stone-600 mt-2 text-sm leading-5">{data.description}</Text>
           )}

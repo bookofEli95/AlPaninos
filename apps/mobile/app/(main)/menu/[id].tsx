@@ -16,6 +16,7 @@ import OrderTypeSheet from '../../../components/OrderTypeSheet';
 import MenuItemGridTile from '../../../components/MenuItemGridTile';
 import { dropLabel, dropState, isDropOrderable, isDropVisible } from '../../../lib/drops';
 import { useFanFavourites } from '../../../hooks/useFanFavourites';
+import { useFavourites } from '../../../hooks/useFavourites';
 
 export default function MenuScreen() {
   const { id: locationId } = useLocalSearchParams<{ id: string }>();
@@ -179,6 +180,22 @@ export default function MenuScreen() {
     staleTime: 10 * 60000,
   });
   const popularIsReal = Number(popular?.[0]?.sold ?? 0) >= 3;
+
+  // Your Favourites: what this customer has hearted, as this store's own
+  // copy of each (matched by name), newest heart first. Only what can be
+  // ordered here right now.
+  const { favourites } = useFavourites();
+  const favouriteItems = useMemo(() => {
+    const items = (menuData?.items || []).filter((i: any) => isDropOrderable(i));
+    const picked: any[] = [];
+    favourites.forEach((f) => {
+      const match =
+        items.find((i: any) => i.id === f.menuItemId) ??
+        items.find((i: any) => !!f.name && i.name.trim().toLowerCase() === f.name.trim().toLowerCase());
+      if (match && !picked.some((p) => p.id === match.id)) picked.push(match);
+    });
+    return picked;
+  }, [menuData, favourites]);
 
   // Couldn't load (no signal, say): say so, with a way to try again,
   // rather than "No categories yet".
@@ -389,6 +406,50 @@ export default function MenuScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: cartItems.length > 0 ? 110 : 24 }}
         >
+          {/* Your Favourites -- two taps to the usual */}
+          {favouriteItems.length > 0 && (
+            <View className="mb-5">
+              <View className="flex-row items-center px-4 mb-2.5">
+                <Ionicons name="heart" size={16} color="#A61C14" />
+                <Text className="text-[#1C1917] font-display-bold text-lg ml-1.5">Your Favourites</Text>
+              </View>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
+              >
+                {favouriteItems.map((item) => (
+                  <TouchableOpacity
+                    key={item.id}
+                    activeOpacity={0.85}
+                    onPress={() => router.push({ pathname: `/(main)/item/${item.id}`, params: { returnTo: 'menu' } })}
+                    className="bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-sm"
+                    style={{ width: 148 }}
+                  >
+                    {item.image_url ? (
+                      <Image source={{ uri: item.image_url }} style={{ width: 148, height: 110 }} resizeMode="cover" />
+                    ) : (
+                      <View style={{ width: 148, height: 110 }} className="bg-[#FAF6F0] items-center justify-center">
+                        <Ionicons name="restaurant-outline" size={28} color="#A8A29E" />
+                      </View>
+                    )}
+                    <View style={styles.favouriteBadge} pointerEvents="none">
+                      <Ionicons name="heart" size={13} color="#A61C14" />
+                    </View>
+                    <View className="p-2.5">
+                      <Text className="text-[#1C1917] font-inter-bold text-sm leading-5" numberOfLines={1}>
+                        {item.name}
+                      </Text>
+                      <Text className="text-stone-600 font-inter-semibold text-sm mt-0.5">
+                        ${Number(item.base_price).toFixed(2)}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
           {/* Popular right now */}
           {!!popular?.length && (
             <View className="mb-5">
@@ -517,6 +578,17 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 6,
+  },
+  favouriteBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dealTag: {
     position: 'absolute',
