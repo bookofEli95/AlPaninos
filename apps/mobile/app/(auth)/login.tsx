@@ -7,6 +7,8 @@ import {
   Image,
   ActivityIndicator,
   Keyboard,
+  ScrollView,
+  Dimensions,
 } from 'react-native';
 import { Alert } from '../../lib/alert';
 import Animated, {
@@ -23,13 +25,18 @@ import * as Haptics from 'expo-haptics';
 import { supabase } from '../../lib/supabase';
 import ErrorBanner from '../../components/ErrorBanner';
 import SignupCodeSheet from '../../components/SignupCodeSheet';
+import SocialSignInButtons from '../../components/SocialSignInButtons';
 import { isValidEmail } from '../../lib/passwordStrength';
+
+// A little smaller on short screens, where the sign-in options need the room.
+const LOGO_SIZE = Dimensions.get('window').height < 750 ? 96 : 128;
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [guestLoading, setGuestLoading] = useState(false);
+  const [socialBusy, setSocialBusy] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   // Someone who signed up but never entered their code: a fresh one is sent
@@ -213,7 +220,7 @@ export default function Login() {
     setGuestLoading(false);
   };
 
-  const isBusy = loading || guestLoading;
+  const isBusy = loading || guestLoading || socialBusy;
 
   return (
     <View className="flex-1 bg-[#1C1917]">
@@ -236,11 +243,19 @@ export default function Login() {
         pointerEvents="none"
       />
 
-      <View className="flex-1 justify-center px-6" style={{ marginBottom: keyboardHeight }}>
+      {/* Scrolls only when it doesn't fit (smaller phones). */}
+      <ScrollView
+        style={{ flex: 1, marginBottom: keyboardHeight }}
+        contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 48 }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
         <Animated.View style={heroStyle} className="items-center mb-4">
           <Image
             source={require('../../assets/logo.jpg')}
-            className="w-32 h-32 rounded-full mb-3 shadow-md"
+            className="rounded-full mb-3 shadow-md"
+            style={{ width: LOGO_SIZE, height: LOGO_SIZE }}
             resizeMode="contain"
           />
           <Text className="text-3xl font-display-bold text-[#F4ECE1] tracking-tight">
@@ -326,6 +341,15 @@ export default function Login() {
             <View className="flex-1 h-[1px] bg-white/20" />
           </View>
 
+          {/* Apple (iPhone) and Google: one tap, no password */}
+          <View className="mb-2.5">
+            <SocialSignInButtons
+              disabled={isBusy && !socialBusy}
+              onBusyChange={setSocialBusy}
+              onError={(message) => setErrorMessage(message)}
+            />
+          </View>
+
           <TouchableOpacity
             className="bg-white/10 border border-white/20 p-3.5 rounded-2xl mb-4 items-center flex-row justify-center active:bg-white/20"
             onPress={handleGuestCheckout}
@@ -362,7 +386,7 @@ export default function Login() {
             </TouchableOpacity>
           </Link>
         </Animated.View>
-      </View>
+      </ScrollView>
 
       {/* Forgot Password Sheet */}
       {forgotPasswordVisible && (

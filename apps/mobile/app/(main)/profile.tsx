@@ -34,7 +34,7 @@ import AccountSetupSheet from '../../components/AccountSetupSheet';
 import GuestJoinCard from '../../components/GuestJoinCard';
 import { confirmSwitchToExistingAccount, signOutToLogin, welcomeNewAccount } from '../../lib/guestSession';
 import { useProfile } from '../../hooks/useProfile';
-import { needsPassword } from '../../lib/account';
+import { needsOrderDetails, needsPassword } from '../../lib/account';
 import { useCartBarSpace } from '../../hooks/useCartBarSpace';
 import ReferralCard from '../../components/ReferralCard';
 import BirthdaySheet from '../../components/BirthdaySheet';
@@ -181,6 +181,7 @@ export default function ProfileScreen() {
   const locationId = useLocationStore(state => state.locationId);
   const isAnonymous = session?.user?.is_anonymous ?? false;
   const [setupVisible, setSetupVisible] = useState(false);
+  const [detailsVisible, setDetailsVisible] = useState(false);
 
   const { data: profile, isLoading } = useProfile();
 
@@ -471,6 +472,9 @@ export default function ProfileScreen() {
       : session?.user?.email?.[0] ?? '?'
   ).toUpperCase();
   const showFinishAccount = needsPassword(session?.user);
+  // Signed in with Apple or Google: no password needed, but the store still
+  // needs a name and phone number (asked at checkout too).
+  const showAddDetails = !showFinishAccount && needsOrderDetails(session?.user, profile);
   const since = memberSince(session?.user?.created_at);
 
   const points = profile?.panino_points ?? 0;
@@ -707,6 +711,29 @@ export default function ProfileScreen() {
             </Animated.View>
           )}
 
+          {showAddDetails && (
+            <Animated.View
+              entering={FadeInDown.duration(500).delay(220)}
+              className="bg-white rounded-3xl border border-[#A61C14] shadow-sm p-5 mt-4"
+            >
+              <View className="flex-row items-center mb-1">
+                <Ionicons name="call-outline" size={15} color={RED} />
+                <Text className="text-[11px] font-inter-bold text-[#A61C14] uppercase tracking-wider ml-1.5">
+                  One Last Thing
+                </Text>
+              </View>
+              <Text className="text-[#1C1917] text-sm mb-3">
+                Add your name and phone number so the store can reach you about your orders.
+              </Text>
+              <TouchableOpacity
+                onPress={() => setDetailsVisible(true)}
+                className="bg-[#A61C14] py-3 rounded-xl items-center active:bg-[#85140E]"
+              >
+                <Text className="text-[#F4ECE1] font-inter-bold text-sm">Add My Details</Text>
+              </TouchableOpacity>
+            </Animated.View>
+          )}
+
           {/* The wheel prize, as a ticket */}
           {profile?.wheel_prize_code && wheelPromo && (
             <Animated.View entering={FadeInDown.duration(500).delay(240)} style={styles.ticket}>
@@ -912,6 +939,14 @@ export default function ProfileScreen() {
           </Animated.View>
         </View>
       </ScrollView>
+
+      <AccountSetupSheet
+        visible={detailsVisible}
+        mode="details"
+        initialValues={{ firstName: profile?.first_name, lastName: profile?.last_name, phone: profile?.phone }}
+        onClose={() => setDetailsVisible(false)}
+        onDone={() => setDetailsVisible(false)}
+      />
 
       <AccountSetupSheet
         visible={setupVisible}

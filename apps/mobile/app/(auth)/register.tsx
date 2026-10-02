@@ -19,6 +19,7 @@ import CountryPickerSheet from '../../components/CountryPickerSheet';
 import NotifyPreferenceToggle from '../../components/NotifyPreferenceToggle';
 import ErrorBanner from '../../components/ErrorBanner';
 import SignupCodeSheet from '../../components/SignupCodeSheet';
+import SocialSignInButtons from '../../components/SocialSignInButtons';
 import { getPasswordStrength, isValidEmail } from '../../lib/passwordStrength';
 import { Country, DEFAULT_COUNTRY, formatPhoneNumber, isValidPhoneForCountry } from '../../lib/countries';
 
@@ -158,6 +159,14 @@ export default function Register() {
         </View>
 
         {errorMessage && <ErrorBanner message={errorMessage} />}
+
+        {/* The quickest way: Apple (iPhone) or Google, no password */}
+        <SocialSignInButtons disabled={loading} onError={(message) => setErrorMessage(message)} />
+        <View className="flex-row items-center my-5">
+          <View className="flex-1 h-[1px] bg-white/20" />
+          <Text className="text-[#F4ECE1]/60 font-inter-medium text-xs px-3">or sign up with email</Text>
+          <View className="flex-1 h-[1px] bg-white/20" />
+        </View>
 
         <View className="flex-row justify-between mb-4">
           <TextInput

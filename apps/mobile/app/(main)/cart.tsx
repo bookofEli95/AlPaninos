@@ -26,6 +26,7 @@ import { useStoreRush } from '../../hooks/useStoreRush';
 import AvailableDeals from '../../components/AvailableDeals';
 import PromoCoupon from '../../components/PromoCoupon';
 import AccountSetupSheet from '../../components/AccountSetupSheet';
+import { needsOrderDetails } from '../../lib/account';
 import { welcomeNewAccount } from '../../lib/guestSession';
 import { isValidEmail } from '../../lib/passwordStrength';
 import {
@@ -67,6 +68,7 @@ export default function CartScreen() {
   // elsewhere (More / Profile) must see the normal member checkout.
   const [verifiedAtCheckout, setVerifiedAtCheckout] = useState(false);
   const [accountSetupVisible, setAccountSetupVisible] = useState(false);
+  const [detailsSheetVisible, setDetailsSheetVisible] = useState(false);
   const isAnonymous = (session?.user?.is_anonymous ?? false) || verifiedAtCheckout;
   // A different person signed in (sign out, then in) -- start fresh.
   useEffect(() => {
@@ -592,6 +594,12 @@ export default function CartScreen() {
           .single();
 
         if (profileError) throw profileError;
+        // Signed in with Apple or Google and not yet given a name or a phone
+        // number: ask for them first, then carry on with the order.
+        if (needsOrderDetails(user, profile)) {
+          setDetailsSheetVisible(true);
+          return;
+        }
         customerName = `${profile.first_name} ${profile.last_name}`;
         customerPhone = profile.phone;
       }
@@ -1357,6 +1365,19 @@ export default function CartScreen() {
         onDone={() => {
           setAccountSetupVisible(false);
           welcomeNewAccount(router);
+        }}
+      />
+
+      {/* An Apple/Google account's name and phone, asked for at its first
+          checkout -- the order goes ahead as soon as they're saved. */}
+      <AccountSetupSheet
+        visible={detailsSheetVisible}
+        mode="details"
+        initialValues={{ firstName: profile?.first_name, lastName: profile?.last_name, phone: profile?.phone }}
+        onClose={() => setDetailsSheetVisible(false)}
+        onDone={() => {
+          setDetailsSheetVisible(false);
+          handleCheckout();
         }}
       />
     </View>

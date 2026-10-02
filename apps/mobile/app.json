@@ -9,7 +9,8 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.alpaninos.app"
+      "bundleIdentifier": "com.alpaninos.app",
+      "usesAppleSignIn": true
     },
     "android": {
       "package": "com.alpaninos.app",
@@ -36,7 +37,9 @@
         }
       ],
       "expo-video",
-      "expo-location"
+      "expo-location",
+      "expo-apple-authentication",
+      "expo-web-browser"
     ],
     "extra": {
       "router": {},

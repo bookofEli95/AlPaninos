@@ -31,9 +31,12 @@ import CountryPickerSheet from './CountryPickerSheet';
 // mode 'finish': an account that already has a verified email but no
 //   password or name -- what a guest becomes after verifying their email at
 //   checkout. Just the password, name and phone.
+// mode 'details': an account that signs in with Apple or Google -- no
+//   password to set, but the store still needs a name and a phone number
+//   for its orders. Just those two.
 type Props = {
   visible: boolean;
-  mode: 'upgrade' | 'finish';
+  mode: 'upgrade' | 'finish' | 'details';
   onClose: () => void;
   onDone: () => void;
   initialValues?: { firstName?: string | null; lastName?: string | null; phone?: string | null };
@@ -89,7 +92,13 @@ export default function AccountSetupSheet({ visible, mode, onClose, onDone, init
   };
 
   const validateDetails = (): boolean => {
-    if (!firstName.trim() || !lastName.trim() || !phoneDigits || !password || (mode === 'upgrade' && !email.trim())) {
+    if (
+      !firstName.trim() ||
+      !lastName.trim() ||
+      !phoneDigits ||
+      (mode !== 'details' && !password) ||
+      (mode === 'upgrade' && !email.trim())
+    ) {
       fail('Please fill in all fields.');
       return false;
     }
@@ -101,7 +110,7 @@ export default function AccountSetupSheet({ visible, mode, onClose, onDone, init
       fail('Please enter a valid email address.');
       return false;
     }
-    if (password.length < 6) {
+    if (mode !== 'details' && password.length < 6) {
       fail('Password must be at least 6 characters long.');
       return false;
     }
@@ -113,12 +122,17 @@ export default function AccountSetupSheet({ visible, mode, onClose, onDone, init
   // "undefined undefined" to the kitchen.
   const saveAccountDetails = async () => {
     const phone = `+${country.dialCode}${phoneDigits}`;
-    const { data: userData, error: pwdError } = await supabase.auth.updateUser({
-      // Exactly as typed -- sign-in sends it untrimmed too (see login.tsx).
-      password,
-      // has_password: read by lib/account.ts's needsPassword().
-      data: { first_name: firstName.trim(), last_name: lastName.trim(), phone, has_password: true },
-    });
+    const details = { first_name: firstName.trim(), last_name: lastName.trim(), phone };
+    const { data: userData, error: pwdError } = await supabase.auth.updateUser(
+      mode === 'details'
+        ? { data: details }
+        : {
+            // Exactly as typed -- sign-in sends it untrimmed too (see login.tsx).
+            password,
+            // has_password: read by lib/account.ts's needsPassword().
+            data: { ...details, has_password: true },
+          }
+    );
     if (pwdError) throw pwdError;
     const userId = userData.user?.id;
     if (!userId) throw new Error('Could not find your account. Please try again.');
@@ -161,7 +175,7 @@ export default function AccountSetupSheet({ visible, mode, onClose, onDone, init
     setError(null);
     // Details are (re)checked whenever they're being submitted from the form
     // -- always in 'finish' mode, and after "Edit details" in 'upgrade' mode.
-    if ((mode === 'finish' || step === 'form') && !validateDetails()) return;
+    if ((mode !== 'upgrade' || step === 'form') && !validateDetails()) return;
     if (mode === 'upgrade' && !emailConfirmed && code.trim().length !== 6) {
       fail('Enter the 6-digit code from your email.');
       return;
@@ -204,7 +218,13 @@ export default function AccountSetupSheet({ visible, mode, onClose, onDone, init
             <View className="flex-row items-start justify-between mb-3">
               <View className="flex-1 mr-3">
                 <Text className="text-xl font-display-bold text-[#1C1917] tracking-tight">
-                  {step === 'code' ? 'Verify Your Email' : mode === 'upgrade' ? 'Create Your Account' : 'Finish Your Account'}
+                  {step === 'code'
+                    ? 'Verify Your Email'
+                    : mode === 'upgrade'
+                    ? 'Create Your Account'
+                    : mode === 'details'
+                    ? 'Almost Done'
+                    : 'Finish Your Account'}
                 </Text>
                 <Text className="text-stone-500 text-[13px] mt-0.5">
                   {step === 'code'
@@ -213,6 +233,8 @@ export default function AccountSetupSheet({ visible, mode, onClose, onDone, init
                       : `Enter the 6-digit code sent to ${email.trim()}.`
                     : mode === 'upgrade'
                     ? 'Keep your cart and unlock member rewards.'
+                    : mode === 'details'
+                    ? 'Your name and phone number, so the store can reach you about your orders.'
                     : 'Add your name, phone and a password so you can sign back in anytime.'}
                 </Text>
               </View>
@@ -283,15 +305,17 @@ export default function AccountSetupSheet({ visible, mode, onClose, onDone, init
                     />
                   )}
 
-                  <TextInput
-                    className={inputClass}
-                    placeholder="Password (min 6 characters)"
-                    placeholderTextColor="#A8A29E"
-                    secureTextEntry
-                    value={password}
-                    onChangeText={setPassword}
-                    editable={!submitting}
-                  />
+                  {mode !== 'details' && (
+                    <TextInput
+                      className={inputClass}
+                      placeholder="Password (min 6 characters)"
+                      placeholderTextColor="#A8A29E"
+                      secureTextEntry
+                      value={password}
+                      onChangeText={setPassword}
+                      editable={!submitting}
+                    />
+                  )}
 
                   <TouchableOpacity
                     onPress={mode === 'upgrade' && !emailConfirmed ? handleSendCode : handleFinish}
@@ -302,7 +326,7 @@ export default function AccountSetupSheet({ visible, mode, onClose, onDone, init
                       <ActivityIndicator color="#F4ECE1" size="small" />
                     ) : (
                       <Text className="text-[#F4ECE1] font-inter-bold text-sm">
-                        {mode === 'upgrade' && !emailConfirmed ? 'Continue & Send Code' : 'Save & Finish'}
+                        {mode === 'upgrade' && !emailConfirmed ? 'Continue & Send Code' : mode === 'details' ? 'Save' : 'Save & Finish'}
                       </Text>
                     )}
                   </TouchableOpacity>
