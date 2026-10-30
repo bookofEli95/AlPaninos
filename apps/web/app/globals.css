@@ -49,9 +49,9 @@
   --border: #e7e5e4;
   --input: #e7e5e4;
   --ring: #a61c14;
-  --radius: 1rem;
+  --radius: 0.75rem;
   /* The sticky header's height, so jumps to a menu section land below it. */
-  --header-height: 4.25rem;
+  --header-height: 4.5rem;
 }
 
 @layer base {
