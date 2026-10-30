@@ -5,6 +5,7 @@ packages:
 # (pnpm 11+ reads this here; the node-linker line in .npmrc is ignored.)
 nodeLinker: hoisted
 allowBuilds:
+  sharp: false
   unrs-resolver: false
 minimumReleaseAgeExclude:
   - '@expo/cli@57.0.24'
