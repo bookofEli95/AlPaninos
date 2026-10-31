@@ -1,23 +1,24 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, MapPin, Phone, UtensilsCrossed } from "lucide-react";
-import ItemCard from "@/components/item-card";
+import OrderableCard from "@/components/ordering/orderable-card";
+import ApplyDealButton from "@/components/ordering/apply-deal-button";
+import type { PromoRow } from "@/lib/ordering/promo";
 import OrderStart from "@/components/order-start";
 import StoreStatus from "@/components/store-status";
 import { everydayMenu, getMenu, getPopular, getStores, pickStore } from "@/lib/menu";
+import { restaurantJsonLd } from "@/lib/seo";
 import { dealCategory, dealTerms, dealValue, getDeals, type Deal } from "@/lib/deals";
 import { weekSummary } from "@/lib/hours";
+import { REWARD_TIERS } from "@/lib/ordering/points";
 
 // Rebuilt at most every 5 minutes, so menu, price and deal changes show up
 // on their own. (Open/closed is worked out live in the browser.)
 export const revalidate = 300;
 
-const REWARD_TIERS = [
-  { points: 150, reward: "Free dip" },
-  { points: 300, reward: "Free drink" },
-  { points: 600, reward: "Free specialty side" },
-  { points: 1200, reward: "Free sandwich" },
-];
+export const metadata: Metadata = { alternates: { canonical: "/" } };
+
 
 export default async function HomePage() {
   const stores = await getStores();
@@ -37,6 +38,7 @@ export default async function HomePage() {
 
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(restaurantJsonLd(stores)) }} />
       {/* ---- Hero: start an order right here --------------------------- */}
       <section className="relative overflow-hidden bg-ink text-white">
         <div className="grid lg:min-h-[620px] lg:grid-cols-2">
@@ -85,7 +87,7 @@ export default async function HomePage() {
       {/* ---- Deals ------------------------------------------------------ */}
       <section id="deals" className="scroll-mt-24 bg-cream py-16 md:py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <SectionHeading eyebrow="Deals & offers" title="Today's deals" action={{ href: menuHref(), label: "Order now" }} />
+          <SectionHeading eyebrow="Deals & offers" title="Today's deals" action={{ href: "/deals", label: "All deals" }} />
           <div className="mt-8 grid gap-5 md:grid-cols-3">
             {(deals.length > 0 ? deals.slice(0, 3).map((deal, i) => dealTile(deal, i, menuHref)) : FALLBACK_TILES).map(({ key, ...tile }) => (
               <PromoTile key={key} {...tile} />
@@ -145,9 +147,7 @@ export default async function HomePage() {
             />
             <div className="mt-8 grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
               {favourites.map((item, i) => (
-                <Link key={item.id} href={menuHref()} className="block">
-                  <ItemCard item={item} badge={i === 0 && popular.isReal ? "#1 this month" : null} />
-                </Link>
+                <OrderableCard key={item.id} item={item} badge={i === 0 && popular.isReal ? "#1 this month" : null} />
               ))}
             </div>
           </div>
@@ -173,7 +173,7 @@ export default async function HomePage() {
                 Start a Catering Order
               </Link>
               <Link
-                href="/support"
+                href="/support?topic=Catering"
                 className="rounded-lg border border-white/40 px-6 py-3.5 text-[15px] font-extrabold uppercase tracking-wide text-white transition-colors hover:bg-white/10"
               >
                 Ask a Question
@@ -217,21 +217,21 @@ export default async function HomePage() {
                   Join for Free
                 </Link>
                 <Link
-                  href="/signin"
+                  href="/rewards"
                   className="rounded-lg border border-ink/25 px-6 py-3.5 text-[15px] font-extrabold uppercase tracking-wide text-ink transition-colors hover:bg-white"
                 >
-                  Sign In
+                  How It Works
                 </Link>
               </div>
             </div>
             <ol className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {REWARD_TIERS.map((tier) => (
-                <li key={tier.points} className="rounded-xl border-2 border-dashed border-ink/15 bg-white p-5 text-center">
+                <li key={tier.cost} className="rounded-xl border-2 border-dashed border-ink/15 bg-white p-5 text-center">
                   <span className="block font-display text-3xl font-extrabold text-brand tabular-nums">
-                    {tier.points.toLocaleString("en-CA")}
+                    {tier.cost.toLocaleString("en-CA")}
                   </span>
                   <span className="block text-xs font-bold uppercase tracking-wide text-stone-500">points</span>
-                  <span className="mt-3 block border-t border-stone-200 pt-3 font-bold text-ink">{tier.reward}</span>
+                  <span className="mt-3 block border-t border-stone-200 pt-3 font-bold text-ink">{tier.title}</span>
                 </li>
               ))}
             </ol>
@@ -243,7 +243,7 @@ export default async function HomePage() {
       {stores.length > 0 && (
         <section id="locations" className="scroll-mt-24 bg-white py-16 md:py-20">
           <div className="mx-auto max-w-7xl px-4 sm:px-6">
-            <SectionHeading eyebrow="Locations" title="Find your Al Paninos" />
+            <SectionHeading eyebrow="Locations" title="Find your Al Paninos" action={{ href: "/locations", label: "Hours & directions" }} />
             <div className="mt-8 grid gap-5 md:grid-cols-2">
               {stores.map((s) => (
                 <article key={s.id} className="grid gap-6 rounded-xl p-6 ring-1 ring-stone-200 sm:grid-cols-[1fr_auto] sm:p-7">
@@ -343,6 +343,7 @@ type Tile = {
   terms: string[];
   href: string;
   cta: string;
+  deal?: PromoRow;
 };
 
 const TONES: Record<Tile["tone"], { box: string; eyebrow: string; value: string; text: string; button: string }> = {
@@ -363,7 +364,8 @@ function dealTile(deal: Deal, index: number, menuHref: (category?: string | null
     text: deal.description,
     terms: dealTerms(deal),
     href: menuHref(category),
-    cta: "Order Now",
+    cta: "Apply Deal",
+    deal: deal as unknown as PromoRow,
   };
 }
 
@@ -404,7 +406,7 @@ const FALLBACK_TILES: Tile[] = [
   },
 ];
 
-function PromoTile({ tone, eyebrow, value, title, text, terms, href, cta }: Omit<Tile, "key">) {
+function PromoTile({ tone, eyebrow, value, title, text, terms, href, cta, deal }: Omit<Tile, "key">) {
   const t = TONES[tone];
   return (
     <article className={`relative flex min-h-[250px] flex-col overflow-hidden rounded-xl p-6 sm:p-7 ${t.box}`}>
@@ -415,12 +417,15 @@ function PromoTile({ tone, eyebrow, value, title, text, terms, href, cta }: Omit
       {!!text && <p className={`mt-1 line-clamp-2 text-[15px] leading-6 ${t.text}`}>{text}</p>}
       {terms.length > 0 && <p className={`mt-2 text-[12.5px] font-semibold ${t.text}`}>{terms.join(" · ")}</p>}
       <div className="flex-1" />
-      <Link
-        href={href}
-        className={`relative mt-6 self-start rounded-lg px-5 py-3 text-[13px] font-extrabold uppercase tracking-wide transition-colors ${t.button}`}
-      >
-        {cta}
-      </Link>
+      {deal ? (
+        <ApplyDealButton deal={deal} href={href} className={`relative mt-6 self-start rounded-lg px-5 py-3 text-[13px] font-extrabold uppercase tracking-wide transition-colors ${t.button}`}>
+          {cta}
+        </ApplyDealButton>
+      ) : (
+        <Link href={href} className={`relative mt-6 self-start rounded-lg px-5 py-3 text-[13px] font-extrabold uppercase tracking-wide transition-colors ${t.button}`}>
+          {cta}
+        </Link>
+      )}
     </article>
   );
 }

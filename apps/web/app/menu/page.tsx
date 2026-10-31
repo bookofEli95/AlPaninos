@@ -4,9 +4,12 @@ import { ArrowRight, Car, Flame, MapPin, Store, Users } from "lucide-react";
 import MenuBrowser from "@/components/menu-browser";
 import StoreStatus from "@/components/store-status";
 import StoreSelect from "@/components/store-select";
+import StoreSync from "@/components/ordering/store-sync";
+import DeliveryAddressBar from "@/components/ordering/delivery-address-bar";
 import { everydayMenu, getMenu, getStores, pickStore } from "@/lib/menu";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/menu" },
   title: "Menu",
   description: "Toasted paninos, wraps, sides and drinks from Al Paninos. Order ahead for pickup or delivery.",
 };
@@ -14,7 +17,7 @@ export const metadata: Metadata = {
 // The full menu for one store (?store=<id>, otherwise the first), straight
 // from the app's database; ?mode=delivery when they chose delivery.
 export default async function MenuPage({ searchParams }: PageProps<"/menu">) {
-  const { store: storeParam, mode: modeParam } = await searchParams;
+  const { store: storeParam, mode: modeParam, address: addressParam } = await searchParams;
   const mode = modeParam === "delivery" ? "delivery" : "pickup";
   const stores = await getStores();
   const store = pickStore(stores, typeof storeParam === "string" ? storeParam : null);
@@ -26,6 +29,16 @@ export default async function MenuPage({ searchParams }: PageProps<"/menu">) {
 
   return (
     <>
+      {store && (
+        <StoreSync
+          storeId={store.id}
+          storeName={store.name}
+          mode={mode}
+          explicitStore={typeof storeParam === "string"}
+          explicitMode={typeof modeParam === "string"}
+          address={typeof addressParam === "string" ? addressParam : undefined}
+        />
+      )}
       {/* ---- Page banner: what you're ordering, and from where ---------- */}
       <section className="bg-ink text-white">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 md:py-12">
@@ -89,6 +102,7 @@ export default async function MenuPage({ searchParams }: PageProps<"/menu">) {
               )}
             </div>
           </div>
+          {mode === "delivery" && <DeliveryAddressBar />}
         </div>
       </section>
 

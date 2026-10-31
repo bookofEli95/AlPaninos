@@ -7,15 +7,15 @@ const COLUMNS = [
     title: "Order",
     links: [
       { href: "/menu", label: "Full Menu" },
-      { href: "/#deals", label: "Deals & Offers" },
+      { href: "/deals", label: "Deals & Offers" },
       { href: "/catering", label: "Catering" },
-      { href: "/#locations", label: "Pickup & Delivery" },
+      { href: "/locations", label: "Pickup & Delivery" },
     ],
   },
   {
     title: "PaninoPoints",
     links: [
-      { href: "/#rewards", label: "How It Works" },
+      { href: "/rewards", label: "How It Works" },
       { href: "/join", label: "Join for Free" },
       { href: "/signin", label: "Sign In" },
     ],
@@ -23,7 +23,7 @@ const COLUMNS = [
   {
     title: "Al Paninos",
     links: [
-      { href: "/#locations", label: "Locations & Hours" },
+      { href: "/locations", label: "Locations & Hours" },
       { href: "/support", label: "Customer Support" },
       { href: "/catering", label: "Office & Event Catering" },
     ],

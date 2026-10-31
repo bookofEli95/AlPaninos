@@ -9,10 +9,12 @@ export default function StoreSelect({
   stores,
   current,
   mode,
+  path = "/menu",
 }: {
   stores: { id: string; name: string }[];
   current: string;
   mode: "pickup" | "delivery";
+  path?: string;
 }) {
   const router = useRouter();
   return (
@@ -20,7 +22,7 @@ export default function StoreSelect({
       <span className="sr-only">Store</span>
       <select
         value={current}
-        onChange={(e) => router.push(`/menu?${new URLSearchParams({ store: e.target.value, mode }).toString()}`)}
+        onChange={(e) => router.push(`${path}?${new URLSearchParams({ store: e.target.value, mode }).toString()}`)}
         className="w-full appearance-none rounded-lg bg-white/10 py-3 pl-4 pr-10 text-[14px] font-bold text-white ring-1 ring-white/20 outline-none transition hover:bg-white/15 focus:ring-2 focus:ring-gold [&>option]:text-ink"
       >
         {stores.map((s) => (

@@ -13,6 +13,7 @@ export type Store = {
   hours: WeekHours | null;
   latitude: number | null;
   longitude: number | null;
+  tax_rate: number | null;
 };
 
 export type Category = {
@@ -47,7 +48,7 @@ export type PopularItem = Pick<MenuItem, "id" | "name" | "base_price" | "image_u
 export async function getStores(): Promise<Store[]> {
   const { data, error } = await publicSupabase()
     .from("locations")
-    .select("id, name, address, phone, hours, latitude, longitude")
+    .select("id, name, address, phone, hours, latitude, longitude, tax_rate")
     .order("name");
   if (error) throw error;
   return (data ?? []) as Store[];

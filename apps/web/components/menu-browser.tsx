@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Search, ShoppingBag, X } from "lucide-react";
-import ItemCard from "./item-card";
+import { Search, X } from "lucide-react";
+import OrderableCard from "./ordering/orderable-card";
+import OrderPanel from "./ordering/order-panel";
 
 type Item = { id: string; name: string; description: string | null; base_price: number; image_url: string | null };
 type Section = { category: { id: string; name: string }; items: Item[] };
@@ -116,13 +117,13 @@ export default function MenuBrowser({ sections, storeName, mode }: { sections: S
                   <h2 id={`${category.id}-title`} className="font-display text-[1.9rem] font-extrabold tracking-tight text-ink">
                     {category.name}
                   </h2>
-                  <span className="text-sm font-semibold text-stone-400">
+                  <span className="text-sm font-semibold text-stone-500">
                     {items.length} {items.length === 1 ? "item" : "items"}
                   </span>
                 </div>
                 <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3">
                   {items.map((item) => (
-                    <ItemCard key={item.id} item={item} sizes="(min-width: 1280px) 280px, (min-width: 768px) 30vw, 50vw" />
+                    <OrderableCard key={item.id} item={item} sizes="(min-width: 1280px) 280px, (min-width: 768px) 30vw, 50vw" />
                   ))}
                 </div>
               </section>
@@ -132,35 +133,7 @@ export default function MenuBrowser({ sections, storeName, mode }: { sections: S
 
         {/* Big screens: the order, alongside the menu */}
         <aside className="hidden pt-8 lg:block" aria-label="Your order">
-          <div className="sticky top-[calc(var(--header-height)+5rem)] overflow-hidden rounded-xl bg-white ring-1 ring-stone-200">
-            <div className="bg-ink px-5 py-4 text-white">
-              <h2 className="font-display text-xl font-extrabold">Your Order</h2>
-              <p className="mt-0.5 text-[13px] text-stone-400">
-                {mode === "delivery" ? "Delivery" : "Pickup"} · {storeName}
-              </p>
-            </div>
-            <div className="flex flex-col items-center px-5 py-10 text-center">
-              <span className="flex size-14 items-center justify-center rounded-full bg-cream-deep">
-                <ShoppingBag className="size-6 text-brand" aria-hidden />
-              </span>
-              <p className="mt-4 font-bold text-ink">Your order is empty</p>
-              <p className="mt-1 text-sm text-stone-500">Add something tasty from the menu to get started.</p>
-            </div>
-            <div className="border-t border-stone-200 p-5">
-              <div className="flex items-center justify-between text-[15px]">
-                <span className="font-semibold text-stone-600">Subtotal</span>
-                <span className="font-extrabold text-ink tabular-nums">$0.00</span>
-              </div>
-              <button
-                type="button"
-                disabled
-                className="mt-4 w-full rounded-lg bg-stone-200 py-3.5 text-[14px] font-extrabold uppercase tracking-wide text-stone-500"
-              >
-                Checkout
-              </button>
-              <p className="mt-3 text-center text-xs text-stone-500">Earn 10 PaninoPoints for every $1.</p>
-            </div>
-          </div>
+          <OrderPanel storeName={storeName} mode={mode} />
         </aside>
       </div>
     </>
