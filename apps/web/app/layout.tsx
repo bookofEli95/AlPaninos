@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Analytics } from "@vercel/analytics/next";
 import { inter, jakarta } from "./fonts";
 import SiteHeader from "@/components/site-header";
 import SiteFooter from "@/components/site-footer";
@@ -38,6 +39,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             {children}
           </SiteChrome>
         </OrderingProvider>
+        <Analytics />
       </body>
     </html>
   );
