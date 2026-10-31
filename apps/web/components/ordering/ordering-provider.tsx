@@ -99,7 +99,7 @@ function MobileOrderBar({ onOpen }: { onOpen: () => void }) {
   const c = useCart();
   const pathname = usePathname();
   const { itemCount, discounted } = cartTotals(c);
-  if (!itemCount || pathname.startsWith("/checkout") || pathname.startsWith("/order/")) return null;
+  if (!itemCount || pathname.startsWith("/checkout") || pathname.startsWith("/order/") || pathname.startsWith("/staff")) return null;
   return (
     <>
       <div className="h-20 lg:hidden" aria-hidden />

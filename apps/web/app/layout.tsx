@@ -3,6 +3,7 @@ import { inter, jakarta } from "./fonts";
 import SiteHeader from "@/components/site-header";
 import SiteFooter from "@/components/site-footer";
 import OrderingProvider from "@/components/ordering/ordering-provider";
+import SiteChrome from "@/components/site-chrome";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -33,11 +34,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[80] focus:rounded-lg focus:bg-ink focus:px-4 focus:py-3 focus:text-white">
             Skip to content
           </a>
-          <SiteHeader />
-          <main id="main" className="flex-1">
+          <SiteChrome header={<SiteHeader />} footer={<SiteFooter />}>
             {children}
-          </main>
-          <SiteFooter />
+          </SiteChrome>
         </OrderingProvider>
       </body>
     </html>
