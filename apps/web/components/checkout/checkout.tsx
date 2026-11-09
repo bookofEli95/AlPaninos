@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertCircle, ArrowLeft, Car, Check, CheckCircle2, Loader2, Lock, MailCheck, MapPin, ShoppingBag, Sparkles, Store as StoreIcon } from "lucide-react";
@@ -10,10 +10,10 @@ import StoreStatus from "@/components/store-status";
 import PromoBox from "./promo-box";
 import { CateringTimePicker, RegularTimePicker } from "./time-picker";
 import { browserSupabase, ensureSession, friendlyAuthError, useSession } from "@/lib/browser-supabase";
-import { cart, cartTotals, useCart, useHydrated } from "@/lib/cart";
+import { cartTotals, mainCart, useHydrated, type CartStore } from "@/lib/cart";
 import { COUNTRIES, DEFAULT_COUNTRY, formatPhoneNumber, isValidPhoneForCountry, parsePhone, type Country } from "@/lib/ordering/countries";
 import { canOrderAsap, estimateReadyMinutes, formatDayAndTime, getOrderDays, isOrderTimeAvailable } from "@/lib/ordering/timing";
-import { CATERING_MAX_DELIVERY_KM, CATERING_MIN_SUBTOTAL, getCateringDays, isCateringSlotAllowed } from "@/lib/ordering/catering";
+import { CATERING_MAX_DELIVERY_KM, getCateringDays, isCateringSlotAllowed } from "@/lib/ordering/catering";
 import { pointsForSubtotal, pointsProgressLabel } from "@/lib/ordering/points";
 import type { Store } from "@/lib/menu";
 import { storeStatus } from "@/lib/hours";
@@ -42,14 +42,43 @@ function Section({ n, title, children, id }: { n: number; title: string; childre
 // who it's for (a guest verifies their email with a code, as in the app),
 // catering details, updates, deals, then Place Order. The database prices
 // everything again and stops if the total doesn't match what's shown.
-export default function Checkout({ stores }: { stores: Store[] }) {
+//
+// The catering page uses it too, for its own order (`orderStore`): its
+// package builder comes first (`lead`), and the order goes in with "Send it
+// to Al".
+export default function Checkout({
+  stores,
+  orderStore = mainCart,
+  variant = "checkout",
+  lead,
+  onChooseStore,
+  onEditOrder,
+  validate,
+}: {
+  stores: Store[];
+  orderStore?: CartStore;
+  variant?: "checkout" | "catering";
+  lead?: { title: string; id: string; node: ReactNode };
+  // Instead of "switching empties your order" (the catering form carries its
+  // packages over to the other store).
+  onChooseStore?: (storeId: string) => void;
+  onEditOrder?: () => void;
+  // Checks of the caller's own before the order goes in (the catering form's
+  // required choices).
+  validate?: () => { message: string; target?: string } | null;
+}) {
   const router = useRouter();
   const hydrated = useHydrated();
-  const c = useCart();
+  const c = orderStore.useOrder();
+  const cart = orderStore.cart;
   const { openCart } = useOrdering();
+  const cateringForm = variant === "catering";
+  const signInHref = cateringForm ? "/signin?next=/catering" : "/signin?next=/checkout";
   const { ready, user, isMember } = useSession();
   const store = stores.find((s) => s.id === c.storeId) ?? null;
   const totals = cartTotals(c, Number(store?.tax_rate ?? 0.13));
+  // The catering form is catering before a package is picked, too.
+  const isCatering = cateringForm || totals.isCatering;
 
   // ---- who it's for ------------------------------------------------------
   const [loadedProfile, setLoadedProfile] = useState<{ userId: string; profile: Profile } | null>(null);
@@ -150,12 +179,12 @@ export default function Checkout({ stores }: { stores: Store[] }) {
   // (otherwise none), and for a closed store its first open time -- never
   // "ASAP" while closed.
   const slot = useMemo(() => {
-    if (totals.isCatering) {
+    if (isCatering) {
       return pickedSlot && cateringDays.some((d) => d.slots.some((s) => s.time.getTime() === pickedSlot.getTime())) ? pickedSlot : null;
     }
     if (pickedSlot && isOrderTimeAvailable(pickedSlot, hours, c.mode, totals.itemCount, rush, now)) return pickedSlot;
     return asapAvailable ? null : orderDays[0]?.slots[0]?.time ?? null;
-  }, [totals.isCatering, pickedSlot, cateringDays, hours, c.mode, totals.itemCount, rush, now, asapAvailable, orderDays]);
+  }, [isCatering, pickedSlot, cateringDays, hours, c.mode, totals.itemCount, rush, now, asapAvailable, orderDays]);
 
   // ---- catering ----------------------------------------------------------
   const [company, setCompany] = useState("");
@@ -163,13 +192,15 @@ export default function Checkout({ stores }: { stores: Store[] }) {
   const [invoiceEmail, setInvoiceEmail] = useState("");
   const [suite, setSuite] = useState("");
   const [dropoff, setDropoff] = useState("");
-  const shortfall = totals.isCatering ? Math.max(0, CATERING_MIN_SUBTOTAL - totals.discounted) : 0;
+  const [dietary, setDietary] = useState("");
+  const [extraNotes, setExtraNotes] = useState("");
 
   // ---- store switch ------------------------------------------------------
   const [pendingStore, setPendingStore] = useState<Store | null>(null);
   const chooseStore = (id: string) => {
     const next = stores.find((s) => s.id === id);
     if (!next || next.id === c.storeId) return;
+    if (onChooseStore) return onChooseStore(next.id);
     if (c.lines.length) setPendingStore(next);
     else cart.setStore(next.id, next.name);
   };
@@ -223,10 +254,12 @@ export default function Checkout({ stores }: { stores: Store[] }) {
     async (acceptedTotal?: number) => {
       setProblem(null);
       setPriceChange(null);
-      if (!store || !c.lines.length) return;
+      if (!store) return;
+      if (!c.lines.length) return fail("Pick a package first.", lead?.id);
+      const blocked = validate?.();
+      if (blocked) return fail(blocked.message, blocked.target);
       if (c.mode === "delivery" && !c.address.trim()) return fail("Add the address we're delivering to.", "address");
-      if (totals.isCatering) {
-        if (shortfall > 0) return fail(`Catering orders have a ${money(CATERING_MIN_SUBTOTAL)} minimum. Add ${money(shortfall)} more to place this order.`);
+      if (isCatering) {
         if (!slot) return fail("Pick the day and time you need your catering.", "when");
         if (!isCateringSlotAllowed(slot)) {
           setSlot(null);
@@ -297,7 +330,15 @@ export default function Checkout({ stores }: { stores: Store[] }) {
             catering_company: company.trim() || null,
             po_number: po.trim() || null,
             invoice_email: invoiceEmail.trim() || null,
-            catering_notes: [suite.trim() && `Floor/Suite: ${suite.trim()}`, dropoff.trim() && `Drop-off: ${dropoff.trim()}`].filter(Boolean).join("\n") || null,
+            catering_notes:
+              [
+                dietary.trim() && `Dietary: ${dietary.trim()}`,
+                c.mode === "delivery" && suite.trim() && `Floor/Suite: ${suite.trim()}`,
+                c.mode === "delivery" && dropoff.trim() && `Drop-off: ${dropoff.trim()}`,
+                extraNotes.trim() && `Notes: ${extraNotes.trim()}`,
+              ]
+                .filter(Boolean)
+                .join("\n") || null,
             expected_total: Math.round((acceptedTotal ?? totals.total) * 100) / 100,
             items: c.lines.map((l) => ({
               menu_item_id: l.menuItemId,
@@ -330,7 +371,7 @@ export default function Checkout({ stores }: { stores: Store[] }) {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [store, c, totals, slot, hours, rush, guestForm, needsDetails, firstName, lastName, phone, country, email, emailVerified, notifyEmail, notifySms, profile, company, po, invoiceEmail, suite, dropoff, shortfall]
+    [store, c, totals, slot, hours, rush, guestForm, needsDetails, firstName, lastName, phone, country, email, emailVerified, notifyEmail, notifySms, profile, company, po, invoiceEmail, suite, dropoff, dietary, extraNotes]
   );
 
   // ---- rendering ---------------------------------------------------------
@@ -342,7 +383,8 @@ export default function Checkout({ stores }: { stores: Store[] }) {
     );
   }
 
-  if (!c.lines.length || !store) {
+  if (!store && cateringForm) return null;
+  if (!store || (!c.lines.length && !cateringForm)) {
     return (
       <div className="mx-auto flex max-w-lg flex-col items-center px-4 py-24 text-center">
         <span className="flex size-16 items-center justify-center rounded-full bg-cream-deep">
@@ -357,23 +399,37 @@ export default function Checkout({ stores }: { stores: Store[] }) {
     );
   }
 
-  const points = pointsForSubtotal(totals.subtotal);
-  const placeLabel = shortfall > 0 ? `Add ${money(shortfall)} to reach the minimum` : guestForm && !emailVerified ? "Verify your email to continue" : "Place Order";
-  const whenLabel = slot ? formatDayAndTime(slot) : `in about ${asapMinutes} min`;
+  const points = pointsForSubtotal(totals.subtotal).toLocaleString("en-CA");
+  // On the catering page the form already sits in its own labelled section,
+  // so the summary is a plain box there rather than a sidebar landmark.
+  const SummaryBox = cateringForm ? "div" : "aside";
+  const readyLabel = cateringForm ? "Send it to Al" : "Place Order";
+  const placeLabel = !c.lines.length ? "Pick a package to start" : guestForm && !emailVerified ? "Verify your email to continue" : readyLabel;
+  const whenLabel = slot ? formatDayAndTime(slot) : isCatering ? "· pick a day and time" : `in about ${asapMinutes} min`;
   let n = 0;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 pb-24 pt-8 sm:px-6 lg:pt-12">
-      <Link href={`/menu?store=${c.storeId}&mode=${c.mode}`} className="inline-flex items-center gap-1.5 text-[14px] font-bold text-stone-600 hover:text-brand">
-        <ArrowLeft className="size-4" aria-hidden />
-        Keep browsing
-      </Link>
-      <h1 className="mt-3 font-display text-4xl font-extrabold tracking-tight text-ink sm:text-5xl">Checkout</h1>
+    <div className={cateringForm ? "" : "mx-auto max-w-7xl px-4 pb-24 pt-8 sm:px-6 lg:pt-12"}>
+      {!cateringForm && (
+        <>
+          <Link href={`/menu?store=${c.storeId}&mode=${c.mode}`} className="inline-flex items-center gap-1.5 text-[14px] font-bold text-stone-600 hover:text-brand">
+            <ArrowLeft className="size-4" aria-hidden />
+            Keep browsing
+          </Link>
+          <h1 className="mt-3 font-display text-4xl font-extrabold tracking-tight text-ink sm:text-5xl">Checkout</h1>
+        </>
+      )}
 
-      <div className="mt-8 grid grid-cols-[minmax(0,1fr)] items-start gap-8 lg:grid-cols-[minmax(0,1fr)_400px]">
+      <div className={`grid grid-cols-[minmax(0,1fr)] items-start gap-8 lg:grid-cols-[minmax(0,1fr)_400px] ${cateringForm ? "" : "mt-8"}`}>
         <div className="space-y-5">
-          {/* 1. How and where */}
-          <Section n={++n} title={totals.isCatering ? "Catering pickup or delivery" : "Pickup or delivery"}>
+          {lead && (
+            <Section n={++n} title={lead.title} id={lead.id}>
+              {lead.node}
+            </Section>
+          )}
+
+          {/* How and where */}
+          <Section n={++n} title={isCatering ? "Catering pickup or delivery" : "Pickup or delivery"}>
             <div className="grid grid-cols-2 overflow-hidden rounded-xl ring-1 ring-stone-300">
               {(
                 [
@@ -444,7 +500,7 @@ export default function Checkout({ stores }: { stores: Store[] }) {
                   <span className={labelClass}>Delivery address</span>
                   <input value={c.address} onChange={(e) => cart.setAddress(e.target.value)} placeholder="Street address, city" autoComplete="street-address" className={inputClass} />
                 </label>
-                {totals.isCatering && (
+                {isCatering && (
                   <label className="block sm:w-44">
                     <span className={labelClass}>Floor / suite</span>
                     <input value={suite} onChange={(e) => setSuite(e.target.value)} placeholder="Optional" className={inputClass} />
@@ -455,8 +511,8 @@ export default function Checkout({ stores }: { stores: Store[] }) {
           </Section>
 
           {/* 2. When */}
-          <Section n={++n} title={totals.isCatering ? "When do you need it?" : c.mode === "delivery" ? "When should it arrive?" : "When will you pick it up?"} id="when">
-            {totals.isCatering ? (
+          <Section n={++n} title={isCatering ? "When do you need it?" : c.mode === "delivery" ? "When should it arrive?" : "When will you pick it up?"} id="when">
+            {isCatering ? (
               <CateringTimePicker days={cateringDays} slot={slot} onChange={setSlot} />
             ) : (
               <RegularTimePicker openNow={storeStatus(hours, now).open} asapAvailable={asapAvailable} asapMinutes={asapMinutes} days={orderDays} slot={slot} onChange={setSlot} mode={c.mode} />
@@ -485,10 +541,10 @@ export default function Checkout({ stores }: { stores: Store[] }) {
                   <p className="mb-5 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl bg-cream p-4 text-[14px] text-stone-700">
                     <Sparkles className="size-4 text-brand" aria-hidden />
                     Have an account?
-                    <Link href="/signin?next=/checkout" className="font-bold text-brand hover:underline">
+                    <Link href={signInHref} className="font-bold text-brand hover:underline">
                       Sign in
                     </Link>
-                    to earn {points} PaninoPoints on this order.
+                    {c.lines.length ? `to earn ${points} PaninoPoints on this order.` : "to earn PaninoPoints on this order."}
                   </p>
                 )}
                 {needsDetails && <p className="mb-4 text-[14px] text-stone-600">Add your name and a phone number the store can reach you on. We&apos;ll save them to your account.</p>}
@@ -604,7 +660,7 @@ export default function Checkout({ stores }: { stores: Store[] }) {
                       <p className="border-t border-stone-200 px-4 py-3 text-[14px] font-medium text-brand" role="alert">
                         {emailError}{" "}
                         {/account/.test(emailError) && (
-                          <Link href="/signin?next=/checkout" className="font-bold underline">
+                          <Link href={signInHref} className="font-bold underline">
                             Sign in
                           </Link>
                         )}
@@ -617,20 +673,19 @@ export default function Checkout({ stores }: { stores: Store[] }) {
           </Section>
 
           {/* Catering details */}
-          {totals.isCatering && (
-            <Section n={++n} title="Catering details">
+          {isCatering && (
+            <Section n={++n} title="Dietary needs and notes" id="catering-details">
               <div className="grid gap-4 sm:grid-cols-2">
-                <label className="block">
-                  <span className={labelClass}>Company</span>
-                  <input value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Optional" autoComplete="organization" className={inputClass} />
-                </label>
-                <label className="block">
-                  <span className={labelClass}>PO number</span>
-                  <input value={po} onChange={(e) => setPo(e.target.value)} placeholder="Optional" className={inputClass} />
-                </label>
-                <label className="block sm:col-span-2" id="invoice">
-                  <span className={labelClass}>Send the invoice to</span>
-                  <input type="email" value={invoiceEmail} onChange={(e) => setInvoiceEmail(e.target.value)} placeholder="accounts@company.com (optional)" className={inputClass} />
+                <label className="block sm:col-span-2">
+                  <span className={labelClass}>Dietary needs</span>
+                  <textarea
+                    value={dietary}
+                    onChange={(e) => setDietary(e.target.value.slice(0, 500))}
+                    rows={2}
+                    placeholder="e.g. 3 vegetarian, 1 gluten-free, 1 nut allergy"
+                    className={`${inputClass} resize-none`}
+                  />
+                  <span className="mt-1.5 block text-[13px] text-stone-500">Every dietary order is wrapped and labelled separately.</span>
                 </label>
                 {c.mode === "delivery" && (
                   <label className="block sm:col-span-2" id="dropoff">
@@ -638,8 +693,38 @@ export default function Checkout({ stores }: { stores: Store[] }) {
                     <input value={dropoff} onChange={(e) => setDropoff(e.target.value)} placeholder="Front reception, 3rd floor" className={inputClass} />
                   </label>
                 )}
+                <label className="block sm:col-span-2">
+                  <span className={labelClass}>Anything else?</span>
+                  <textarea
+                    value={extraNotes}
+                    onChange={(e) => setExtraNotes(e.target.value.slice(0, 500))}
+                    rows={2}
+                    placeholder="Favourites, set-up, the occasion... (optional)"
+                    className={`${inputClass} resize-none`}
+                  />
+                </label>
               </div>
-              <p className="mt-4 text-[13px] text-stone-500">We&apos;ll call to confirm every catering order. Delivery is within {CATERING_MAX_DELIVERY_KM} km of the store.</p>
+              <details className="group mt-5 rounded-xl ring-1 ring-stone-200 [&_summary::-webkit-details-marker]:hidden">
+                <summary className="flex cursor-pointer items-center justify-between gap-3 px-4 py-3.5 text-[15px] font-bold text-ink">
+                  Ordering for work? Add a company, PO number or invoice email
+                  <span className="text-[13px] font-semibold text-brand group-open:hidden">Add</span>
+                </summary>
+                <div className="grid gap-4 border-t border-stone-200 p-4 sm:grid-cols-2">
+                  <label className="block">
+                    <span className={labelClass}>Company</span>
+                    <input value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Optional" autoComplete="organization" className={inputClass} />
+                  </label>
+                  <label className="block">
+                    <span className={labelClass}>PO number</span>
+                    <input value={po} onChange={(e) => setPo(e.target.value)} placeholder="Optional" className={inputClass} />
+                  </label>
+                  <label className="block sm:col-span-2" id="invoice">
+                    <span className={labelClass}>Send the invoice to</span>
+                    <input type="email" value={invoiceEmail} onChange={(e) => setInvoiceEmail(e.target.value)} placeholder="accounts@company.com (optional)" className={inputClass} />
+                  </label>
+                </div>
+              </details>
+              <p className="mt-4 text-[13px] text-stone-500">We&apos;ll call to confirm every catering order. Delivery is free within {CATERING_MAX_DELIVERY_KM} km of the store.</p>
             </Section>
           )}
 
@@ -666,28 +751,36 @@ export default function Checkout({ stores }: { stores: Store[] }) {
             </div>
           </Section>
 
-          {/* Deals */}
-          <Section n={++n} title="Deals and codes">
-            <PromoBox c={c} discount={totals.discount} unmetReason={totals.unmetReason} userId={user?.id ?? null} isMember={isMember && !verifiedEmail} />
-          </Section>
+          {/* Deals (everyday deals aren't for the catering form) */}
+          {!cateringForm && (
+            <Section n={++n} title="Deals and codes">
+              <PromoBox c={c} discount={totals.discount} unmetReason={totals.unmetReason} userId={user?.id ?? null} isMember={isMember && !verifiedEmail} />
+            </Section>
+          )}
         </div>
 
         {/* Summary */}
-        <aside className="lg:sticky lg:top-[calc(var(--header-height)+1.5rem)]">
+        <SummaryBox id="order-summary" className="scroll-mt-28 lg:sticky lg:top-[calc(var(--header-height)+1.5rem)]">
           <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-stone-200">
             <div className="bg-ink px-6 py-5 text-white">
               <div className="flex items-center justify-between gap-3">
-                <h2 className="font-display text-xl font-extrabold">Order summary</h2>
-                <button type="button" onClick={openCart} className="text-[13px] font-bold text-gold hover:underline">
-                  Edit
-                </button>
+                <h2 className="font-display text-xl font-extrabold">{cateringForm ? "Your catering order" : "Order summary"}</h2>
+                {c.lines.length > 0 && (
+                  <button type="button" onClick={onEditOrder ?? openCart} className="text-[13px] font-bold text-gold hover:underline">
+                    Edit
+                  </button>
+                )}
               </div>
               <p className="mt-1 text-[14px] text-stone-300">
                 {c.mode === "delivery" ? "Delivery" : "Pickup"} {whenLabel} · {store.name}
               </p>
             </div>
             <div className="max-h-[36vh] overflow-y-auto px-6">
-              <CartLines lines={c.lines} compact readOnly />
+              {c.lines.length ? (
+                <CartLines lines={c.lines} compact readOnly />
+              ) : (
+                <p className="py-5 text-[14px] text-stone-500">Pick a package and how many people, and your total shows up right here.</p>
+              )}
             </div>
             <dl className="space-y-1.5 border-t border-stone-200 px-6 py-5 text-[15px]">
               <div className="flex justify-between">
@@ -710,11 +803,11 @@ export default function Checkout({ stores }: { stores: Store[] }) {
               </div>
             </dl>
             <div className="border-t border-stone-200 bg-cream/60 px-6 py-5">
-              {isMember && !verifiedEmail ? (
+              {!c.lines.length ? null : isMember && !verifiedEmail ? (
                 <p className="mb-4 flex items-start gap-2 text-[14px] text-ink">
                   <Sparkles className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden />
                   <span>
-                    This order earns <strong>{points} PaninoPoints</strong>, {pointsProgressLabel((profile?.panino_points ?? 0) + points)}.
+                    This order earns <strong>{points} PaninoPoints</strong>, {pointsProgressLabel((profile?.panino_points ?? 0) + pointsForSubtotal(totals.subtotal))}.
                   </span>
                 </p>
               ) : (
@@ -760,17 +853,18 @@ export default function Checkout({ stores }: { stores: Store[] }) {
                   onClick={() => placeOrder()}
                   disabled={placing}
                   className={`flex w-full items-center justify-between gap-3 rounded-lg px-5 py-4 text-white transition-colors disabled:opacity-70 ${
-                    placeLabel === "Place Order" ? "bg-brand hover:bg-brand-dark" : "bg-stone-500 hover:bg-stone-600"
+                    placeLabel === readyLabel ? "bg-brand hover:bg-brand-dark" : "bg-stone-500 hover:bg-stone-600"
                   }`}
                 >
                   <span className="flex items-center gap-2 text-[15px] font-extrabold uppercase tracking-wide">
                     {placing ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Lock className="size-4" aria-hidden />}
-                    {placing ? "Placing your order" : placeLabel}
+                    {placing ? (cateringForm ? "Sending it to Al" : "Placing your order") : placeLabel}
                   </span>
                   <span className="text-[16px] font-extrabold tabular-nums">{money(totals.total)}</span>
                 </button>
               )}
               <p className="mt-3 text-center text-[12px] leading-5 text-stone-500">
+                {isCatering && "We call to confirm every catering order before we start. "}
                 You pay when you {c.mode === "delivery" ? "get your delivery" : "pick up your order"}. By placing this order you agree to our{" "}
                 <Link href="/terms" className="underline hover:text-ink">
                   Terms
@@ -779,7 +873,7 @@ export default function Checkout({ stores }: { stores: Store[] }) {
               </p>
             </div>
           </div>
-        </aside>
+        </SummaryBox>
       </div>
     </div>
   );

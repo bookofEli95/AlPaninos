@@ -143,14 +143,16 @@ export default function ItemDetailScreen() {
         }
       }
 
-      // Every catering choice where more than one can be picked gets -/+
-      // steppers (4 of the same drink or sauce, 3 of one panino...), not
-      // just the groups flagged allow_quantity in the database.
+      // A board's or pack's choices where more than one can be picked get
+      // -/+ steppers (4 of the same drink, 3 of one panino...), not just the
+      // groups flagged allow_quantity in the database. A per-person
+      // package's are plain picks (favourites, add-ons).
       const assembledGroups =
         groups?.map((group: any) => ({
           ...group,
           allow_quantity:
-            !!group.allow_quantity || (!!(itemData as any).is_catering && (group.max_selections ?? 0) > 1),
+            !!group.allow_quantity ||
+            (!!(itemData as any).is_catering && !(itemData as any).per_person && (group.max_selections ?? 0) > 1),
           modifier_options: options.filter((opt) => opt.group_id === group.id),
         })) || [];
 
@@ -167,9 +169,18 @@ export default function ItemDetailScreen() {
     }, [])
   );
 
+  // A per-person catering package: the quantity is the headcount, from 10.
+  const perPerson = !!(data as any)?.per_person;
+  const maxQuantity = perPerson ? 1000 : 99;
+  const perPersonRef = useRef(perPerson);
+  perPersonRef.current = perPerson;
+  useEffect(() => {
+    if (perPerson && !qty) setQuantity(10);
+  }, [perPerson, qty, data?.id]);
+
   useFocusEffect(
     useCallback(() => {
-      setQuantity(initialQuantity);
+      setQuantity(qty ? initialQuantity : perPersonRef.current ? 10 : 1);
       setSpecialInstructions('');
       setJustAdded(false);
 
@@ -543,7 +554,10 @@ export default function ItemDetailScreen() {
           {data.description && (
             <Text className="text-stone-600 mt-2 text-sm leading-5">{data.description}</Text>
           )}
-          <Text className="text-2xl font-inter-bold mt-2.5 text-[#A61C14]">${data.base_price.toFixed(2)}</Text>
+          <Text className="text-2xl font-inter-bold mt-2.5 text-[#A61C14]">
+            ${data.base_price.toFixed(2)}
+            {perPerson && <Text className="text-base text-[#78716C]"> / person</Text>}
+          </Text>
           {!!data.serves_min && (
             <View className="flex-row items-center mt-1">
               <Ionicons name="people-outline" size={14} color="#78716C" />
@@ -791,7 +805,7 @@ export default function ItemDetailScreen() {
       <View className="px-5 pt-3 pb-8 border-t border-stone-200 bg-white shadow-lg">
         {!promoCode && !dealMode && (
           <View className="flex-row items-center justify-between mb-3">
-            <Text className="text-sm font-inter-bold text-[#1C1917]">Quantity</Text>
+            <Text className="text-sm font-inter-bold text-[#1C1917]">{perPerson ? 'People' : 'Quantity'}</Text>
             <View className="flex-row items-center bg-[#FAF6F0] rounded-xl p-1 border border-stone-200">
               <TouchableOpacity
                 className="bg-white w-8 h-8 rounded-lg items-center justify-center shadow-sm"
@@ -802,12 +816,25 @@ export default function ItemDetailScreen() {
               >
                 <Ionicons name="remove" size={16} color="#1C1917" />
               </TouchableOpacity>
-              <Text className="px-4 text-sm font-inter-bold text-[#1C1917]">{quantity}</Text>
+              {perPerson ? (
+                <TextInput
+                  value={String(quantity)}
+                  onChangeText={(text) => {
+                    const n = Number(text.replace(/[^0-9]/g, '').slice(0, 4));
+                    setQuantity(Math.min(maxQuantity, Math.max(1, n || 1)));
+                  }}
+                  keyboardType="number-pad"
+                  accessibilityLabel="Number of people"
+                  className="px-3 min-w-[56px] text-center text-sm font-inter-bold text-[#1C1917]"
+                />
+              ) : (
+                <Text className="px-4 text-sm font-inter-bold text-[#1C1917]">{quantity}</Text>
+              )}
               <TouchableOpacity
                 className="bg-white w-8 h-8 rounded-lg items-center justify-center shadow-sm"
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setQuantity(quantity + 1);
+                  setQuantity(Math.min(maxQuantity, quantity + 1));
                 }}
               >
                 <Ionicons name="add" size={16} color="#1C1917" />

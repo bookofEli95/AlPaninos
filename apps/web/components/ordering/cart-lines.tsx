@@ -1,9 +1,9 @@
 "use client";
 
-import { Gift, Pencil, Trash2 } from "lucide-react";
+import { Gift, Pencil, Trash2, Users } from "lucide-react";
 import FoodPhoto from "@/components/food-photo";
 import QuantityStepper from "./quantity-stepper";
-import { cart, type CartLine } from "@/lib/cart";
+import { mainCart, maxQuantity, type CartLine, type CartStore } from "@/lib/cart";
 import { money } from "@/lib/format";
 
 // "2x Fat Tony, No Onions" from a line's options (repeats folded together).
@@ -20,12 +20,15 @@ export default function CartLines({
   onEdit,
   compact = false,
   readOnly = false,
+  store = mainCart,
 }: {
   lines: CartLine[];
   onEdit?: (line: CartLine) => void;
   compact?: boolean;
   readOnly?: boolean;
+  store?: CartStore;
 }) {
+  const { cart } = store;
   return (
     <ul className="divide-y divide-stone-200">
       {lines.map((line) => {
@@ -36,11 +39,17 @@ export default function CartLines({
             <div className="min-w-0 flex-1">
               <div className="flex items-start justify-between gap-3">
                 <p className="text-[15px] font-bold leading-snug text-ink">
-                  {readOnly && line.quantity > 1 && <span className="text-brand">{line.quantity}× </span>}
+                  {readOnly && line.quantity > 1 && !line.perPerson && <span className="text-brand">{line.quantity}× </span>}
                   {line.name}
                 </p>
                 <p className={`shrink-0 text-[15px] font-bold tabular-nums ${line.rewardCode ? "text-emerald-700" : "text-ink"}`}>{line.rewardCode ? "FREE" : money(line.unitPrice * line.quantity)}</p>
               </div>
+              {line.perPerson && (
+                <p className="mt-0.5 flex items-center gap-1.5 text-[13px] font-bold text-ink">
+                  <Users className="size-3.5 text-brand" aria-hidden />
+                  For {line.quantity} {line.quantity === 1 ? "person" : "people"} · {money(line.unitPrice)} / person
+                </p>
+              )}
               {line.rewardCode && (
                 <p className="mt-0.5 inline-flex items-center gap-1 rounded bg-emerald-50 px-1.5 py-0.5 text-[12px] font-bold text-emerald-800">
                   <Gift className="size-3" aria-hidden />
@@ -57,7 +66,14 @@ export default function CartLines({
                       Remove
                     </button>
                   ) : (
-                    <QuantityStepper size="sm" removable value={line.quantity} onChange={(n) => cart.setQuantity(line.lineId, n)} label={`${line.name} quantity`} />
+                    <QuantityStepper
+                      size="sm"
+                      removable
+                      value={line.quantity}
+                      max={maxQuantity(line)}
+                      onChange={(n) => cart.setQuantity(line.lineId, n)}
+                      label={line.perPerson ? `${line.name} people` : `${line.name} quantity`}
+                    />
                   )}
                   {onEdit && (
                     <button type="button" onClick={() => onEdit(line)} className="inline-flex items-center gap-1 text-[13px] font-bold text-brand hover:underline">

@@ -34,13 +34,13 @@ type Order = {
     quantity: number;
     total_price: number;
     special_instructions: string | null;
-    menu_items: { name: string } | null;
+    menu_items: { name: string; per_person?: boolean | null } | null;
     order_item_modifiers: { modifier_options: { name: string } | null }[];
   }[];
 };
 
 const SELECT = `*, locations ( name, address, phone, latitude, longitude ),
-  order_items ( id, quantity, total_price, special_instructions, menu_items ( name ), order_item_modifiers ( modifier_options ( name ) ) )`;
+  order_items ( id, quantity, total_price, special_instructions, menu_items ( * ), order_item_modifiers ( modifier_options ( name ) ) )`;
 
 const PICKUP_STEPS = [
   { key: "received", label: "Received", Icon: ReceiptText },
@@ -279,9 +279,14 @@ export default function OrderTracker({ id, placed: justPlaced }: { id: string; p
                     <li key={line.id} className="flex justify-between gap-4 py-3">
                       <div>
                         <p className="font-bold text-ink">
-                          {line.quantity > 1 && <span className="text-brand">{line.quantity}× </span>}
+                          {line.quantity > 1 && !line.menu_items?.per_person && <span className="text-brand">{line.quantity}× </span>}
                           {line.menu_items?.name}
                         </p>
+                        {line.menu_items?.per_person && (
+                          <p className="text-[13px] font-bold text-ink">
+                            For {line.quantity} {line.quantity === 1 ? "person" : "people"}
+                          </p>
+                        )}
                         {summary && <p className="text-[13px] text-stone-500">{summary}</p>}
                         {line.special_instructions && <p className="text-[13px] italic text-stone-500">&ldquo;{line.special_instructions}&rdquo;</p>}
                       </div>

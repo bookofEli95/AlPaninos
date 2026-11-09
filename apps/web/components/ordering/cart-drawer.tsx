@@ -9,7 +9,6 @@ import { useModal } from "./use-modal";
 import { useOrdering } from "./ordering-provider";
 import { browserSupabase, useSession } from "@/lib/browser-supabase";
 import { cartTotals, useCart } from "@/lib/cart";
-import { CATERING_MIN_SUBTOTAL } from "@/lib/ordering/catering";
 import { money } from "@/lib/format";
 
 type Suggestion = { id: string; name: string; base_price: number; image_url: string | null };
@@ -62,7 +61,6 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
   const { isMember } = useSession();
   const totals = cartTotals(c);
   const suggestions = useSuggestions(c.storeId, c.lines.map((l) => l.menuItemId), open && c.lines.length > 0 && !totals.isCatering);
-  const shortfall = totals.isCatering ? Math.max(0, CATERING_MIN_SUBTOTAL - totals.discounted) : 0;
 
   return (
     <div className={`fixed inset-0 z-[55] ${open ? "" : "pointer-events-none"}`} aria-hidden={!open}>
@@ -144,11 +142,6 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
                     {totals.discount > 0 ? ` saves you ${money(totals.discount)}` : totals.unmetReason ? `: ${totals.unmetReason}` : ""}
                   </span>
                 </div>
-              )}
-              {shortfall > 0 && (
-                <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-[13px] text-amber-900">
-                  Catering orders have a {money(CATERING_MIN_SUBTOTAL)} minimum. Add {money(shortfall)} more.
-                </p>
               )}
               <dl className="space-y-1 text-[15px]">
                 <div className="flex justify-between">

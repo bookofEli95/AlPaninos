@@ -2,17 +2,16 @@ import { DAY_NAMES, type WeekHours } from "@/lib/hours";
 import { formatSlotTime, storeDate, storeDayStart, storeParts, type Slot } from "./timing";
 
 // Catering rules -- the same as the app's lib/catering.ts and the
-// place_order() checks in the database, on the store's clock.
+// place_order() checks in the database, on the store's clock. No minimum
+// order.
 
-// Minimum subtotal after discounts, before tax.
-export const CATERING_MIN_SUBTOTAL = 100;
 // "Order by 6 PM for the next day."
 export const CATERING_CUTOFF_HOUR = 18;
 export const CATERING_MAX_DELIVERY_KM = 60;
 const CATERING_BOOKING_DAYS = 14;
 const CATERING_SLOT_MINUTES = 30;
 
-export const CATERING_RULES_SUMMARY = `Order by 6 PM for next-day pickup or delivery. $${CATERING_MIN_SUBTOTAL} minimum.`;
+export const CATERING_RULES_SUMMARY = "Order by 6 PM for next-day pickup or delivery. No minimum.";
 
 // "Serves 8-10", or "Serves 12" when both ends match.
 export function servesLabel(min: number, max?: number | null): string {

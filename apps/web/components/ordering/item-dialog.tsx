@@ -1,36 +1,31 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, CalendarClock, Check, Gift, Loader2, Users, X } from "lucide-react";
+import { AlertCircle, CalendarClock, Gift, Loader2, Users, X } from "lucide-react";
 import FoodPhoto from "@/components/food-photo";
+import ChoiceGroups from "./choice-groups";
+import PeopleInput from "./people-input";
 import QuantityStepper from "./quantity-stepper";
 import { useModal } from "./use-modal";
 import { useOrdering, type Reward } from "./ordering-provider";
 import { browserSupabase } from "@/lib/browser-supabase";
-import { cart, getCart, useCart, type CartOption } from "@/lib/cart";
-import { optionsConflict } from "@/lib/ordering/modifier-conflicts";
+import { cart, getCart, useCart } from "@/lib/cart";
+import {
+  cartOptions,
+  changeChoiceCount,
+  defaultSelections,
+  missingGroup,
+  priceWithChoices,
+  selectionsFromOptions,
+  toggleChoice,
+  visibleGroups as shownGroups,
+  type ChoiceGroup as Group,
+  type ChoiceOption as Option,
+  type Selections,
+} from "@/lib/ordering/choices";
 import { CATERING_RULES_SUMMARY, servesLabel } from "@/lib/ordering/catering";
 import { money, tidyDescription } from "@/lib/format";
 
-type Option = {
-  id: string;
-  group_id: string;
-  name: string;
-  price_adjustment: number;
-  is_default: boolean | null;
-  menu_item_id?: string | null;
-  description?: string | null;
-};
-type Group = {
-  id: string;
-  name: string;
-  parent_option_id: string | null;
-  is_required: boolean | null;
-  min_selections: number | null;
-  max_selections: number | null;
-  allow_quantity: boolean;
-  options: Option[];
-};
 type Item = {
   id: string;
   name: string;
@@ -41,6 +36,7 @@ type Item = {
   category_id: string;
   is_available: boolean | null;
   is_catering: boolean | null;
+  per_person?: boolean | null;
   serves_min: number | null;
   serves_max: number | null;
   drop_starts_at: string | null;
@@ -51,10 +47,7 @@ type Item = {
 
 const QUICK_NOTES = ["Cut in half", "Sauce on the side", "Extra crispy / well pressed", "Wrap separately"];
 
-// One menu item's options, as the app's item screen: every group in order
-// (a group under an option appears once that option is picked), the
-// defaults pre-picked, contradictory choices ("No Provolone" + "Extra
-// Provolone") swapping each other out, quantity groups with - / +,
+// One menu item's options, as the app's item screen (lib/ordering/choices),
 // kitchen notes, and the price as it changes.
 async function loadItem(itemId: string): Promise<{ item: Item; groups: Group[] }> {
   const supabase = browserSupabase();
@@ -88,14 +81,13 @@ async function loadItem(itemId: string): Promise<{ item: Item; groups: Group[] }
     item: item as Item,
     groups: (groups ?? []).map((g) => ({
       ...g,
-      // Every catering choice where more than one can be picked gets - / +.
-      allow_quantity: !!g.allow_quantity || (!!item.is_catering && (g.max_selections ?? 0) > 1),
+      // A board's or pack's choices where more than one can be picked get
+      // - / + (a per-person package's are plain picks: favourites, add-ons).
+      allow_quantity: !!g.allow_quantity || (!!item.is_catering && !item.per_person && (g.max_selections ?? 0) > 1),
       options: options.filter((o) => o.group_id === g.id),
     })) as Group[],
   };
 }
-
-const minFor = (g: Group) => g.min_selections || (g.is_required ? 1 : 0);
 
 export default function ItemDialog({ itemId, editLineId, reward, onClose }: { itemId: string; editLineId?: string; reward?: Reward; onClose: () => void }) {
   const ref = useModal(true, onClose);
@@ -103,7 +95,7 @@ export default function ItemDialog({ itemId, editLineId, reward, onClose }: { it
   const current = useCart();
   const [data, setData] = useState<{ item: Item; groups: Group[] } | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [selections, setSelections] = useState<Record<string, string[]>>({});
+  const [selections, setSelections] = useState<Selections>({});
   const [quantity, setQuantity] = useState(1);
   const [notes, setNotes] = useState("");
   const [confirmSwitch, setConfirmSwitch] = useState(false);
@@ -123,25 +115,14 @@ export default function ItemDialog({ itemId, editLineId, reward, onClose }: { it
         const { groups } = loaded;
         if (editing) {
           // Back to what's in the order.
-          const byGroup: Record<string, string[]> = {};
-          for (const o of editing.options) {
-            const g = groups.find((gr) => gr.options.some((opt) => opt.id === o.optionId));
-            if (g) (byGroup[g.id] ??= []).push(o.optionId);
-          }
-          setSelections(byGroup);
+          setSelections(selectionsFromOptions(groups, editing.options));
           setQuantity(editing.quantity);
           setNotes(editing.specialInstructions ?? "");
           return;
         }
-        const defaults: Record<string, string[]> = {};
-        const apply = (group: Group) => {
-          let chosen = group.options.filter((o) => o.is_default).map((o) => o.id);
-          if (!chosen.length && group.is_required && group.max_selections === 1 && group.options.length) chosen = [group.options[0].id];
-          if (chosen.length) defaults[group.id] = chosen;
-          chosen.forEach((id) => groups.filter((g) => g.parent_option_id === id).forEach(apply));
-        };
-        groups.filter((g) => !g.parent_option_id).forEach(apply);
-        setSelections(defaults);
+        // A per-person package starts at 10 people.
+        if (loaded.item.per_person) setQuantity(10);
+        setSelections(defaultSelections(groups));
       })
       .catch((e) => !cancelled && setLoadError(e?.message ?? "Please check your connection and try again."));
     return () => {
@@ -152,78 +133,17 @@ export default function ItemDialog({ itemId, editLineId, reward, onClose }: { it
   }, [itemId]);
 
   const groups = useMemo(() => data?.groups ?? [], [data]);
-  const chosenIds = useMemo(() => new Set(Object.values(selections).flat()), [selections]);
-  const visibleGroups = useMemo(() => {
-    const result: Group[] = [];
-    const add = (group: Group) => {
-      result.push(group);
-      group.options.forEach((o) => chosenIds.has(o.id) && groups.filter((g) => g.parent_option_id === o.id).forEach(add));
-    };
-    groups.filter((g) => !g.parent_option_id).forEach(add);
-    return result;
-  }, [groups, chosenIds]);
-  const optionName = useMemo(() => new Map(groups.flatMap((g) => g.options.map((o) => [o.id, o.name] as const))), [groups]);
-
-  const clearChildren = (removed: string[], next: Record<string, string[]>) => {
-    const out = { ...next };
-    const queue = [...removed];
-    while (queue.length) {
-      const id = queue.shift()!;
-      groups.filter((g) => g.parent_option_id === id).forEach((g) => {
-        queue.push(...(out[g.id] ?? []));
-        delete out[g.id];
-      });
-    }
-    return out;
-  };
-
-  const toggle = (group: Group, optionId: string) =>
-    setSelections((prev) => {
-      const inGroup = prev[group.id] ?? [];
-      if (inGroup.includes(optionId)) {
-        return clearChildren([optionId], { ...prev, [group.id]: inGroup.filter((id) => id !== optionId) });
-      }
-      const newName = optionName.get(optionId) ?? "";
-      const conflicting = Object.values(prev).flat().filter((id) => optionsConflict(optionName.get(id) ?? "", newName));
-      let next = prev;
-      if (conflicting.length) {
-        next = clearChildren(conflicting, Object.fromEntries(Object.entries(prev).map(([g, ids]) => [g, ids.filter((id) => !conflicting.includes(id))])));
-      }
-      if (group.max_selections === 1) return clearChildren(inGroup, { ...next, [group.id]: [optionId] });
-      const now = next[group.id] ?? [];
-      if (group.max_selections && now.length >= group.max_selections) return next;
-      return { ...next, [group.id]: [...now, optionId] };
-    });
-
-  const changeCount = (group: Group, optionId: string, delta: 1 | -1) =>
-    setSelections((prev) => {
-      const now = prev[group.id] ?? [];
-      if (delta > 0) {
-        if (group.max_selections && now.length >= group.max_selections) return prev;
-        return { ...prev, [group.id]: [...now, optionId] };
-      }
-      const i = now.lastIndexOf(optionId);
-      if (i < 0) return prev;
-      const next = [...now];
-      next.splice(i, 1);
-      return { ...prev, [group.id]: next };
-    });
-
-  const missing = visibleGroups.find((g) => (selections[g.id]?.length ?? 0) < minFor(g));
+  const visibleGroups = useMemo(() => shownGroups(groups, selections), [groups, selections]);
+  const toggle = (group: Group, optionId: string) => setSelections((prev) => toggleChoice(groups, prev, group, optionId));
+  const changeCount = (group: Group, optionId: string, delta: 1 | -1) => setSelections((prev) => changeChoiceCount(prev, group, optionId, delta));
+  const missing = missingGroup(visibleGroups, selections);
   const item = data?.item;
   const dropBlocked =
     !!item && ((!!item.drop_starts_at && openedAt < Date.parse(item.drop_starts_at)) || (!!item.drop_ends_at && openedAt >= Date.parse(item.drop_ends_at)));
   const unavailable = !!item && (item.is_available === false || dropBlocked);
 
-  const unitPrice = useMemo(() => {
-    if (!item) return 0;
-    let total = Number(item.base_price);
-    visibleGroups.forEach((g) => {
-      const picked = selections[g.id] ?? [];
-      g.options.forEach((o) => (total += Number(o.price_adjustment) * picked.filter((id) => id === o.id).length));
-    });
-    return total;
-  }, [item, visibleGroups, selections]);
+  const unitPrice = useMemo(() => (item ? priceWithChoices(item.base_price, visibleGroups, selections) : 0), [item, visibleGroups, selections]);
+  const perPerson = !!item?.per_person;
 
   const otherStore = !!item && !editing && !!current.storeId && current.storeId !== item.location_id && current.lines.length > 0;
 
@@ -238,11 +158,7 @@ export default function ItemDialog({ itemId, editLineId, reward, onClose }: { it
       setConfirmSwitch(true);
       return;
     }
-    const options: CartOption[] = visibleGroups.flatMap((g) =>
-      g.options.flatMap((o) =>
-        Array.from({ length: (selections[g.id] ?? []).filter((id) => id === o.id).length }, () => ({ optionId: o.id, name: o.name, price: Number(o.price_adjustment) }))
-      )
-    );
+    const options = cartOptions(visibleGroups, selections);
     const line = {
       menuItemId: item.id,
       name: item.name,
@@ -250,6 +166,7 @@ export default function ItemDialog({ itemId, editLineId, reward, onClose }: { it
       categoryName: item.menu_categories?.name ?? "",
       imageUrl: item.image_url,
       isCatering: !!item.is_catering,
+      ...(perPerson ? { perPerson: true } : {}),
       options,
       unitPrice: claim ? 0 : unitPrice,
       quantity: claim ? 1 : quantity,
@@ -261,7 +178,10 @@ export default function ItemDialog({ itemId, editLineId, reward, onClose }: { it
       notify("Your order was updated.");
     } else {
       cart.add(line, { id: item.location_id, name: item.locations?.name ?? "" });
-      notify(claim ? `Your free ${item.name} is in your order.` : `${quantity > 1 ? `${quantity} × ` : ""}${item.name} added to your order.`, { label: "View Order", onClick: openCart });
+      notify(
+        claim ? `Your free ${item.name} is in your order.` : perPerson ? `${item.name} for ${quantity} added to your order.` : `${quantity > 1 ? `${quantity} × ` : ""}${item.name} added to your order.`,
+        { label: "View Order", onClick: openCart }
+      );
     }
     onClose();
   };
@@ -317,7 +237,10 @@ export default function ItemDialog({ itemId, editLineId, reward, onClose }: { it
                   <h2 className="mt-1.5 pr-10 font-display text-[1.75rem] font-extrabold leading-tight tracking-tight text-ink sm:text-[2rem] lg:pr-0">{item.name}</h2>
                   {item.description && <p className="mt-2.5 text-[15px] leading-6 text-stone-600">{tidyDescription(item.description)}</p>}
                   <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
-                    <span className="text-2xl font-extrabold tabular-nums text-ink">{money(item.base_price)}</span>
+                    <span className="text-2xl font-extrabold tabular-nums text-ink">
+                      {money(item.base_price)}
+                      {perPerson && <span className="text-[15px] font-bold text-stone-500"> / person</span>}
+                    </span>
                     {!!item.serves_min && (
                       <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-stone-500">
                         <Users className="size-4" aria-hidden />
@@ -345,102 +268,7 @@ export default function ItemDialog({ itemId, editLineId, reward, onClose }: { it
 
               {/* Its choices */}
               <div className="border-t border-stone-200 lg:overflow-y-auto lg:border-t-0">
-                {visibleGroups.map((group, index) => {
-                  const picked = selections[group.id] ?? [];
-                  const min = minFor(group);
-                  const single = group.max_selections === 1;
-                  const short = picked.length < min;
-                  return (
-                    <fieldset key={group.id} id={`group-${group.id}`} className="scroll-mt-4 border-b border-stone-200 px-5 py-5 sm:px-7">
-                      <legend className="contents">
-                        <div className={`flex flex-wrap items-center justify-between gap-2 ${index === 0 ? "lg:pr-12" : ""}`}>
-                          <span className="flex items-center gap-2">
-                            <span className="text-[17px] font-extrabold text-ink">{group.name}</span>
-                            {min > 0 && (
-                              <span
-                                className={`rounded px-1.5 py-0.5 text-[11px] font-extrabold uppercase tracking-wide ${
-                                  !short ? "bg-emerald-50 text-emerald-700" : showErrors ? "bg-brand text-white" : "bg-amber-100 text-amber-800"
-                                }`}
-                              >
-                                {short ? "Required" : <Check className="size-3.5" aria-label="Done" />}
-                              </span>
-                            )}
-                          </span>
-                          <span className="text-[13px] font-medium text-stone-500">
-                            {single
-                              ? "Choose 1"
-                              : group.max_selections && min === group.max_selections
-                              ? `${picked.length} of ${group.max_selections} chosen`
-                              : group.max_selections
-                              ? `Up to ${group.max_selections}`
-                              : "Optional"}
-                          </span>
-                        </div>
-                      </legend>
-                      {group.options.length === 0 && <p className="mt-3 text-[14px] text-stone-500">No choices are available for this right now.</p>}
-                      <div className="mt-3.5 grid gap-2 sm:grid-cols-2">
-                        {group.options.map((option) => {
-                          const count = picked.filter((id) => id === option.id).length;
-                          const price = Number(option.price_adjustment);
-                          if (group.allow_quantity) {
-                            const full = !!group.max_selections && picked.length >= group.max_selections;
-                            return (
-                              <div
-                                key={option.id}
-                                className={`flex items-center justify-between gap-3 rounded-xl px-3.5 py-2.5 ring-1 transition-colors sm:col-span-2 ${count > 0 ? "bg-white ring-2 ring-brand" : "bg-white ring-stone-200"}`}
-                              >
-                                <div className="min-w-0">
-                                  <p className={`text-[14px] ${count > 0 ? "font-bold text-ink" : "font-medium text-stone-800"}`}>{option.name}</p>
-                                  {price > 0 && <p className="text-[13px] font-bold text-brand">+{money(price)} each</p>}
-                                  {option.description && <p className="mt-0.5 line-clamp-2 text-[13px] text-stone-500">{tidyDescription(option.description)}</p>}
-                                </div>
-                                <QuantityStepper
-                                  size="sm"
-                                  value={count}
-                                  min={0}
-                                  max={full ? count : 99}
-                                  onChange={(n) => changeCount(group, option.id, n > count ? 1 : -1)}
-                                  label={option.name}
-                                />
-                              </div>
-                            );
-                          }
-                          const on = count > 0;
-                          return (
-                            <label
-                              key={option.id}
-                              className={`flex cursor-pointer items-center gap-3 rounded-xl px-3.5 py-3 ring-1 transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ink ${
-                                on ? "bg-white ring-2 ring-brand" : "bg-white ring-stone-200 hover:ring-stone-400"
-                              }`}
-                            >
-                              <input
-                                type={single ? "radio" : "checkbox"}
-                                name={group.id}
-                                checked={on}
-                                onChange={() => toggle(group, option.id)}
-                                onClick={() => {
-                                  // A picked choice in an optional pick-one group unpicks.
-                                  if (single && on && min === 0) toggle(group, option.id);
-                                }}
-                                className="sr-only"
-                              />
-                              <span
-                                aria-hidden
-                                className={`flex size-5 shrink-0 items-center justify-center border transition-colors ${single ? "rounded-full" : "rounded-md"} ${
-                                  on ? "border-brand bg-brand" : "border-stone-300 bg-stone-50"
-                                }`}
-                              >
-                                {on && (single ? <span className="size-2 rounded-full bg-white" /> : <Check className="size-3.5 text-white" strokeWidth={3} />)}
-                              </span>
-                              <span className="flex-1 text-[14px] font-medium text-stone-800">{option.name}</span>
-                              {price > 0 && <span className={`text-[13px] font-bold ${on ? "text-brand" : "text-stone-500"}`}>+{money(price)}</span>}
-                            </label>
-                          );
-                        })}
-                      </div>
-                    </fieldset>
-                  );
-                })}
+                <ChoiceGroups groups={visibleGroups} selections={selections} showErrors={showErrors} onToggle={toggle} onCount={changeCount} insetFirst perPerson={perPerson} />
 
                 {item.menu_categories?.name !== "Drinks" && (
                   <div className="px-5 py-5 sm:px-7">
@@ -496,7 +324,8 @@ export default function ItemDialog({ itemId, editLineId, reward, onClose }: { it
                 </div>
               ) : (
                 <div className="flex items-center gap-3">
-                  {!claim && <QuantityStepper value={quantity} onChange={(n) => setQuantity(Math.max(1, n))} />}
+                  {!claim && perPerson && <PeopleInput value={quantity} onChange={setQuantity} />}
+                  {!claim && !perPerson && <QuantityStepper value={quantity} onChange={(n) => setQuantity(Math.max(1, n))} />}
                   <button
                     type="button"
                     onClick={() => add()}
@@ -504,7 +333,17 @@ export default function ItemDialog({ itemId, editLineId, reward, onClose }: { it
                     className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-lg bg-brand px-4 py-3.5 text-white transition-colors hover:bg-brand-dark disabled:bg-stone-300 disabled:text-stone-500 sm:px-5"
                   >
                     <span className="truncate whitespace-nowrap text-[14px] font-extrabold uppercase tracking-wide sm:text-[15px]">
-                      {unavailable ? "Unavailable" : missing && showErrors ? `Choose ${missing.name}` : editing ? "Update Order" : claim ? "Claim Free Item" : "Add to Order"}
+                      {unavailable
+                        ? "Unavailable"
+                        : missing && showErrors
+                        ? `Choose ${missing.name}`
+                        : editing
+                        ? "Update Order"
+                        : claim
+                        ? "Claim Free Item"
+                        : perPerson
+                        ? `Add for ${quantity}`
+                        : "Add to Order"}
                     </span>
                     <span className="shrink-0 text-[16px] font-extrabold tabular-nums">{claim ? "FREE" : money(unitPrice * quantity)}</span>
                   </button>

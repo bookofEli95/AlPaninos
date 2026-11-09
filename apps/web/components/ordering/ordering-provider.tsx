@@ -94,12 +94,14 @@ export default function OrderingProvider({ children }: { children: React.ReactNo
 }
 
 // Phones and tablets: "View Order" along the bottom while there's an order,
-// like the app's cart bar -- not on checkout or an order's page.
+// like the app's cart bar.
 function MobileOrderBar({ onOpen }: { onOpen: () => void }) {
   const c = useCart();
   const pathname = usePathname();
   const { itemCount, discounted } = cartTotals(c);
-  if (!itemCount || pathname.startsWith("/checkout") || pathname.startsWith("/order/") || pathname.startsWith("/staff")) return null;
+  // Not on checkout, an order's page, the store screen, or catering (its
+  // form has its own order and total bar).
+  if (!itemCount || ["/checkout", "/order/", "/staff", "/catering"].some((p) => pathname.startsWith(p))) return null;
   return (
     <>
       <div className="h-20 lg:hidden" aria-hidden />

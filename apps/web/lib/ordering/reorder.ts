@@ -16,6 +16,7 @@ type Row = {
       image_url: string | null;
       category_id: string;
       is_catering: boolean | null;
+      per_person?: boolean | null;
       is_available: boolean | null;
       drop_ends_at: string | null;
       menu_categories: { name: string } | null;
@@ -32,7 +33,7 @@ export async function linesFromOrder(orderId: string): Promise<{ store: { id: st
     .from("orders")
     .select(
       `location_id, locations ( name ), order_items ( quantity, special_instructions,
-        menu_items ( id, name, base_price, image_url, category_id, is_catering, is_available, drop_ends_at, menu_categories ( name ) ),
+        menu_items ( *, menu_categories ( name ) ),
         order_item_modifiers ( modifier_options ( id, name, price_adjustment ) ) )`
     )
     .eq("id", orderId)
@@ -57,6 +58,7 @@ export async function linesFromOrder(orderId: string): Promise<{ store: { id: st
       categoryName: item.menu_categories?.name ?? "",
       imageUrl: item.image_url,
       isCatering: !!item.is_catering,
+      ...(item.per_person ? { perPerson: true } : {}),
       options: picked,
       unitPrice: Number(item.base_price) + picked.reduce((sum, o) => sum + o.price, 0),
       quantity: line.quantity,

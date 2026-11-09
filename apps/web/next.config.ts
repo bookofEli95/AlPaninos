@@ -25,6 +25,10 @@ const nextConfig: NextConfig = {
     // won't fetch from local addresses.
     unoptimized: process.env.NEXT_PUBLIC_IMAGES_UNOPTIMIZED === "1",
   },
+  // Browsers still ask for /favicon.ico on some pages; it's the site icon.
+  async rewrites() {
+    return [{ source: "/favicon.ico", destination: "/icon.png" }];
+  },
 };
 
 export default nextConfig;

@@ -4,8 +4,9 @@ import { DAY_NAMES, PickupSlot, formatSlotTime } from './orderTiming';
 // Catering (phase 1) rules -- see the catering migration. Kept in one place
 // so the cart, item screen and menu all describe the same thing.
 
-// Minimum subtotal *after* discounts, before tax.
-export const CATERING_MIN_SUBTOTAL = 100;
+// Minimum subtotal *after* discounts, before tax. There's no minimum any
+// more (0 turns off the cart's and planner's "add more" prompts).
+export const CATERING_MIN_SUBTOTAL = 0;
 // "Order by 6 PM for the next day": before this hour, tomorrow is the
 // earliest day; from this hour on, the day after tomorrow.
 export const CATERING_CUTOFF_HOUR = 18;
@@ -14,7 +15,7 @@ export const CATERING_MAX_DELIVERY_KM = 60;
 export const CATERING_BOOKING_DAYS = 14;
 const CATERING_SLOT_INTERVAL_MINUTES = 30;
 
-export const CATERING_RULES_SUMMARY = `Order by 6 PM for next-day pickup or delivery. $${CATERING_MIN_SUBTOTAL} minimum.`;
+export const CATERING_RULES_SUMMARY = 'Order by 6 PM for next-day pickup or delivery. No minimum.';
 
 // "Serves 8-10", or "Serves 12" when both ends match.
 export function servesLabel(min: number, max?: number | null): string {

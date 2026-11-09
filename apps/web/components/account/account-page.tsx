@@ -8,7 +8,7 @@ import KeepPointsCard from "./keep-points-card";
 import MyRewards from "@/components/rewards/my-rewards";
 import { useOrdering } from "@/components/ordering/ordering-provider";
 import { browserSupabase, useSession } from "@/lib/browser-supabase";
-import { cart, getCart } from "@/lib/cart";
+import { cart, cateringCart, getCart } from "@/lib/cart";
 import { linesFromOrder } from "@/lib/ordering/reorder";
 import { pointsProgress } from "@/lib/ordering/points";
 import { COUNTRIES, DEFAULT_COUNTRY, formatPhoneNumber, isValidPhoneForCountry, parsePhone, type Country } from "@/lib/ordering/countries";
@@ -97,6 +97,15 @@ export default function AccountPage() {
       const { store, lines, skipped } = await linesFromOrder(orderId);
       if (!lines.length) {
         notify("Those items aren't on the menu anymore.");
+        return;
+      }
+      // A catering order goes back on the catering form, ready to send.
+      if (lines.every((l) => l.perPerson)) {
+        if (cateringCart.get().lines.length && !window.confirm("Replace the catering order you've started with this one?")) return;
+        cateringCart.cart.reset({ storeId: store.id, storeName: store.name, lines: [] });
+        lines.forEach((line) => cateringCart.cart.append(line, store));
+        notify(skipped.length ? `${skipped.join(", ")} ${skipped.length === 1 ? "isn't" : "aren't"} available anymore. The rest is ready.` : "Your catering order is ready to send.");
+        router.push("/catering#spread");
         return;
       }
       const current = getCart();

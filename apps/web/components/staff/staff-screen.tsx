@@ -11,7 +11,8 @@ type Line = {
   id: string;
   quantity: number;
   special_instructions: string | null;
-  menu_items: { name: string } | null;
+  // per_person: a catering package where the quantity is the headcount.
+  menu_items: { name: string; per_person?: boolean | null } | null;
   order_item_modifiers: { modifier_options: { name: string; modifier_groups: { name: string } | null } | null }[];
 };
 type Order = {
@@ -39,7 +40,7 @@ type StoreRow = { id: string; name: string };
 
 const SELECT = `id, created_at, status, order_type, delivery_address, requested_ready_at, estimated_ready_at, customer_name, customer_phone,
   total_amount, discount_amount, promo_code, is_catering, catering_company, catering_notes, catering_confirmed_at, po_number, invoice_email,
-  order_items ( id, quantity, special_instructions, menu_items ( name ), order_item_modifiers ( modifier_options ( name, modifier_groups!group_id ( name ) ) ) )`;
+  order_items ( id, quantity, special_instructions, menu_items ( * ), order_item_modifiers ( modifier_options ( name, modifier_groups!group_id ( name ) ) ) )`;
 
 const ACTIVE = ["received", "preparing", "ready", "out_for_delivery"] as const;
 // An order due further out than this is "Later" (scheduled, catering),
@@ -194,6 +195,7 @@ function OrderCard({
                   <p className="text-[17px] font-bold leading-snug text-ink">
                     <span className="mr-1.5 inline-flex min-w-7 justify-center rounded bg-ink px-1.5 text-white tabular-nums">{line.quantity}</span>
                     {line.menu_items?.name ?? "Item"}
+                    {line.menu_items?.per_person && <span className="text-brand"> · for {line.quantity} people</span>}
                   </p>
                   {counts.size > 0 && (
                     <p className="ml-9 mt-0.5 text-[15px] leading-6 text-stone-700">
@@ -311,7 +313,7 @@ function Ticket({ order }: { order: Order }) {
       {order.order_items.map((line) => (
         <div key={line.id} className="mb-2">
           <p className="font-bold">
-            {line.quantity} x {line.menu_items?.name}
+            {line.menu_items?.per_person ? `${line.menu_items.name} - FOR ${line.quantity} PEOPLE` : `${line.quantity} x ${line.menu_items?.name}`}
           </p>
           {line.order_item_modifiers.map((m, i) => m.modifier_options && <p key={i}>  - {m.modifier_options.name}</p>)}
           {line.special_instructions && <p>  NOTE: {line.special_instructions}</p>}
@@ -599,7 +601,7 @@ function Board({ userEmail }: { userEmail: string }) {
                       {o.customer_name} <span className="font-normal text-stone-500">{shortId(o.id)}</span>
                     </span>
                     <span className="text-stone-600">
-                      {o.order_items.map((l) => `${l.quantity} ${l.menu_items?.name}`).join(", ")}
+                      {o.order_items.map((l) => (l.menu_items?.per_person ? `${l.menu_items.name} for ${l.quantity}` : `${l.quantity} ${l.menu_items?.name}`)).join(", ")}
                     </span>
                     <span className={`font-bold ${o.status === "cancelled" ? "text-red-700" : "text-emerald-700"}`}>
                       {o.status === "cancelled" ? "Cancelled" : "Done"} · {money(o.total_amount)}
