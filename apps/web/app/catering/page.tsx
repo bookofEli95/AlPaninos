@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, BadgeCheck, CalendarClock, ChefHat, ClipboardList, HandPlatter, Leaf, MessageCircleQuestion, Phone, PhoneCall, Receipt, ShieldAlert, Truck, UtensilsCrossed } from "lucide-react";
 import CateringOrder, { PackageCards } from "@/components/catering/catering-order";
+import JumpLink from "@/components/jump-link";
 import { getStores, pickStore } from "@/lib/menu";
 import { getCateringPackages, getSandwichDescriptions, type CateringPackage } from "@/lib/catering-menu";
 import { CATERING_MAX_DELIVERY_KM } from "@/lib/ordering/catering";
@@ -91,13 +92,15 @@ export default async function CateringPage({ searchParams }: PageProps<"/caterin
                 ))}
               </ul>
               <div className="mt-8 flex flex-wrap gap-3">
-                <a href="#order" className="inline-flex items-center gap-2 rounded-lg bg-brand px-7 py-4 text-[15px] font-extrabold uppercase tracking-wide text-white shadow-lg shadow-black/30 hover:bg-brand-dark">
+                <JumpLink to="order" className="inline-flex items-center gap-2 rounded-lg bg-brand px-7 py-4 text-[15px] font-extrabold uppercase tracking-wide text-white shadow-lg shadow-black/30 hover:bg-brand-dark">
                   Start Your Order
                   <ArrowRight className="size-4" aria-hidden />
-                </a>
-                <a href="#packages" className="inline-flex items-center rounded-lg px-6 py-4 text-[15px] font-extrabold uppercase tracking-wide text-white ring-1 ring-white/30 hover:bg-white/10">
-                  See the Spreads
-                </a>
+                </JumpLink>
+                {here.length > 0 && (
+                  <JumpLink to="packages" className="inline-flex items-center rounded-lg px-6 py-4 text-[15px] font-extrabold uppercase tracking-wide text-white ring-1 ring-white/30 hover:bg-white/10">
+                    See the Spreads
+                  </JumpLink>
+                )}
               </div>
             </div>
           </div>
@@ -126,7 +129,9 @@ export default async function CateringPage({ searchParams }: PageProps<"/caterin
       </section>
 
       {here.length === 0 ? (
-        <section className="bg-cream">
+        // No packages loaded (the catering menu update isn't in the
+        // database): "Start Your Order" lands here, on how to order.
+        <section id="order" className="scroll-mt-20 bg-cream">
           <div className="mx-auto max-w-3xl px-4 py-16 text-center sm:px-6">
             <h2 className="font-display text-3xl font-extrabold text-ink">Catering is a phone call away</h2>
             <p className="mt-3 text-stone-600">Online catering orders are on their way. Until then, call the store and Al will put your spread together.</p>
