@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowDown, Check, Plus, Star, Trash2, Users } from "lucide-react";
 import Checkout from "@/components/checkout/checkout";
 import ChoiceGroups from "@/components/ordering/choice-groups";
+import JumpLink from "@/components/jump-link";
 import PeopleInput from "@/components/ordering/people-input";
 import { cartTotals, cateringCart, useHydrated, type CartLine, type CartState } from "@/lib/cart";
 import {
@@ -166,70 +167,92 @@ export function PackageCards({ packages, stores, initialStoreId, customPhone }: 
 
 // ---- One package in the order ---------------------------------------------
 
+const selectClass =
+  "mt-1.5 w-full rounded-lg border border-stone-300 bg-white px-3.5 py-3 text-[15px] font-bold text-ink outline-none focus:border-brand focus:ring-4 focus:ring-brand/10";
+const fieldLabel = "text-xs font-bold uppercase tracking-wide text-stone-500";
+
+function PackageSelect({ id, label, value, packages, onPick }: { id: string; label: string; value: string; packages: CateringPackage[]; onPick: (pkg: CateringPackage) => void }) {
+  return (
+    <label htmlFor={id} className="block">
+      <span className={fieldLabel}>{label}</span>
+      <select
+        id={id}
+        value={value}
+        onChange={(e) => {
+          const next = packages.find((p) => p.id === e.target.value);
+          if (next) onPick(next);
+        }}
+        className={selectClass}
+      >
+        {!value && (
+          <option value="" disabled>
+            Choose a package
+          </option>
+        )}
+        {packages.map((p) => (
+          <option key={p.id} value={p.id}>
+            {p.name} · {money(p.base_price)}/pp
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 function PackageLine({
   line,
   pkg,
   packages,
   showErrors,
-  canRemove,
+  plain,
 }: {
   line: CartLine;
   pkg: CateringPackage;
   packages: CateringPackage[];
   showErrors: boolean;
-  canRemove: boolean;
+  // The only package: straight in the form, no box around it.
+  plain: boolean;
 }) {
   const { cart } = cateringCart;
   const selections = useMemo(() => selectionsFromOptions(pkg.groups, line.options), [pkg, line.options]);
   const shown = visibleGroups(pkg.groups, selections);
+  // The package's own "Package" choice (full spread or sandwiches only) reads
+  // as what's included, next to the "Package selection" above it.
+  const labelled = shown.map((g) => (/^package$/i.test(g.name) ? { ...g, name: "What's included" } : g));
   const update = (next: Selections, people = line.quantity) => cart.replace(line.lineId, lineFor(pkg, people, next));
   const onToggle = (group: ChoiceGroup, optionId: string) => update(toggleChoice(pkg.groups, selections, group, optionId));
   const onCount = (group: ChoiceGroup, optionId: string, delta: 1 | -1) => update(changeChoiceCount(selections, group, optionId, delta));
 
   return (
-    <div className="rounded-xl ring-1 ring-stone-200">
-      <div className="grid gap-4 border-b border-stone-200 bg-cream/60 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end sm:p-5">
-        <label className="block">
-          <span className="text-xs font-bold uppercase tracking-wide text-stone-500">Package (price per person)</span>
-          <select
-            value={pkg.id}
-            onChange={(e) => {
-              const next = packages.find((p) => p.id === e.target.value);
-              if (next) cart.replace(line.lineId, lineFor(next, line.quantity));
-            }}
-            className="mt-1.5 w-full rounded-lg border border-stone-300 bg-white px-3.5 py-3 text-[15px] font-bold text-ink outline-none focus:border-brand focus:ring-4 focus:ring-brand/10"
-          >
-            {packages.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name} · {money(p.base_price)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <PeopleInput id={`people-${line.lineId}`} value={line.quantity} onChange={(n) => cart.setQuantity(line.lineId, n)} />
+    <div className={plain ? "" : "rounded-xl p-4 ring-1 ring-stone-200 sm:p-5"}>
+      <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+        <PackageSelect id={`package-${line.lineId}`} label="Package selection" value={pkg.id} packages={packages} onPick={(next) => cart.replace(line.lineId, lineFor(next, line.quantity))} />
+        <PeopleInput id={`people-${line.lineId}`} stacked label="Number of people" value={line.quantity} onChange={(n) => cart.setQuantity(line.lineId, n)} />
       </div>
-      {pkg.description && <p className="px-4 pt-4 text-[14px] leading-6 text-stone-600 sm:px-5">{tidyDescription(pkg.description)}</p>}
-      <ChoiceGroups
-        groups={shown}
-        selections={selections}
-        showErrors={showErrors}
-        onToggle={onToggle}
-        onCount={onCount}
-        idPrefix={`line-${line.lineId}-`}
-        perPerson
-        className="border-b border-stone-200 px-4 py-5 last:border-b-0 sm:px-5"
-      />
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-stone-200 px-4 py-3.5 sm:px-5">
+      {pkg.description && <p className="mt-3 text-[14px] leading-6 text-stone-600">{tidyDescription(pkg.description)}</p>}
+      {shown.length > 0 && (
+        <div className="mt-5 overflow-hidden rounded-xl bg-cream/50 ring-1 ring-stone-200">
+          <ChoiceGroups
+            groups={labelled}
+            selections={selections}
+            showErrors={showErrors}
+            onToggle={onToggle}
+            onCount={onCount}
+            idPrefix={`line-${line.lineId}-`}
+            perPerson
+            className="border-b border-stone-200 px-4 py-5 last:border-b-0 sm:px-5"
+          />
+        </div>
+      )}
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
         <p className="text-[15px] text-ink">
           <span className="font-bold tabular-nums">{line.quantity}</span> {line.quantity === 1 ? "person" : "people"} × <span className="tabular-nums">{money(line.unitPrice)}</span> ={" "}
           <strong className="tabular-nums">{money(line.unitPrice * line.quantity)}</strong>
         </p>
-        {canRemove && (
-          <button type="button" onClick={() => cart.remove(line.lineId)} className="inline-flex items-center gap-1 text-[13px] font-bold text-stone-500 hover:text-brand">
-            <Trash2 className="size-3.5" aria-hidden />
-            Remove
-          </button>
-        )}
+        <button type="button" onClick={() => cart.remove(line.lineId)} className="inline-flex items-center gap-1 text-[13px] font-bold text-stone-500 hover:text-brand">
+          <Trash2 className="size-3.5" aria-hidden />
+          Remove
+        </button>
       </div>
     </div>
   );
@@ -241,6 +264,8 @@ export default function CateringOrder({ packages, stores, initialStoreId }: { pa
   const { c, storeId } = useOrderStore(stores, initialStoreId);
   const [showErrors, setShowErrors] = useState(false);
   const [adding, setAdding] = useState(false);
+  // How many, before a package is picked.
+  const [people, setPeople] = useState(DEFAULT_PEOPLE);
   const here = packages.filter((p) => p.location_id === storeId);
   const byId = new Map(packages.map((p) => [p.id, p]));
   const lines = c.lines.filter((l) => byId.has(l.menuItemId));
@@ -291,47 +316,44 @@ export default function CateringOrder({ packages, stores, initialStoreId }: { pa
     return null;
   };
 
+  const startWith = (pkg: CateringPackage, people: number) => {
+    cateringCart.cart.append(lineFor(pkg, people), { id: pkg.location_id, name: storeName(stores, pkg.location_id) });
+    setAdding(false);
+  };
+
   const builder = (
     <div className="space-y-5">
-      {lines.length === 0 || adding ? (
-        <div>
-          <p className="text-[15px] text-stone-600">{lines.length ? "Which package are you adding?" : "Pick your package to get started. Prices are per person."}</p>
-          <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
-            {here.map((pkg) => (
-              <button
-                key={pkg.id}
-                type="button"
-                onClick={() => {
-                  cateringCart.cart.append(lineFor(pkg, lines[lines.length - 1]?.quantity ?? DEFAULT_PEOPLE), { id: pkg.location_id, name: storeName(stores, pkg.location_id) });
-                  setAdding(false);
-                }}
-                className="flex items-center justify-between gap-3 rounded-xl bg-white px-4 py-3.5 text-left ring-1 ring-stone-200 transition hover:ring-2 hover:ring-brand"
-              >
-                <span className="text-[15px] font-bold text-ink">{pkg.name}</span>
-                <span className="shrink-0 text-[14px] font-bold tabular-nums text-brand">{money(pkg.base_price)} / person</span>
-              </button>
-            ))}
+      {lines.length === 0 && (
+        <>
+          <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+            <PackageSelect id="package-new" label="Package selection" value="" packages={here} onPick={(pkg) => startWith(pkg, people)} />
+            <PeopleInput id="people-new" stacked label="Number of people" value={people} onChange={setPeople} />
           </div>
-          {adding && (
+          <p className="text-[14px] text-stone-500">
+            Prices are per person, salad and dessert included.{" "}
+            <JumpLink to="packages" className="font-bold text-brand hover:underline">
+              Compare the spreads
+            </JumpLink>
+          </p>
+        </>
+      )}
+      {lines.map((line) => (
+        <PackageLine key={line.lineId} line={line} pkg={byId.get(line.menuItemId)!} packages={here} showErrors={showErrors} plain={lines.length === 1} />
+      ))}
+      {lines.length > 0 &&
+        (adding ? (
+          <div className="rounded-xl p-4 ring-1 ring-stone-200 sm:p-5">
+            <PackageSelect id="package-another" label="Add another package" value="" packages={here} onPick={(pkg) => startWith(pkg, lines[lines.length - 1]?.quantity ?? DEFAULT_PEOPLE)} />
             <button type="button" onClick={() => setAdding(false)} className="mt-3 text-[14px] font-bold text-stone-500 hover:text-ink">
               Never mind
             </button>
-          )}
-        </div>
-      ) : null}
-      {lines.map((line) => (
-        <PackageLine key={line.lineId} line={line} pkg={byId.get(line.menuItemId)!} packages={here} showErrors={showErrors} canRemove />
-      ))}
-      {lines.length > 0 && !adding && (
-        <button
-          type="button"
-          onClick={() => setAdding(true)}
-          className="inline-flex items-center gap-2 rounded-lg px-4 py-3 text-[14px] font-extrabold uppercase tracking-wide text-ink ring-1 ring-stone-300 hover:bg-cream"
-        >
-          <Plus className="size-4" aria-hidden />
-          Add another package
-        </button>
-      )}
+          </div>
+        ) : (
+          <button type="button" onClick={() => setAdding(true)} className="inline-flex items-center gap-1.5 text-[14px] font-extrabold text-brand hover:underline">
+            <Plus className="size-4" aria-hidden />
+            Add another package
+          </button>
+        ))}
     </div>
   );
 

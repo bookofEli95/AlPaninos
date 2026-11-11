@@ -1,4 +1,7 @@
-export const money = (value: number | string | null | undefined) => `$${Number(value ?? 0).toFixed(2)}`;
+// "$1,240.00" -- cents always, and a comma once catering gets into the
+// thousands.
+const dollars = new Intl.NumberFormat("en-CA", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+export const money = (value: number | string | null | undefined) => `$${dollars.format(Number(value ?? 0))}`;
 
 // "Chicken Cutlet / Spicy Marinara / Provolone" (how the menu writes
 // ingredients) reads as a list on the web: "Chicken Cutlet, Spicy Marinara,

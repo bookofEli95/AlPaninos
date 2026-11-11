@@ -132,19 +132,21 @@ export default async function CateringPage({ searchParams }: PageProps<"/caterin
         // No packages loaded (the catering menu update isn't in the
         // database): "Start Your Order" lands here, on how to order.
         <section id="order" className="scroll-mt-20 bg-cream">
-          <div className="mx-auto max-w-3xl px-4 py-16 text-center sm:px-6">
-            <h2 className="font-display text-3xl font-extrabold text-ink">Catering is a phone call away</h2>
-            <p className="mt-3 text-stone-600">Online catering orders are on their way. Until then, call the store and Al will put your spread together.</p>
-            <div className="mt-6 flex flex-wrap justify-center gap-3">
-              {phone && (
-                <a href={`tel:${phone.replace(/[^\d+]/g, "")}`} className="inline-flex items-center gap-2 rounded-lg bg-brand px-6 py-3.5 text-[14px] font-extrabold uppercase tracking-wide text-white hover:bg-brand-dark">
-                  <Phone className="size-4" aria-hidden />
-                  Call {phone}
-                </a>
-              )}
-              <Link href="/support?topic=Catering" className="rounded-lg px-6 py-3.5 text-[14px] font-extrabold uppercase tracking-wide text-ink ring-1 ring-stone-300 hover:bg-white">
-                Ask Online
-              </Link>
+          <div className="mx-auto max-w-3xl px-4 py-14 sm:px-6">
+            <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-stone-200">
+              <div className="grain bg-ink px-6 py-5 text-white sm:px-8">
+                <p className="text-[12px] font-extrabold uppercase tracking-[0.16em] text-gold">Al Paninos catering order</p>
+              </div>
+              <div className="px-6 py-8 sm:px-8">
+                <h2 className="font-display text-2xl font-extrabold text-ink">The order form is on its way</h2>
+                <p className="mt-2 text-stone-600">Al&apos;s loading the catering menu onto the website. Check back shortly{phone ? ", or call the store and we'll take your order" : ""}.</p>
+                {phone && (
+                  <a href={`tel:${phone.replace(/[^\d+]/g, "")}`} className="mt-5 inline-flex items-center gap-2 rounded-lg bg-brand px-6 py-3.5 text-[14px] font-extrabold uppercase tracking-wide text-white hover:bg-brand-dark">
+                    <Phone className="size-4" aria-hidden />
+                    Call {phone}
+                  </a>
+                )}
+              </div>
             </div>
           </div>
         </section>
@@ -244,11 +246,13 @@ export default async function CateringPage({ searchParams }: PageProps<"/caterin
           {/* ---- The order form ------------------------------------------- */}
           <section id="order" aria-labelledby="order-title" className="scroll-mt-20 bg-cream">
             <div className="mx-auto max-w-7xl px-4 pb-24 pt-14 sm:px-6">
-              <p className="text-[13px] font-extrabold uppercase tracking-[0.18em] text-brand">Order online</p>
-              <h2 id="order-title" className="mt-2 font-display text-4xl font-extrabold tracking-tight text-ink sm:text-5xl">
-                Place your catering order
-              </h2>
-              <p className="mt-3 max-w-2xl text-lg leading-8 text-stone-600">One form, and it goes straight to the store. Al calls you to confirm the details before anything hits the press.</p>
+              <div className="mx-auto max-w-3xl text-center">
+                <p className="text-[13px] font-extrabold uppercase tracking-[0.18em] text-brand">Order online</p>
+                <h2 id="order-title" className="mt-2 font-display text-4xl font-extrabold tracking-tight text-ink sm:text-5xl">
+                  Place your catering order
+                </h2>
+                <p className="mt-3 text-lg leading-8 text-stone-600">One form, and it goes straight to the store. Al calls you to confirm the details before anything hits the press.</p>
+              </div>
               <div className="mt-8">
                 <CateringOrder packages={packages} stores={stores} initialStoreId={store!.id} />
               </div>

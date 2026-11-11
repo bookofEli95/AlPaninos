@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertCircle, ArrowLeft, Car, Check, CheckCircle2, Loader2, Lock, MailCheck, MapPin, ShoppingBag, Sparkles, Store as StoreIcon } from "lucide-react";
@@ -35,6 +36,16 @@ function Section({ n, title, children, id }: { n: number; title: string; childre
       </h2>
       <div className="mt-5">{children}</div>
     </section>
+  );
+}
+
+// One part of the catering order form.
+function FormPart({ title, id, children }: { title: string; id?: string; children: React.ReactNode }) {
+  return (
+    <div id={id} className="scroll-mt-28 px-5 py-6 sm:px-8 sm:py-7">
+      <h3 className="font-display text-xl font-extrabold text-ink">{title}</h3>
+      <div className="mt-4">{children}</div>
+    </div>
   );
 }
 
@@ -408,19 +419,497 @@ export default function Checkout({
   const whenLabel = slot ? formatDayAndTime(slot) : isCatering ? "· pick a day and time" : `in about ${asapMinutes} min`;
   let n = 0;
 
-  return (
-    <div className={cateringForm ? "" : "mx-auto max-w-7xl px-4 pb-24 pt-8 sm:px-6 lg:pt-12"}>
-      {!cateringForm && (
-        <>
-          <Link href={`/menu?store=${c.storeId}&mode=${c.mode}`} className="inline-flex items-center gap-1.5 text-[14px] font-bold text-stone-600 hover:text-brand">
-            <ArrowLeft className="size-4" aria-hidden />
-            Keep browsing
-          </Link>
-          <h1 className="mt-3 font-display text-4xl font-extrabold tracking-tight text-ink sm:text-5xl">Checkout</h1>
-        </>
+  const howWhere = (
+    <>
+      <div className="grid grid-cols-2 overflow-hidden rounded-xl ring-1 ring-stone-300">
+        {(
+          [
+            { key: "pickup", label: "Pickup", Icon: StoreIcon },
+            { key: "delivery", label: "Delivery", Icon: Car },
+          ] as const
+        ).map(({ key, label, Icon }) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => cart.setMode(key)}
+            aria-pressed={c.mode === key}
+            className={`flex items-center justify-center gap-2 py-3.5 text-[14px] font-extrabold uppercase tracking-wide transition-colors ${
+              c.mode === key ? "bg-ink text-white" : "bg-white text-stone-500 hover:text-ink"
+            }`}
+          >
+            <Icon className="size-[18px]" aria-hidden />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <label className="mt-5 block">
+        <span className={labelClass}>{c.mode === "delivery" ? "Delivered from" : "Pick up at"}</span>
+        <select value={c.storeId ?? ""} onChange={(e) => chooseStore(e.target.value)} className={inputClass}>
+          {stores.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+              {s.address ? ` · ${s.address}` : ""}
+            </option>
+          ))}
+        </select>
+      </label>
+      <p className="mt-2 flex flex-wrap items-center gap-x-3 text-[13px] text-stone-500">
+        <span className="inline-flex items-center gap-1">
+          <MapPin className="size-3.5" aria-hidden />
+          {store.address}
+        </span>
+        <StoreStatus hours={store.hours} />
+      </p>
+      {pendingStore && (
+        <div className="mt-4 rounded-xl bg-amber-50 p-4 ring-1 ring-amber-200">
+          <p className="text-[14px] text-amber-950">
+            Each store has its own menu, so switching to <strong>{pendingStore.name}</strong> empties your order.
+          </p>
+          <div className="mt-3 flex gap-2">
+            <button type="button" onClick={() => setPendingStore(null)} className="rounded-lg bg-white px-4 py-2.5 text-[14px] font-bold text-ink ring-1 ring-stone-300">
+              Keep {store.name}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                cart.setStore(pendingStore.id, pendingStore.name);
+                setPendingStore(null);
+                router.push(`/menu?store=${pendingStore.id}&mode=${c.mode}`);
+              }}
+              className="rounded-lg bg-brand px-4 py-2.5 text-[14px] font-extrabold text-white"
+            >
+              Switch and Start Over
+            </button>
+          </div>
+        </div>
       )}
 
-      <div className={`grid grid-cols-[minmax(0,1fr)] items-start gap-8 lg:grid-cols-[minmax(0,1fr)_400px] ${cateringForm ? "" : "mt-8"}`}>
+      {c.mode === "delivery" && (
+        <div className="mt-5 grid gap-4 sm:grid-cols-[1fr_auto]">
+          <label className="block" id="address">
+            <span className={labelClass}>Delivery address</span>
+            <input value={c.address} onChange={(e) => cart.setAddress(e.target.value)} placeholder="Street address, city" autoComplete="street-address" className={inputClass} />
+          </label>
+          {isCatering && (
+            <label className="block sm:w-44">
+              <span className={labelClass}>Floor / suite</span>
+              <input value={suite} onChange={(e) => setSuite(e.target.value)} placeholder="Optional" className={inputClass} />
+            </label>
+          )}
+        </div>
+      )}
+    </>
+  );
+  const whenBlock = (
+    <>
+      {isCatering ? (
+        <CateringTimePicker days={cateringDays} slot={slot} onChange={setSlot} />
+      ) : (
+        <RegularTimePicker openNow={storeStatus(hours, now).open} asapAvailable={asapAvailable} asapMinutes={asapMinutes} days={orderDays} slot={slot} onChange={setSlot} mode={c.mode} />
+      )}
+    </>
+  );
+  const detailsBlock = (
+    <>
+      {!guestForm && !needsDetails && profile ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-cream p-4">
+          <div>
+            <p className="text-[15px] font-bold text-ink">
+              {profile.first_name} {profile.last_name}
+            </p>
+            <p className="text-[14px] text-stone-600">
+              {user?.email} · {profile.phone}
+            </p>
+          </div>
+          <Link href="/account" className="text-[14px] font-bold text-brand hover:underline">
+            Edit in your account
+          </Link>
+        </div>
+      ) : (
+        <>
+          {guestForm && !verifiedEmail && (
+            <p className="mb-5 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl bg-cream p-4 text-[14px] text-stone-700">
+              <Sparkles className="size-4 text-brand" aria-hidden />
+              Have an account?
+              <Link href={signInHref} className="font-bold text-brand hover:underline">
+                Sign in
+              </Link>
+              {c.lines.length ? `to earn ${points} PaninoPoints on this order.` : "to earn PaninoPoints on this order."}
+            </p>
+          )}
+          {needsDetails && <p className="mb-4 text-[14px] text-stone-600">Add your name and a phone number the store can reach you on. We&apos;ll save them to your account.</p>}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block">
+              <span className={labelClass}>First name</span>
+              <input value={firstName} onChange={(e) => setFirstName(e.target.value)} autoComplete="given-name" className={inputClass} />
+            </label>
+            <label className="block">
+              <span className={labelClass}>Last name</span>
+              <input value={lastName} onChange={(e) => setLastName(e.target.value)} autoComplete="family-name" className={inputClass} />
+            </label>
+            <div className="sm:col-span-2">
+              <span className={labelClass}>Mobile number</span>
+              <div className="mt-1.5 flex gap-2">
+                <label className="sr-only" htmlFor="country">
+                  Country code
+                </label>
+                <select
+                  id="country"
+                  value={country.code}
+                  onChange={(e) => setCountry(COUNTRIES.find((x) => x.code === e.target.value) ?? DEFAULT_COUNTRY)}
+                  className="w-28 rounded-lg border border-stone-300 bg-white px-2.5 text-[15px] outline-none focus:border-brand focus:ring-4 focus:ring-brand/10"
+                >
+                  {COUNTRIES.map((x) => (
+                    <option key={x.code} value={x.code}>
+                      {x.flag} +{x.dialCode}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  value={formatPhoneNumber(phone, country)}
+                  onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, "").slice(0, country.maxLength))}
+                  inputMode="tel"
+                  autoComplete="tel-national"
+                  placeholder={country.dialCode === "1" ? "519-555-0123" : ""}
+                  aria-label="Mobile number"
+                  className="w-full rounded-lg border border-stone-300 bg-white px-3.5 py-3 text-[15px] outline-none focus:border-brand focus:ring-4 focus:ring-brand/10"
+                />
+              </div>
+            </div>
+          </div>
+
+          {guestForm && (
+            <div className="mt-5 rounded-xl ring-1 ring-stone-200">
+              <div className="p-4">
+                <div>
+                  <label htmlFor="guest-email" className={labelClass}>
+                    Email
+                  </label>
+                  <div className="mt-1.5 flex gap-2">
+                    <input
+                      id="guest-email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        setCodeSent(false);
+                      }}
+                      readOnly={emailVerified}
+                      autoComplete="email"
+                      placeholder="you@example.com"
+                      className="w-full rounded-lg border border-stone-300 bg-white px-3.5 py-3 text-[15px] outline-none read-only:bg-stone-50 focus:border-brand focus:ring-4 focus:ring-brand/10"
+                    />
+                    {emailVerified ? (
+                      <span className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-emerald-50 px-3.5 text-[14px] font-bold text-emerald-700">
+                        <CheckCircle2 className="size-4" aria-hidden />
+                        Verified
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={sendCode}
+                        disabled={emailBusy || !email.trim()}
+                        className="shrink-0 rounded-lg bg-ink px-4 text-[14px] font-extrabold uppercase tracking-wide text-white hover:bg-black disabled:opacity-40"
+                      >
+                        {emailBusy && !codeSent ? <Loader2 className="size-4 animate-spin" aria-label="Sending" /> : codeSent ? "Resend" : "Send Code"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {!emailVerified && !codeSent && <p className="mt-2 text-[13px] text-stone-500">We&apos;ll email you a 6-digit code. It&apos;s how we send your receipt and order updates.</p>}
+              </div>
+              {codeSent && !emailVerified && (
+                <div className="border-t border-stone-200 bg-cream/60 p-4">
+                  <p className="flex items-center gap-2 text-[14px] text-ink">
+                    <MailCheck className="size-4 text-brand" aria-hidden />
+                    Enter the 6-digit code we sent to <strong>{email.trim()}</strong>.
+                  </p>
+                  <div className="mt-3 flex gap-2">
+                    <input
+                      value={code}
+                      onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))}
+                      onKeyDown={(e) => e.key === "Enter" && code.length === 6 && verifyCode()}
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      placeholder="123456"
+                      aria-label="Verification code"
+                      className="w-40 rounded-lg border border-stone-300 bg-white px-3.5 py-3 text-center font-mono text-xl tracking-[0.3em] outline-none focus:border-brand focus:ring-4 focus:ring-brand/10"
+                    />
+                    <button
+                      type="button"
+                      onClick={verifyCode}
+                      disabled={emailBusy || code.length !== 6}
+                      className="rounded-lg bg-brand px-5 text-[14px] font-extrabold uppercase tracking-wide text-white hover:bg-brand-dark disabled:opacity-40"
+                    >
+                      {emailBusy ? <Loader2 className="size-4 animate-spin" aria-label="Checking" /> : "Verify"}
+                    </button>
+                  </div>
+                </div>
+              )}
+              {emailError && (
+                <p className="border-t border-stone-200 px-4 py-3 text-[14px] font-medium text-brand" role="alert">
+                  {emailError}{" "}
+                  {/account/.test(emailError) && (
+                    <Link href={signInHref} className="font-bold underline">
+                      Sign in
+                    </Link>
+                  )}
+                </p>
+              )}
+            </div>
+          )}
+        </>
+      )}
+    </>
+  );
+  const cateringBlock = (
+    <>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="block sm:col-span-2">
+          <span className={labelClass}>Dietary needs</span>
+          <textarea
+            value={dietary}
+            onChange={(e) => setDietary(e.target.value.slice(0, 500))}
+            rows={2}
+            placeholder="e.g. 3 vegetarian, 1 gluten-free, 1 nut allergy"
+            className={`${inputClass} resize-none`}
+          />
+          <span className="mt-1.5 block text-[13px] text-stone-500">Every dietary order is wrapped and labelled separately.</span>
+        </label>
+        {c.mode === "delivery" && (
+          <label className="block sm:col-span-2" id="dropoff">
+            <span className={labelClass}>Drop-off instructions</span>
+            <input value={dropoff} onChange={(e) => setDropoff(e.target.value)} placeholder="Front reception, 3rd floor" className={inputClass} />
+          </label>
+        )}
+        <label className="block sm:col-span-2">
+          <span className={labelClass}>Anything else?</span>
+          <textarea
+            value={extraNotes}
+            onChange={(e) => setExtraNotes(e.target.value.slice(0, 500))}
+            rows={2}
+            placeholder="Favourites, set-up, the occasion... (optional)"
+            className={`${inputClass} resize-none`}
+          />
+        </label>
+      </div>
+      <details className="group mt-5 rounded-xl ring-1 ring-stone-200 [&_summary::-webkit-details-marker]:hidden">
+        <summary className="flex cursor-pointer items-center justify-between gap-3 px-4 py-3.5 text-[15px] font-bold text-ink">
+          Ordering for work? Add a company, PO number or invoice email
+          <span className="text-[13px] font-semibold text-brand group-open:hidden">Add</span>
+        </summary>
+        <div className="grid gap-4 border-t border-stone-200 p-4 sm:grid-cols-2">
+          <label className="block">
+            <span className={labelClass}>Company</span>
+            <input value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Optional" autoComplete="organization" className={inputClass} />
+          </label>
+          <label className="block">
+            <span className={labelClass}>PO number</span>
+            <input value={po} onChange={(e) => setPo(e.target.value)} placeholder="Optional" className={inputClass} />
+          </label>
+          <label className="block sm:col-span-2" id="invoice">
+            <span className={labelClass}>Send the invoice to</span>
+            <input type="email" value={invoiceEmail} onChange={(e) => setInvoiceEmail(e.target.value)} placeholder="accounts@company.com (optional)" className={inputClass} />
+          </label>
+        </div>
+      </details>
+      <p className="mt-4 text-[13px] text-stone-500">We&apos;ll call to confirm every catering order. Delivery is free within {CATERING_MAX_DELIVERY_KM} km of the store.</p>
+    </>
+  );
+  const updatesBlock = (
+    <>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {(
+          [
+            { on: notifyEmail, set: setNotifyEmail, title: "Email", note: "Receipt and status updates" },
+            { on: notifySms, set: setNotifySms, title: "Text message", note: "When it's ready or on the way" },
+          ] as const
+        ).map((o) => (
+          <label key={o.title} className={`flex cursor-pointer items-start gap-3 rounded-xl p-4 ring-1 transition ${o.on ? "ring-2 ring-brand" : "ring-stone-200 hover:ring-stone-400"}`}>
+            <input type="checkbox" checked={o.on} onChange={(e) => o.set(e.target.checked)} className="sr-only" />
+            <span className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md border ${o.on ? "border-brand bg-brand" : "border-stone-300"}`} aria-hidden>
+              {o.on && <Check className="size-3.5 text-white" strokeWidth={3} />}
+            </span>
+            <span>
+              <span className="block text-[15px] font-bold text-ink">{o.title}</span>
+              <span className="block text-[13px] text-stone-500">{o.note}</span>
+            </span>
+          </label>
+        ))}
+      </div>
+    </>
+  );
+  const dealsBlock = (
+    <>
+      <PromoBox c={c} discount={totals.discount} unmetReason={totals.unmetReason} userId={user?.id ?? null} isMember={isMember && !verifiedEmail} />
+    </>
+  );
+  const summary = (
+    <SummaryBox id="order-summary" className={`scroll-mt-28 ${cateringForm ? "" : "lg:sticky lg:top-[calc(var(--header-height)+1.5rem)]"}`}>
+      <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-stone-200">
+        <div className="bg-ink px-6 py-5 text-white">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="font-display text-xl font-extrabold">{cateringForm ? "Your catering order" : "Order summary"}</h2>
+            {c.lines.length > 0 && (
+              <button type="button" onClick={onEditOrder ?? openCart} className="text-[13px] font-bold text-gold hover:underline">
+                Edit
+              </button>
+            )}
+          </div>
+          <p className="mt-1 text-[14px] text-stone-300">
+            {c.mode === "delivery" ? "Delivery" : "Pickup"} {whenLabel} · {store.name}
+          </p>
+        </div>
+        <div className="max-h-[36vh] overflow-y-auto px-6">
+          {c.lines.length ? (
+            <CartLines lines={c.lines} compact readOnly />
+          ) : (
+            <p className="py-5 text-[14px] text-stone-500">Pick a package and how many people, and your total shows up right here.</p>
+          )}
+        </div>
+        <dl className="space-y-1.5 border-t border-stone-200 px-6 py-5 text-[15px]">
+          <div className="flex justify-between">
+            <dt className="text-stone-600">Subtotal</dt>
+            <dd className="tabular-nums text-ink">{money(totals.subtotal)}</dd>
+          </div>
+          {totals.discount > 0 && (
+            <div className="flex justify-between text-emerald-700">
+              <dt>{c.promo?.title}</dt>
+              <dd className="tabular-nums">−{money(totals.discount)}</dd>
+            </div>
+          )}
+          <div className="flex justify-between">
+            <dt className="text-stone-600">HST ({Math.round(Number(store.tax_rate ?? 0.13) * 100)}%)</dt>
+            <dd className="tabular-nums text-ink">{money(totals.tax)}</dd>
+          </div>
+          <div className="flex justify-between border-t border-stone-200 pt-3 text-lg">
+            <dt className="font-extrabold text-ink">Total</dt>
+            <dd className="font-extrabold tabular-nums text-ink">{money(totals.total)}</dd>
+          </div>
+        </dl>
+        <div className="border-t border-stone-200 bg-cream/60 px-6 py-5">
+          {!c.lines.length ? null : isMember && !verifiedEmail ? (
+            <p className="mb-4 flex items-start gap-2 text-[14px] text-ink">
+              <Sparkles className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden />
+              <span>
+                This order earns <strong>{points} PaninoPoints</strong>, {pointsProgressLabel((profile?.panino_points ?? 0) + pointsForSubtotal(totals.subtotal))}.
+              </span>
+            </p>
+          ) : (
+            <p className="mb-4 flex items-start gap-2 text-[14px] text-stone-600">
+              <Sparkles className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden />
+              <span>
+                {emailVerified ? (
+                  <>
+                    This order earns <strong>{points} PaninoPoints</strong>, saved to your email.
+                  </>
+                ) : (
+                  <>
+                    Verify your email to keep the <strong>{points} PaninoPoints</strong> this order earns.
+                  </>
+                )}
+              </span>
+            </p>
+          )}
+
+          {problem && (
+            <p className="mb-4 flex items-start gap-2 rounded-lg bg-red-50 p-3 text-[14px] text-red-800 ring-1 ring-red-200" role="alert">
+              <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
+              {problem.message}
+            </p>
+          )}
+          {priceChange != null ? (
+            <div className="rounded-xl bg-amber-50 p-4 ring-1 ring-amber-200">
+              <p className="text-[14px] text-amber-950">
+                Some prices changed since these went in your order. Your total is now <strong>{money(priceChange)}</strong> (it was {money(totals.total)}).
+              </p>
+              <div className="mt-3 flex gap-2">
+                <button type="button" onClick={() => setPriceChange(null)} className="flex-1 rounded-lg bg-white py-3 text-[14px] font-bold text-ink ring-1 ring-stone-300">
+                  Cancel
+                </button>
+                <button type="button" onClick={() => placeOrder(priceChange)} className="flex-1 rounded-lg bg-brand py-3 text-[14px] font-extrabold text-white">
+                  Place for {money(priceChange)}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => placeOrder()}
+              disabled={placing}
+              className={`flex w-full items-center justify-between gap-3 rounded-lg px-5 py-4 text-white transition-colors disabled:opacity-70 ${
+                placeLabel === readyLabel ? "bg-brand hover:bg-brand-dark" : "bg-stone-500 hover:bg-stone-600"
+              }`}
+            >
+              <span className="flex items-center gap-2 text-[15px] font-extrabold uppercase tracking-wide">
+                {placing ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Lock className="size-4" aria-hidden />}
+                {placing ? (cateringForm ? "Sending it to Al" : "Placing your order") : placeLabel}
+              </span>
+              <span className="text-[16px] font-extrabold tabular-nums">{money(totals.total)}</span>
+            </button>
+          )}
+          <p className="mt-3 text-center text-[12px] leading-5 text-stone-500">
+            {isCatering && "We call to confirm every catering order before we start. "}
+            You pay when you {c.mode === "delivery" ? "get your delivery" : "pick up your order"}. By placing this order you agree to our{" "}
+            <Link href="/terms" className="underline hover:text-ink">
+              Terms
+            </Link>
+            .
+          </p>
+        </div>
+      </div>
+    </SummaryBox>
+  );
+
+  // The catering page: one order form, top to bottom, like a printed one --
+  // then the order with its total and "Send it to Al".
+  if (cateringForm) {
+    return (
+      <div className="mx-auto max-w-3xl">
+        <div className="overflow-hidden rounded-2xl bg-white shadow-xl shadow-black/[0.04] ring-1 ring-stone-200">
+          <div className="grain flex items-center justify-between gap-4 bg-ink px-5 py-5 text-white sm:px-8">
+            <div>
+              <p className="text-[12px] font-extrabold uppercase tracking-[0.16em] text-gold">Al Paninos catering order</p>
+              <p className="mt-1 text-[15px] text-stone-300">Fill it in, watch your total, send it straight to the store.</p>
+            </div>
+            <Image src="/logo.jpg" alt="" width={52} height={52} className="hidden size-[52px] shrink-0 -rotate-6 rounded-full ring-2 ring-gold/60 sm:block" />
+          </div>
+          <div className="divide-y divide-stone-200">
+            {lead && (
+              <FormPart title={lead.title} id={lead.id}>
+                {lead.node}
+              </FormPart>
+            )}
+            <FormPart title="Pick-up or delivery?">{howWhere}</FormPart>
+            <FormPart title="Date and time" id="when">
+              {whenBlock}
+            </FormPart>
+            <FormPart title="Dietary needs and notes" id="catering-details">
+              {cateringBlock}
+            </FormPart>
+            <FormPart title="Your details" id="details">
+              {detailsBlock}
+            </FormPart>
+            <FormPart title="Order updates" id="updates">
+              {updatesBlock}
+            </FormPart>
+          </div>
+        </div>
+        <div className="mt-6">{summary}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-7xl px-4 pb-24 pt-8 sm:px-6 lg:pt-12">
+      <Link href={`/menu?store=${c.storeId}&mode=${c.mode}`} className="inline-flex items-center gap-1.5 text-[14px] font-bold text-stone-600 hover:text-brand">
+        <ArrowLeft className="size-4" aria-hidden />
+        Keep browsing
+      </Link>
+      <h1 className="mt-3 font-display text-4xl font-extrabold tracking-tight text-ink sm:text-5xl">Checkout</h1>
+
+      <div className="mt-8 grid grid-cols-[minmax(0,1fr)] items-start gap-8 lg:grid-cols-[minmax(0,1fr)_400px]">
         <div className="space-y-5">
           {lead && (
             <Section n={++n} title={lead.title} id={lead.id}>
@@ -430,450 +919,39 @@ export default function Checkout({
 
           {/* How and where */}
           <Section n={++n} title={isCatering ? "Catering pickup or delivery" : "Pickup or delivery"}>
-            <div className="grid grid-cols-2 overflow-hidden rounded-xl ring-1 ring-stone-300">
-              {(
-                [
-                  { key: "pickup", label: "Pickup", Icon: StoreIcon },
-                  { key: "delivery", label: "Delivery", Icon: Car },
-                ] as const
-              ).map(({ key, label, Icon }) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => cart.setMode(key)}
-                  aria-pressed={c.mode === key}
-                  className={`flex items-center justify-center gap-2 py-3.5 text-[14px] font-extrabold uppercase tracking-wide transition-colors ${
-                    c.mode === key ? "bg-ink text-white" : "bg-white text-stone-500 hover:text-ink"
-                  }`}
-                >
-                  <Icon className="size-[18px]" aria-hidden />
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            <label className="mt-5 block">
-              <span className={labelClass}>{c.mode === "delivery" ? "Delivered from" : "Pick up at"}</span>
-              <select value={c.storeId ?? ""} onChange={(e) => chooseStore(e.target.value)} className={inputClass}>
-                {stores.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                    {s.address ? ` · ${s.address}` : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <p className="mt-2 flex flex-wrap items-center gap-x-3 text-[13px] text-stone-500">
-              <span className="inline-flex items-center gap-1">
-                <MapPin className="size-3.5" aria-hidden />
-                {store.address}
-              </span>
-              <StoreStatus hours={store.hours} />
-            </p>
-            {pendingStore && (
-              <div className="mt-4 rounded-xl bg-amber-50 p-4 ring-1 ring-amber-200">
-                <p className="text-[14px] text-amber-950">
-                  Each store has its own menu, so switching to <strong>{pendingStore.name}</strong> empties your order.
-                </p>
-                <div className="mt-3 flex gap-2">
-                  <button type="button" onClick={() => setPendingStore(null)} className="rounded-lg bg-white px-4 py-2.5 text-[14px] font-bold text-ink ring-1 ring-stone-300">
-                    Keep {store.name}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      cart.setStore(pendingStore.id, pendingStore.name);
-                      setPendingStore(null);
-                      router.push(`/menu?store=${pendingStore.id}&mode=${c.mode}`);
-                    }}
-                    className="rounded-lg bg-brand px-4 py-2.5 text-[14px] font-extrabold text-white"
-                  >
-                    Switch and Start Over
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {c.mode === "delivery" && (
-              <div className="mt-5 grid gap-4 sm:grid-cols-[1fr_auto]">
-                <label className="block" id="address">
-                  <span className={labelClass}>Delivery address</span>
-                  <input value={c.address} onChange={(e) => cart.setAddress(e.target.value)} placeholder="Street address, city" autoComplete="street-address" className={inputClass} />
-                </label>
-                {isCatering && (
-                  <label className="block sm:w-44">
-                    <span className={labelClass}>Floor / suite</span>
-                    <input value={suite} onChange={(e) => setSuite(e.target.value)} placeholder="Optional" className={inputClass} />
-                  </label>
-                )}
-              </div>
-            )}
+            {howWhere}
           </Section>
 
           {/* 2. When */}
           <Section n={++n} title={isCatering ? "When do you need it?" : c.mode === "delivery" ? "When should it arrive?" : "When will you pick it up?"} id="when">
-            {isCatering ? (
-              <CateringTimePicker days={cateringDays} slot={slot} onChange={setSlot} />
-            ) : (
-              <RegularTimePicker openNow={storeStatus(hours, now).open} asapAvailable={asapAvailable} asapMinutes={asapMinutes} days={orderDays} slot={slot} onChange={setSlot} mode={c.mode} />
-            )}
+            {whenBlock}
           </Section>
 
           {/* 3. Who */}
           <Section n={++n} title="Your details" id="details">
-            {!guestForm && !needsDetails && profile ? (
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-cream p-4">
-                <div>
-                  <p className="text-[15px] font-bold text-ink">
-                    {profile.first_name} {profile.last_name}
-                  </p>
-                  <p className="text-[14px] text-stone-600">
-                    {user?.email} · {profile.phone}
-                  </p>
-                </div>
-                <Link href="/account" className="text-[14px] font-bold text-brand hover:underline">
-                  Edit in your account
-                </Link>
-              </div>
-            ) : (
-              <>
-                {guestForm && !verifiedEmail && (
-                  <p className="mb-5 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl bg-cream p-4 text-[14px] text-stone-700">
-                    <Sparkles className="size-4 text-brand" aria-hidden />
-                    Have an account?
-                    <Link href={signInHref} className="font-bold text-brand hover:underline">
-                      Sign in
-                    </Link>
-                    {c.lines.length ? `to earn ${points} PaninoPoints on this order.` : "to earn PaninoPoints on this order."}
-                  </p>
-                )}
-                {needsDetails && <p className="mb-4 text-[14px] text-stone-600">Add your name and a phone number the store can reach you on. We&apos;ll save them to your account.</p>}
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <label className="block">
-                    <span className={labelClass}>First name</span>
-                    <input value={firstName} onChange={(e) => setFirstName(e.target.value)} autoComplete="given-name" className={inputClass} />
-                  </label>
-                  <label className="block">
-                    <span className={labelClass}>Last name</span>
-                    <input value={lastName} onChange={(e) => setLastName(e.target.value)} autoComplete="family-name" className={inputClass} />
-                  </label>
-                  <div className="sm:col-span-2">
-                    <span className={labelClass}>Mobile number</span>
-                    <div className="mt-1.5 flex gap-2">
-                      <label className="sr-only" htmlFor="country">
-                        Country code
-                      </label>
-                      <select
-                        id="country"
-                        value={country.code}
-                        onChange={(e) => setCountry(COUNTRIES.find((x) => x.code === e.target.value) ?? DEFAULT_COUNTRY)}
-                        className="w-28 rounded-lg border border-stone-300 bg-white px-2.5 text-[15px] outline-none focus:border-brand focus:ring-4 focus:ring-brand/10"
-                      >
-                        {COUNTRIES.map((x) => (
-                          <option key={x.code} value={x.code}>
-                            {x.flag} +{x.dialCode}
-                          </option>
-                        ))}
-                      </select>
-                      <input
-                        value={formatPhoneNumber(phone, country)}
-                        onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, "").slice(0, country.maxLength))}
-                        inputMode="tel"
-                        autoComplete="tel-national"
-                        placeholder={country.dialCode === "1" ? "519-555-0123" : ""}
-                        aria-label="Mobile number"
-                        className="w-full rounded-lg border border-stone-300 bg-white px-3.5 py-3 text-[15px] outline-none focus:border-brand focus:ring-4 focus:ring-brand/10"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {guestForm && (
-                  <div className="mt-5 rounded-xl ring-1 ring-stone-200">
-                    <div className="p-4">
-                      <div>
-                        <label htmlFor="guest-email" className={labelClass}>
-                          Email
-                        </label>
-                        <div className="mt-1.5 flex gap-2">
-                          <input
-                            id="guest-email"
-                            type="email"
-                            value={email}
-                            onChange={(e) => {
-                              setEmail(e.target.value);
-                              setCodeSent(false);
-                            }}
-                            readOnly={emailVerified}
-                            autoComplete="email"
-                            placeholder="you@example.com"
-                            className="w-full rounded-lg border border-stone-300 bg-white px-3.5 py-3 text-[15px] outline-none read-only:bg-stone-50 focus:border-brand focus:ring-4 focus:ring-brand/10"
-                          />
-                          {emailVerified ? (
-                            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-emerald-50 px-3.5 text-[14px] font-bold text-emerald-700">
-                              <CheckCircle2 className="size-4" aria-hidden />
-                              Verified
-                            </span>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={sendCode}
-                              disabled={emailBusy || !email.trim()}
-                              className="shrink-0 rounded-lg bg-ink px-4 text-[14px] font-extrabold uppercase tracking-wide text-white hover:bg-black disabled:opacity-40"
-                            >
-                              {emailBusy && !codeSent ? <Loader2 className="size-4 animate-spin" aria-label="Sending" /> : codeSent ? "Resend" : "Send Code"}
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                      {!emailVerified && !codeSent && <p className="mt-2 text-[13px] text-stone-500">We&apos;ll email you a 6-digit code. It&apos;s how we send your receipt and order updates.</p>}
-                    </div>
-                    {codeSent && !emailVerified && (
-                      <div className="border-t border-stone-200 bg-cream/60 p-4">
-                        <p className="flex items-center gap-2 text-[14px] text-ink">
-                          <MailCheck className="size-4 text-brand" aria-hidden />
-                          Enter the 6-digit code we sent to <strong>{email.trim()}</strong>.
-                        </p>
-                        <div className="mt-3 flex gap-2">
-                          <input
-                            value={code}
-                            onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))}
-                            onKeyDown={(e) => e.key === "Enter" && code.length === 6 && verifyCode()}
-                            inputMode="numeric"
-                            autoComplete="one-time-code"
-                            placeholder="123456"
-                            aria-label="Verification code"
-                            className="w-40 rounded-lg border border-stone-300 bg-white px-3.5 py-3 text-center font-mono text-xl tracking-[0.3em] outline-none focus:border-brand focus:ring-4 focus:ring-brand/10"
-                          />
-                          <button
-                            type="button"
-                            onClick={verifyCode}
-                            disabled={emailBusy || code.length !== 6}
-                            className="rounded-lg bg-brand px-5 text-[14px] font-extrabold uppercase tracking-wide text-white hover:bg-brand-dark disabled:opacity-40"
-                          >
-                            {emailBusy ? <Loader2 className="size-4 animate-spin" aria-label="Checking" /> : "Verify"}
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                    {emailError && (
-                      <p className="border-t border-stone-200 px-4 py-3 text-[14px] font-medium text-brand" role="alert">
-                        {emailError}{" "}
-                        {/account/.test(emailError) && (
-                          <Link href={signInHref} className="font-bold underline">
-                            Sign in
-                          </Link>
-                        )}
-                      </p>
-                    )}
-                  </div>
-                )}
-              </>
-            )}
+            {detailsBlock}
           </Section>
 
           {/* Catering details */}
           {isCatering && (
             <Section n={++n} title="Dietary needs and notes" id="catering-details">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="block sm:col-span-2">
-                  <span className={labelClass}>Dietary needs</span>
-                  <textarea
-                    value={dietary}
-                    onChange={(e) => setDietary(e.target.value.slice(0, 500))}
-                    rows={2}
-                    placeholder="e.g. 3 vegetarian, 1 gluten-free, 1 nut allergy"
-                    className={`${inputClass} resize-none`}
-                  />
-                  <span className="mt-1.5 block text-[13px] text-stone-500">Every dietary order is wrapped and labelled separately.</span>
-                </label>
-                {c.mode === "delivery" && (
-                  <label className="block sm:col-span-2" id="dropoff">
-                    <span className={labelClass}>Drop-off instructions</span>
-                    <input value={dropoff} onChange={(e) => setDropoff(e.target.value)} placeholder="Front reception, 3rd floor" className={inputClass} />
-                  </label>
-                )}
-                <label className="block sm:col-span-2">
-                  <span className={labelClass}>Anything else?</span>
-                  <textarea
-                    value={extraNotes}
-                    onChange={(e) => setExtraNotes(e.target.value.slice(0, 500))}
-                    rows={2}
-                    placeholder="Favourites, set-up, the occasion... (optional)"
-                    className={`${inputClass} resize-none`}
-                  />
-                </label>
-              </div>
-              <details className="group mt-5 rounded-xl ring-1 ring-stone-200 [&_summary::-webkit-details-marker]:hidden">
-                <summary className="flex cursor-pointer items-center justify-between gap-3 px-4 py-3.5 text-[15px] font-bold text-ink">
-                  Ordering for work? Add a company, PO number or invoice email
-                  <span className="text-[13px] font-semibold text-brand group-open:hidden">Add</span>
-                </summary>
-                <div className="grid gap-4 border-t border-stone-200 p-4 sm:grid-cols-2">
-                  <label className="block">
-                    <span className={labelClass}>Company</span>
-                    <input value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Optional" autoComplete="organization" className={inputClass} />
-                  </label>
-                  <label className="block">
-                    <span className={labelClass}>PO number</span>
-                    <input value={po} onChange={(e) => setPo(e.target.value)} placeholder="Optional" className={inputClass} />
-                  </label>
-                  <label className="block sm:col-span-2" id="invoice">
-                    <span className={labelClass}>Send the invoice to</span>
-                    <input type="email" value={invoiceEmail} onChange={(e) => setInvoiceEmail(e.target.value)} placeholder="accounts@company.com (optional)" className={inputClass} />
-                  </label>
-                </div>
-              </details>
-              <p className="mt-4 text-[13px] text-stone-500">We&apos;ll call to confirm every catering order. Delivery is free within {CATERING_MAX_DELIVERY_KM} km of the store.</p>
+              {cateringBlock}
             </Section>
           )}
 
           {/* Updates */}
           <Section n={++n} title="Order updates" id="updates">
-            <div className="grid gap-3 sm:grid-cols-2">
-              {(
-                [
-                  { on: notifyEmail, set: setNotifyEmail, title: "Email", note: "Receipt and status updates" },
-                  { on: notifySms, set: setNotifySms, title: "Text message", note: "When it's ready or on the way" },
-                ] as const
-              ).map((o) => (
-                <label key={o.title} className={`flex cursor-pointer items-start gap-3 rounded-xl p-4 ring-1 transition ${o.on ? "ring-2 ring-brand" : "ring-stone-200 hover:ring-stone-400"}`}>
-                  <input type="checkbox" checked={o.on} onChange={(e) => o.set(e.target.checked)} className="sr-only" />
-                  <span className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md border ${o.on ? "border-brand bg-brand" : "border-stone-300"}`} aria-hidden>
-                    {o.on && <Check className="size-3.5 text-white" strokeWidth={3} />}
-                  </span>
-                  <span>
-                    <span className="block text-[15px] font-bold text-ink">{o.title}</span>
-                    <span className="block text-[13px] text-stone-500">{o.note}</span>
-                  </span>
-                </label>
-              ))}
-            </div>
+            {updatesBlock}
           </Section>
 
-          {/* Deals (everyday deals aren't for the catering form) */}
-          {!cateringForm && (
-            <Section n={++n} title="Deals and codes">
-              <PromoBox c={c} discount={totals.discount} unmetReason={totals.unmetReason} userId={user?.id ?? null} isMember={isMember && !verifiedEmail} />
-            </Section>
-          )}
+          {/* Deals */}
+          <Section n={++n} title="Deals and codes">
+            {dealsBlock}
+          </Section>
         </div>
 
         {/* Summary */}
-        <SummaryBox id="order-summary" className="scroll-mt-28 lg:sticky lg:top-[calc(var(--header-height)+1.5rem)]">
-          <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-stone-200">
-            <div className="bg-ink px-6 py-5 text-white">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="font-display text-xl font-extrabold">{cateringForm ? "Your catering order" : "Order summary"}</h2>
-                {c.lines.length > 0 && (
-                  <button type="button" onClick={onEditOrder ?? openCart} className="text-[13px] font-bold text-gold hover:underline">
-                    Edit
-                  </button>
-                )}
-              </div>
-              <p className="mt-1 text-[14px] text-stone-300">
-                {c.mode === "delivery" ? "Delivery" : "Pickup"} {whenLabel} · {store.name}
-              </p>
-            </div>
-            <div className="max-h-[36vh] overflow-y-auto px-6">
-              {c.lines.length ? (
-                <CartLines lines={c.lines} compact readOnly />
-              ) : (
-                <p className="py-5 text-[14px] text-stone-500">Pick a package and how many people, and your total shows up right here.</p>
-              )}
-            </div>
-            <dl className="space-y-1.5 border-t border-stone-200 px-6 py-5 text-[15px]">
-              <div className="flex justify-between">
-                <dt className="text-stone-600">Subtotal</dt>
-                <dd className="tabular-nums text-ink">{money(totals.subtotal)}</dd>
-              </div>
-              {totals.discount > 0 && (
-                <div className="flex justify-between text-emerald-700">
-                  <dt>{c.promo?.title}</dt>
-                  <dd className="tabular-nums">−{money(totals.discount)}</dd>
-                </div>
-              )}
-              <div className="flex justify-between">
-                <dt className="text-stone-600">HST ({Math.round(Number(store.tax_rate ?? 0.13) * 100)}%)</dt>
-                <dd className="tabular-nums text-ink">{money(totals.tax)}</dd>
-              </div>
-              <div className="flex justify-between border-t border-stone-200 pt-3 text-lg">
-                <dt className="font-extrabold text-ink">Total</dt>
-                <dd className="font-extrabold tabular-nums text-ink">{money(totals.total)}</dd>
-              </div>
-            </dl>
-            <div className="border-t border-stone-200 bg-cream/60 px-6 py-5">
-              {!c.lines.length ? null : isMember && !verifiedEmail ? (
-                <p className="mb-4 flex items-start gap-2 text-[14px] text-ink">
-                  <Sparkles className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden />
-                  <span>
-                    This order earns <strong>{points} PaninoPoints</strong>, {pointsProgressLabel((profile?.panino_points ?? 0) + pointsForSubtotal(totals.subtotal))}.
-                  </span>
-                </p>
-              ) : (
-                <p className="mb-4 flex items-start gap-2 text-[14px] text-stone-600">
-                  <Sparkles className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden />
-                  <span>
-                    {emailVerified ? (
-                      <>
-                        This order earns <strong>{points} PaninoPoints</strong>, saved to your email.
-                      </>
-                    ) : (
-                      <>
-                        Verify your email to keep the <strong>{points} PaninoPoints</strong> this order earns.
-                      </>
-                    )}
-                  </span>
-                </p>
-              )}
-
-              {problem && (
-                <p className="mb-4 flex items-start gap-2 rounded-lg bg-red-50 p-3 text-[14px] text-red-800 ring-1 ring-red-200" role="alert">
-                  <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
-                  {problem.message}
-                </p>
-              )}
-              {priceChange != null ? (
-                <div className="rounded-xl bg-amber-50 p-4 ring-1 ring-amber-200">
-                  <p className="text-[14px] text-amber-950">
-                    Some prices changed since these went in your order. Your total is now <strong>{money(priceChange)}</strong> (it was {money(totals.total)}).
-                  </p>
-                  <div className="mt-3 flex gap-2">
-                    <button type="button" onClick={() => setPriceChange(null)} className="flex-1 rounded-lg bg-white py-3 text-[14px] font-bold text-ink ring-1 ring-stone-300">
-                      Cancel
-                    </button>
-                    <button type="button" onClick={() => placeOrder(priceChange)} className="flex-1 rounded-lg bg-brand py-3 text-[14px] font-extrabold text-white">
-                      Place for {money(priceChange)}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => placeOrder()}
-                  disabled={placing}
-                  className={`flex w-full items-center justify-between gap-3 rounded-lg px-5 py-4 text-white transition-colors disabled:opacity-70 ${
-                    placeLabel === readyLabel ? "bg-brand hover:bg-brand-dark" : "bg-stone-500 hover:bg-stone-600"
-                  }`}
-                >
-                  <span className="flex items-center gap-2 text-[15px] font-extrabold uppercase tracking-wide">
-                    {placing ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Lock className="size-4" aria-hidden />}
-                    {placing ? (cateringForm ? "Sending it to Al" : "Placing your order") : placeLabel}
-                  </span>
-                  <span className="text-[16px] font-extrabold tabular-nums">{money(totals.total)}</span>
-                </button>
-              )}
-              <p className="mt-3 text-center text-[12px] leading-5 text-stone-500">
-                {isCatering && "We call to confirm every catering order before we start. "}
-                You pay when you {c.mode === "delivery" ? "get your delivery" : "pick up your order"}. By placing this order you agree to our{" "}
-                <Link href="/terms" className="underline hover:text-ink">
-                  Terms
-                </Link>
-                .
-              </p>
-            </div>
-          </div>
-        </SummaryBox>
+        {summary}
       </div>
     </div>
   );
