@@ -82,9 +82,12 @@ export default function SiteFooter() {
           </div>
         </div>
 
-        <div className="mt-10 flex flex-col gap-2 border-t border-white/10 py-6 text-[13px] sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-10 flex flex-col items-center gap-2 border-t border-white/10 py-6 text-center text-[13px] sm:grid sm:grid-cols-[1fr_auto_1fr] sm:gap-6 sm:text-left">
           <p>&copy; {new Date().getFullYear()} Al Paninos. All rights reserved.</p>
-          <p>Proudly made in Ontario, Canada.</p>
+          <span role="img" aria-label="Goat" className="text-[20px] leading-none">
+            🐐
+          </span>
+          <p className="sm:text-right">Proudly made in Ontario, Canada.</p>
         </div>
       </div>
     </footer>
