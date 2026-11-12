@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Car, MapPin, Store } from "lucide-react";
-import { useCart } from "@/lib/cart";
+import { ArrowRight, Car, Store } from "lucide-react";
+import { cart, useCart } from "@/lib/cart";
+import { addressLookupOn } from "@/lib/places";
+import AddressInput from "@/components/ordering/address-input";
 
 type StoreOption = { id: string; name: string; address: string | null };
 
@@ -17,21 +19,37 @@ export default function OrderStart({ stores }: { stores: StoreOption[] }) {
   const c = useCart();
   const [pickedMode, setMode] = useState<"pickup" | "delivery" | null>(null);
   const [pickedStore, setStoreId] = useState<string | null>(null);
-  const [typedAddress, setAddress] = useState<string | null>(null);
+  const [typed, setTyped] = useState<{ address: string; checked: boolean } | null>(null);
+  const [addressError, setAddressError] = useState<string | null>(null);
+  const starting = useRef(false);
   const mode = pickedMode ?? c.mode;
   const storeId = pickedStore ?? (c.storeId && stores.some((s) => s.id === c.storeId) ? c.storeId : stores[0]?.id ?? "");
-  const address = typedAddress ?? c.address;
+  const address = typed?.address ?? c.address;
+  const addressChecked = typed ? typed.checked : !!c.addressChecked;
 
-  const start = (e: React.FormEvent) => {
+  const start = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (starting.current) return;
     const params = new URLSearchParams({ store: storeId, mode });
-    if (mode === "delivery" && address.trim()) params.set("address", address.trim());
+    if (mode === "delivery" && address.trim()) {
+      // A typed address has to be one Google knows (picked from the list).
+      starting.current = true;
+      const mustPick = !addressChecked && (await addressLookupOn());
+      starting.current = false;
+      if (mustPick) {
+        setAddressError("Choose your address from the list as you type.");
+        document.getElementById("start-address")?.focus();
+        return;
+      }
+      cart.setAddress(address.trim(), addressChecked);
+      params.set("address", address.trim());
+    }
     router.push(`/menu?${params.toString()}`);
   };
 
   return (
-    <form onSubmit={start} className="overflow-hidden rounded-xl bg-white text-ink shadow-2xl shadow-black/30">
-      <div className="grid grid-cols-2" role="tablist" aria-label="How do you want it?">
+    <form onSubmit={start} className="rounded-xl bg-white text-ink shadow-2xl shadow-black/30">
+      <div className="grid grid-cols-2 overflow-hidden rounded-t-xl" role="tablist" aria-label="How do you want it?">
         {(
           [
             { key: "pickup", label: "Pickup", Icon: Store },
@@ -77,19 +95,29 @@ export default function OrderStart({ stores }: { stores: StoreOption[] }) {
         </label>
 
         {mode === "delivery" && (
-          <label className="block">
-            <span className="text-xs font-bold uppercase tracking-wide text-stone-500">Delivery address</span>
-            <span className="relative mt-1.5 block">
-              <MapPin className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-stone-400" aria-hidden />
-              <input
+          <div>
+            <label htmlFor="start-address" className="text-xs font-bold uppercase tracking-wide text-stone-500">
+              Delivery address
+            </label>
+            <div className="mt-1.5">
+              <AddressInput
+                id="start-address"
+                icon
                 value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="Street address, city"
-                autoComplete="street-address"
-                className="w-full rounded-lg border border-stone-300 py-3 pl-10 pr-3.5 text-[15px] outline-none focus:border-brand focus:ring-4 focus:ring-brand/10"
+                checked={addressChecked}
+                onType={(text) => {
+                  setTyped({ address: text, checked: false });
+                  setAddressError(null);
+                }}
+                onPick={(picked) => {
+                  setTyped({ address: picked, checked: true });
+                  setAddressError(null);
+                }}
+                error={addressError}
+                className="w-full rounded-lg border border-stone-300 py-3 pr-3.5 text-[15px] outline-none focus:border-brand focus:ring-4 focus:ring-brand/10"
               />
-            </span>
-          </label>
+            </div>
+          </div>
         )}
 
         <button

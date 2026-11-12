@@ -38,6 +38,8 @@ export type CartState = {
   storeName: string | null;
   mode: "pickup" | "delivery";
   address: string;
+  // The address was picked from Google's suggestions (see lib/places.ts).
+  addressChecked?: boolean;
   lines: CartLine[];
   promo: AppliedPromo | null;
 };
@@ -121,8 +123,8 @@ function createCartStore(key: string) {
     setMode(mode: "pickup" | "delivery") {
       set({ mode });
     },
-    setAddress(address: string) {
-      set({ address });
+    setAddress(address: string, checked = false) {
+      set({ address, addressChecked: checked });
     },
     // Adds a line; the same item with the same options and notes just adds
     // to that line's quantity.

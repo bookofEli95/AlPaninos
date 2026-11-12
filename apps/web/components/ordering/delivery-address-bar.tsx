@@ -3,14 +3,23 @@
 import { useState } from "react";
 import { Check, MapPin, Pencil } from "lucide-react";
 import { cart, useCart } from "@/lib/cart";
+import { addressLookupOn } from "@/lib/places";
+import AddressInput from "./address-input";
 
 // "Delivering to ..." under the menu banner, with the address editable
 // right there -- checkout needs it anyway.
 export default function DeliveryAddressBar() {
-  const { address } = useCart();
+  const { address, addressChecked } = useCart();
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState({ address: "", checked: false });
+  const [error, setError] = useState<string | null>(null);
   const showForm = editing || !address;
+
+  const save = (picked: string, checked: boolean) => {
+    cart.setAddress(picked, checked);
+    setEditing(false);
+    setError(null);
+  };
 
   if (!showForm) {
     return (
@@ -22,7 +31,7 @@ export default function DeliveryAddressBar() {
         <button
           type="button"
           onClick={() => {
-            setDraft(address);
+            setDraft({ address, checked: !!addressChecked });
             setEditing(true);
           }}
           className="inline-flex items-center gap-1 font-bold text-gold hover:underline"
@@ -35,25 +44,41 @@ export default function DeliveryAddressBar() {
   }
   return (
     <form
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
-        if (!draft.trim()) return;
-        cart.setAddress(draft.trim());
-        setEditing(false);
+        const typed = draft.address.trim();
+        if (!typed) return;
+        // A typed address has to be one Google knows (picked from the list).
+        if (!draft.checked && (await addressLookupOn())) {
+          setError("Choose your address from the list as you type.");
+          document.getElementById("menu-address")?.focus();
+          return;
+        }
+        save(typed, draft.checked);
       }}
-      className="mt-6 flex flex-col gap-2 sm:flex-row"
+      className="mt-6 flex flex-col gap-2 sm:flex-row sm:items-start"
     >
-      <label className="relative flex-1">
-        <span className="sr-only">Delivery address</span>
-        <MapPin className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-stone-400" aria-hidden />
-        <input
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+      <div className="flex-1">
+        <label htmlFor="menu-address" className="sr-only">
+          Delivery address
+        </label>
+        <AddressInput
+          id="menu-address"
+          icon
+          dark
+          value={draft.address}
+          checked={draft.checked}
+          onType={(text) => {
+            setDraft({ address: text, checked: false });
+            setError(null);
+          }}
+          // Picking one saves it, as in the app.
+          onPick={(picked) => save(picked, true)}
+          error={error}
           placeholder="Where should we deliver? Street address, city"
-          autoComplete="street-address"
-          className="w-full rounded-lg bg-white py-3 pl-10 pr-3.5 text-[15px] text-ink outline-none ring-1 ring-white/20 focus:ring-4 focus:ring-gold/40"
+          className="w-full rounded-lg bg-white py-3 pr-3.5 text-[15px] text-ink outline-none ring-1 ring-white/20 focus:ring-4 focus:ring-gold/40"
         />
-      </label>
+      </div>
       <button type="submit" className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-gold px-5 py-3 text-[14px] font-extrabold uppercase tracking-wide text-ink hover:bg-white">
         <Check className="size-4" aria-hidden />
         Save Address

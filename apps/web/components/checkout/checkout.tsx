@@ -19,6 +19,8 @@ import { pointsForSubtotal, pointsProgressLabel } from "@/lib/ordering/points";
 import type { Store } from "@/lib/menu";
 import { storeStatus } from "@/lib/hours";
 import { money } from "@/lib/format";
+import { addressLookupOn } from "@/lib/places";
+import AddressInput from "@/components/ordering/address-input";
 
 type Profile = { first_name: string | null; last_name: string | null; phone: string | null; notify_email: boolean | null; notify_sms: boolean | null; panino_points: number | null };
 
@@ -269,6 +271,8 @@ export default function Checkout({
       const blocked = validate?.();
       if (blocked) return fail(blocked.message, blocked.target);
       if (c.mode === "delivery" && !c.address.trim()) return fail("Add the address we're delivering to.", "address");
+      if (c.mode === "delivery" && !c.addressChecked && (await addressLookupOn()))
+        return fail("Choose your address from the list as you type, so we know exactly where to deliver.", "address");
       if (isCatering) {
         if (!slot) return fail("Pick the day and time you need your catering.", "when");
         if (!isCateringSlotAllowed(slot)) {
@@ -485,11 +489,22 @@ export default function Checkout({
       )}
 
       {c.mode === "delivery" && (
-        <div className="mt-5 grid gap-4 sm:grid-cols-[1fr_auto]">
-          <label className="block" id="address">
-            <span className={labelClass}>Delivery address</span>
-            <input value={c.address} onChange={(e) => cart.setAddress(e.target.value)} placeholder="Street address, city" autoComplete="street-address" className={inputClass} />
-          </label>
+        <div className={`mt-5 grid gap-4 ${isCatering ? "sm:grid-cols-[1fr_auto]" : ""}`}>
+          <div id="address">
+            <label htmlFor="delivery-address" className={labelClass}>
+              Delivery address
+            </label>
+            <div className="mt-1.5">
+              <AddressInput
+                id="delivery-address"
+                value={c.address}
+                checked={!!c.addressChecked}
+                onType={(text) => cart.setAddress(text)}
+                onPick={(address) => cart.setAddress(address, true)}
+                className={inputClass.replace("mt-1.5 ", "")}
+              />
+            </div>
+          </div>
           {isCatering && (
             <label className="block sm:w-44">
               <span className={labelClass}>Floor / suite</span>

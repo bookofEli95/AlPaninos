@@ -76,14 +76,14 @@ export default function SiteFooter() {
           <div className="flex items-center gap-3">
             <Smartphone className="size-6 text-gold" aria-hidden />
             <p className="text-[15px] text-stone-300">
-              <span className="font-bold text-white">The Al Paninos app</span> is coming soon to iPhone and Android, with the
+              <span className="font-bold text-white">The Al Panino&apos;s app</span> is coming soon to iPhone and Android, with the
               spin wheel and Secret Mob drops.
             </p>
           </div>
         </div>
 
         <div className="mt-10 flex flex-col items-center gap-2 border-t border-white/10 py-6 text-center text-[13px] sm:grid sm:grid-cols-[1fr_auto_1fr] sm:gap-6 sm:text-left">
-          <p>&copy; {new Date().getFullYear()} Al Paninos. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} Al Panino&apos;s. All rights reserved.</p>
           <span role="img" aria-label="Goat" className="text-[20px] leading-none">
             🐐
           </span>

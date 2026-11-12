@@ -32,7 +32,7 @@ export default function StoreSync({
     if (!c.storeId || c.lines.length === 0 || c.storeId === storeId) cart.setStore(storeId, storeName);
     if (explicitMode) cart.setMode(mode);
     else if (c.mode !== mode && c.storeId === storeId) router.replace(`/menu?store=${storeId}&mode=${c.mode}`);
-    if (address) cart.setAddress(address);
+    if (address && address !== c.address) cart.setAddress(address);
   }, [storeId, storeName, mode, explicitStore, explicitMode, address, router]);
   return null;
 }
