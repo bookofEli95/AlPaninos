@@ -24,7 +24,7 @@ type PastOrder = {
   total_amount: number;
   is_catering: boolean;
   locations: { name: string } | null;
-  order_items: { quantity: number; menu_items: { name: string } | null }[];
+  order_items: { quantity: number; menu_items: { name: string; per_person?: boolean | null } | null }[];
 };
 
 const STATUS: Record<string, { label: string; tone: string }> = {
@@ -65,7 +65,7 @@ export default function AccountPage() {
       supabase.from("profiles").select("first_name, last_name, phone, notify_email, notify_sms, panino_points").eq("id", userId).single(),
       supabase
         .from("orders")
-        .select("id, created_at, status, order_type, total_amount, is_catering, locations ( name ), order_items ( quantity, menu_items ( name ) )")
+        .select("id, created_at, status, order_type, total_amount, is_catering, locations ( name ), order_items ( quantity, menu_items ( * ) )")
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(12),
@@ -192,7 +192,9 @@ export default function AccountPage() {
               <ul className="mt-4 divide-y divide-stone-200">
                 {(orders ?? []).map((o) => {
                   const status = STATUS[o.status] ?? { label: o.status, tone: "bg-stone-100 text-stone-700" };
-                  const names = o.order_items.map((i) => `${i.quantity > 1 ? `${i.quantity}× ` : ""}${i.menu_items?.name ?? "Item"}`).join(", ");
+                  const names = o.order_items
+                    .map((i) => (i.menu_items?.per_person ? `${i.menu_items.name} for ${i.quantity}` : `${i.quantity > 1 ? `${i.quantity}× ` : ""}${i.menu_items?.name ?? "Item"}`))
+                    .join(", ");
                   return (
                     <li key={o.id} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center">
                       <Link href={`/order/${o.id}`} className="group min-w-0 flex-1">

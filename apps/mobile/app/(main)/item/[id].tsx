@@ -414,6 +414,7 @@ export default function ItemDetailScreen() {
       specialInstructions: specialInstructions.trim() || undefined,
       promoCode: promoCode || undefined,
       imageUrl: data.image_url,
+      perPerson: perPerson || undefined,
     };
 
     // A deal meal waits in the deal until the whole deal is confirmed.

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Car, MapPin, Store } from "lucide-react";
+import { useCart } from "@/lib/cart";
 
 type StoreOption = { id: string; name: string; address: string | null };
 
@@ -11,9 +12,15 @@ type StoreOption = { id: string; name: string; address: string | null };
 // then straight to the menu.
 export default function OrderStart({ stores }: { stores: StoreOption[] }) {
   const router = useRouter();
-  const [mode, setMode] = useState<"pickup" | "delivery">("pickup");
-  const [storeId, setStoreId] = useState(stores[0]?.id ?? "");
-  const [address, setAddress] = useState("");
+  // Whatever's picked here wins; until then it's what the order already has
+  // (someone coming back keeps their store, delivery and address).
+  const c = useCart();
+  const [pickedMode, setMode] = useState<"pickup" | "delivery" | null>(null);
+  const [pickedStore, setStoreId] = useState<string | null>(null);
+  const [typedAddress, setAddress] = useState<string | null>(null);
+  const mode = pickedMode ?? c.mode;
+  const storeId = pickedStore ?? (c.storeId && stores.some((s) => s.id === c.storeId) ? c.storeId : stores[0]?.id ?? "");
+  const address = typedAddress ?? c.address;
 
   const start = (e: React.FormEvent) => {
     e.preventDefault();

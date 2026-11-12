@@ -155,7 +155,7 @@ export default async function HomePage() {
               Feeding the whole crew?
             </h2>
             <p className="mt-5 max-w-lg text-lg leading-8 text-white/85">
-              Panino boards, wrap platters and party packs for the office, birthdays and game day.
+              Six spreads priced per person, from sandwich luncheons and build-your-own paninos to tacos, pasta, Texas BBQ and Greek. No minimum.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
@@ -174,7 +174,7 @@ export default async function HomePage() {
           </div>
           <ol className="grid gap-px overflow-hidden rounded-xl bg-white/15 sm:grid-cols-3">
             {[
-              { title: "Tell us the headcount", text: "We work out how much food you need and suggest the spread." },
+              { title: "Pick your spread", text: "Six packages priced per person, with salad and dessert included." },
               { title: "Order by 6 PM", text: "For pickup or delivery the next day, at the time you choose." },
               { title: "We confirm every detail", text: "A quick call to check everything before we start." },
             ].map((step, i) => (
@@ -367,12 +367,12 @@ const FALLBACK_TILES: Tile[] = [
     key: "catering",
     tone: "red",
     eyebrow: "Catering",
-    value: "Feed 10+",
-    title: "Boards & party packs",
+    value: "No minimum",
+    title: "Six spreads, priced per person",
     text: "Order by 6 PM for pickup or delivery the next day.",
     terms: [],
     href: "/catering",
-    cta: "Plan Catering",
+    cta: "Order Catering",
   },
   {
     key: "points",

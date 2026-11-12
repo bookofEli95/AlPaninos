@@ -194,7 +194,7 @@ export default function OrderDetailScreen() {
             unit_price,
             total_price,
             special_instructions,
-            menu_items ( name, is_catering ),
+            menu_items ( name, is_catering, per_person ),
             order_item_modifiers (
               price_adjustment,
               modifier_options ( *, modifier_groups!group_id ( * ) )
@@ -763,7 +763,9 @@ export default function OrderDetailScreen() {
           <View className="bg-white p-4 rounded-2xl border border-stone-200 mb-2.5">
             <View className="flex-row justify-between items-start">
               <Text className="font-inter-bold text-base text-[#1C1917] flex-1 mr-2">
-                {item.quantity}x {item.menu_items?.name || 'Item'}
+                {item.menu_items?.per_person
+                  ? `${item.menu_items?.name || 'Item'} for ${item.quantity}`
+                  : `${item.quantity}x ${item.menu_items?.name || 'Item'}`}
               </Text>
               <Text className="font-inter-bold text-base text-[#A61C14]" style={tabularNums}>${Number(item.total_price).toFixed(2)}</Text>
             </View>

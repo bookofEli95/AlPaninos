@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Menu as MenuIcon } from "lucide-react";
+import MobileNav from "./mobile-nav";
 import BrandMark from "./brand-mark";
 import { HeaderAccount, HeaderCart, HeaderOrderNow, HeaderStore } from "./header-ordering";
 
@@ -56,37 +56,7 @@ export default function SiteHeader() {
             <HeaderCart />
             <HeaderOrderNow className="hidden whitespace-nowrap rounded-lg bg-brand px-5 py-3 text-sm font-extrabold uppercase tracking-wide text-white transition-colors hover:bg-brand-dark sm:block" />
 
-            {/* Phones and tablets: the sections behind a button, no script needed. */}
-            <details className="relative lg:hidden">
-              <summary
-                className="flex size-11 cursor-pointer list-none items-center justify-center rounded-lg border border-stone-300 text-ink [&::-webkit-details-marker]:hidden"
-                aria-label="Open menu"
-              >
-                <MenuIcon className="size-5" aria-hidden />
-              </summary>
-              <nav
-                aria-label="Main"
-                className="absolute right-0 top-14 w-64 overflow-hidden rounded-xl border border-stone-200 bg-white shadow-xl shadow-black/10"
-              >
-                {[...NAV, { href: "/support", label: "Help" }].map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className="block border-b border-stone-100 px-5 py-3.5 text-sm font-extrabold uppercase tracking-wide text-ink hover:bg-cream"
-                  >
-                    {item.label}
-                  </Link>
-                ))}
-                <div className="grid grid-cols-2 gap-2 p-3">
-                  <Link href="/account" className="rounded-lg border border-stone-300 py-2.5 text-center text-sm font-bold text-ink">
-                    Account
-                  </Link>
-                  <Link href="/menu" className="rounded-lg bg-brand py-2.5 text-center text-sm font-bold text-white">
-                    Order Now
-                  </Link>
-                </div>
-              </nav>
-            </details>
+            <MobileNav links={[...NAV, { href: "/support", label: "Help" }]} />
           </div>
         </div>
       </header>

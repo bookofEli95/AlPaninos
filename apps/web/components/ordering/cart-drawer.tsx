@@ -63,7 +63,7 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
   const suggestions = useSuggestions(c.storeId, c.lines.map((l) => l.menuItemId), open && c.lines.length > 0 && !totals.isCatering);
 
   return (
-    <div className={`fixed inset-0 z-[55] ${open ? "" : "pointer-events-none"}`} aria-hidden={!open}>
+    <div className={`fixed inset-0 z-[55] ${open ? "" : "pointer-events-none"}`} aria-hidden={!open} inert={!open}>
       <div className={`absolute inset-0 bg-ink/50 transition-opacity duration-300 ${open ? "opacity-100" : "opacity-0"}`} onClick={onClose} />
       <aside
         ref={ref}
@@ -167,7 +167,7 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
                 </span>
               </Link>
               <p className="mt-2 text-center text-[12px] text-stone-500">
-                Tax is added at checkout. {isMember ? "This order earns" : "Earn"} {Math.floor(totals.subtotal * 10)} PaninoPoints{isMember ? "." : " with a free account."}
+                Tax is added at checkout. {isMember ? "This order earns" : "Earn"} {Math.floor(totals.subtotal * 10).toLocaleString("en-CA")} PaninoPoints{isMember ? "." : " with a free account."}
               </p>
             </div>
           </>

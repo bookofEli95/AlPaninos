@@ -203,7 +203,8 @@ export default async function CateringPage({ searchParams }: PageProps<"/caterin
                         <div className="mt-3 grid gap-4 sm:grid-cols-2">
                           <div>
                             <p className="text-[12px] font-extrabold uppercase tracking-[0.14em] text-stone-500">Standard</p>
-                            <ul className="mt-1.5 space-y-1 text-[15px] font-semibold text-ink">
+                            <p className="text-[13px] font-semibold text-stone-500">Included</p>
+                            <ul className="mt-2 space-y-1 text-[15px] font-semibold text-ink">
                               {g.standard.map((n) => (
                                 <li key={n}>{n}</li>
                               ))}
@@ -211,10 +212,9 @@ export default async function CateringPage({ searchParams }: PageProps<"/caterin
                           </div>
                           {g.upgrades.length > 0 && (
                             <div>
-                              <p className="text-[12px] font-extrabold uppercase tracking-[0.14em] text-brand">
-                                Al Panino&apos;s Choice +{money(Math.min(...g.upgrades.map((o) => Number(o.price_adjustment))))} / person
-                              </p>
-                              <ul className="mt-1.5 space-y-1 text-[15px] font-semibold text-ink">
+                              <p className="text-[12px] font-extrabold uppercase tracking-[0.14em] text-brand">Al Panino&apos;s Choice</p>
+                              <p className="text-[13px] font-semibold text-stone-500">+{money(Math.min(...g.upgrades.map((o) => Number(o.price_adjustment))))} per person</p>
+                              <ul className="mt-2 space-y-1 text-[15px] font-semibold text-ink">
                                 {g.upgrades.map((o) => (
                                   <li key={o.id}>{o.name}</li>
                                 ))}

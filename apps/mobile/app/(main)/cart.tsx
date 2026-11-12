@@ -103,6 +103,7 @@ export default function CartScreen() {
   const [invoiceEmail, setInvoiceEmail] = useState('');
   const [cateringSuite, setCateringSuite] = useState('');
   const [cateringDropoff, setCateringDropoff] = useState('');
+  const [cateringDietary, setCateringDietary] = useState('');
 
   // Subtotal, promo discount, tax and total -- shared with the floating
   // View Cart bar so the two always agree (hooks/useCartTotals.ts).
@@ -649,8 +650,9 @@ export default function CartScreen() {
           invoice_email: invoiceEmail.trim() || null,
           catering_notes:
             [
-              cateringSuite.trim() && `Floor/Suite: ${cateringSuite.trim()}`,
-              cateringDropoff.trim() && `Drop-off: ${cateringDropoff.trim()}`,
+              cateringDietary.trim() && `Dietary: ${cateringDietary.trim()}`,
+              orderType === 'delivery' && cateringSuite.trim() && `Floor/Suite: ${cateringSuite.trim()}`,
+              orderType === 'delivery' && cateringDropoff.trim() && `Drop-off: ${cateringDropoff.trim()}`,
             ]
               .filter(Boolean)
               .join('\n') || null,
@@ -717,6 +719,7 @@ export default function CartScreen() {
       setInvoiceEmail('');
       setCateringSuite('');
       setCateringDropoff('');
+      setCateringDietary('');
       // Straight to the order, where it's celebrated (confetti, points) and
       // tracked live -- no popup in between.
       router.replace({ pathname: `/(main)/order/${orderData.id}`, params: { placed: '1' } });
@@ -1057,6 +1060,17 @@ export default function CartScreen() {
             {isCateringOrder && (
               <View className="mt-4 p-4 bg-white rounded-2xl border border-stone-200 shadow-sm">
                 <Text className="text-base font-inter-bold text-[#1C1917] mb-3">Catering Details</Text>
+                <TextInput
+                  className="bg-[#FAF6F0] border border-stone-300 px-3 py-2.5 rounded-xl text-sm text-[#1C1917]"
+                  style={{ minHeight: 56 }}
+                  placeholder="Dietary needs, e.g. 3 vegetarian, 1 nut allergy (optional)"
+                  placeholderTextColor="#A8A29E"
+                  value={cateringDietary}
+                  onChangeText={(text) => setCateringDietary(text.slice(0, 500))}
+                  multiline
+                  textAlignVertical="top"
+                />
+                <Text className="text-xs text-[#78716C] mt-1.5 mb-2.5">Every dietary order is wrapped and labelled separately.</Text>
                 <TextInput
                   className="bg-[#FAF6F0] border border-stone-300 px-3 py-2.5 rounded-xl text-sm text-[#1C1917]"
                   placeholder="Company or event name (optional)"

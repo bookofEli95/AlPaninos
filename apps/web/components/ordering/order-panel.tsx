@@ -58,7 +58,7 @@ export default function OrderPanel({ storeName, mode }: { storeName: string; mod
         ) : (
           <span className="mt-4 block w-full rounded-lg bg-stone-200 py-3.5 text-center text-[14px] font-extrabold uppercase tracking-wide text-stone-700">Add items to check out</span>
         )}
-        <p className="mt-3 text-center text-xs text-stone-500">{points > 0 ? `This order earns ${points} PaninoPoints.` : "Earn 10 PaninoPoints for every $1."}</p>
+        <p className="mt-3 text-center text-xs text-stone-500">{points > 0 ? `This order earns ${points.toLocaleString("en-CA")} PaninoPoints.` : "Earn 10 PaninoPoints for every $1."}</p>
       </div>
     </div>
   );

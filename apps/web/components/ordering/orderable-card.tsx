@@ -13,7 +13,6 @@ export default function OrderableCard({ item, ...rest }: Parameters<typeof ItemC
       type="button"
       onClick={() => openItem(item.id)}
       className="block h-full w-full rounded-xl text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/40"
-      aria-label={`${item.name}, add to order`}
     >
       <ItemCard item={item} {...rest} />
     </button>

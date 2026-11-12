@@ -17,7 +17,11 @@ const SECTIONS = [
   },
   {
     heading: "Orders and Payment",
-    body: "All orders are subject to availability and confirmation by the restaurant. Menu prices do not include tax, which is added at checkout. Orders may be cancelled by the restaurant if items become unavailable.",
+    body: "All orders are subject to availability and confirmation by the restaurant. Menu prices do not include tax, which is added at checkout. You pay when you pick up your order or when it is delivered. Orders may be cancelled by the restaurant if items become unavailable.",
+  },
+  {
+    heading: "Catering",
+    body: "Catering orders need to be placed by 6 PM the day before, and custom catering needs 48 hours' notice. We call to confirm the details of every catering order before we start preparing it.",
   },
   {
     heading: "Cancellations and Refunds",
@@ -42,7 +46,7 @@ export default function TermsPage() {
     <InfoPage
       title="Terms & Legal"
       icon={FileText}
-      updated="October 2026"
+      updated="November 2026"
       intro="The terms for ordering from Al Paninos online and in the app: orders, refunds, and your account."
       sections={SECTIONS}
     />

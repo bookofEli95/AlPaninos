@@ -21,7 +21,9 @@ export default function ItemCard({
       <div className="relative overflow-hidden">
         <FoodPhoto
           src={item.image_url}
-          alt={item.name}
+          // The name is right under the photo (and the whole card is one
+          // button), so the photo itself stays quiet for screen readers.
+          alt=""
           sizes={sizes}
           priority={priority}
           className="aspect-[4/3] w-full transition-transform duration-500 group-hover:scale-[1.04]"

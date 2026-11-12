@@ -78,7 +78,7 @@ export default function OrdersScreen() {
       // With each order's items (name + photo) and store, for the cards.
       const { data, error } = await (supabase as any)
         .from('orders')
-        .select('*, locations ( name ), order_items ( id, quantity, menu_items ( name, image_url ) )')
+        .select('*, locations ( name ), order_items ( id, quantity, menu_items ( name, image_url, per_person ) )')
         .eq('user_id', session.user.id)
         .order('created_at', { ascending: false });
 
@@ -190,7 +190,11 @@ export default function OrdersScreen() {
           const isFinished = item.status === 'completed' || item.status === 'cancelled';
           const lines: any[] = item.order_items || [];
           const photos = lines.map((l) => l.menu_items?.image_url).filter(Boolean).slice(0, 3) as string[];
-          const names = lines.map((l) => `${l.quantity > 1 ? `${l.quantity}x ` : ''}${l.menu_items?.name ?? 'Item'}`);
+          const names = lines.map((l) =>
+            l.menu_items?.per_person
+              ? `${l.menu_items?.name ?? 'Item'} for ${l.quantity}`
+              : `${l.quantity > 1 ? `${l.quantity}x ` : ''}${l.menu_items?.name ?? 'Item'}`
+          );
           const summary = names.slice(0, 2).join(', ') + (names.length > 2 ? ` +${names.length - 2} more` : '');
 
           return (

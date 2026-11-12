@@ -21,6 +21,7 @@ type Props = {
     description?: string | null;
     // Catering packages only (see the catering migration).
     serves_min?: number | null;
+    per_person?: boolean | null;
     serves_max?: number | null;
   } & DropFields;
   // Extras/Drinks have no modifiers to configure -- tapping adds/adjusts a
@@ -166,6 +167,7 @@ export default function MenuItemGridTile({ item, isSimpleCategory, dealTag }: Pr
           <View className="flex-row items-center justify-between">
             <Text className="text-[#A61C14] font-inter-extrabold text-[15px]" style={tabularNums}>
               ${item.base_price.toFixed(2)}
+              {!!item.per_person && <Text className="text-[#78716C] font-inter-semibold text-xs"> / person</Text>}
             </Text>
             {!!item.serves_min && (
               <View className="flex-row items-center">

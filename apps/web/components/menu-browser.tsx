@@ -111,7 +111,7 @@ export default function MenuBrowser({ sections, storeName, mode }: { sections: S
           )}
 
           <div id="menu-items" className="scroll-mt-32 space-y-14 pt-8">
-            {shown.map(({ category, items }) => (
+            {shown.map(({ category, items }, sectionIndex) => (
               <section key={category.id} aria-labelledby={`${category.id}-title`}>
                 <div id={category.id} className="flex scroll-mt-32 items-baseline justify-between gap-3 border-b border-stone-200 pb-3">
                   <h2 id={`${category.id}-title`} className="font-display text-[1.9rem] font-extrabold tracking-tight text-ink">
@@ -122,8 +122,9 @@ export default function MenuBrowser({ sections, storeName, mode }: { sections: S
                   </span>
                 </div>
                 <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3">
-                  {items.map((item) => (
-                    <OrderableCard key={item.id} item={item} sizes="(min-width: 1280px) 280px, (min-width: 768px) 30vw, 50vw" />
+                  {items.map((item, i) => (
+                    // The first row is on screen when the page opens: its photos load first.
+                    <OrderableCard key={item.id} item={item} priority={sectionIndex === 0 && i < 3} sizes="(min-width: 1280px) 280px, (min-width: 768px) 30vw, 50vw" />
                   ))}
                 </div>
               </section>

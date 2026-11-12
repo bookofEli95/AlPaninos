@@ -28,6 +28,10 @@ type Order = {
   total_amount: number;
   promo_code: string | null;
   is_catering: boolean;
+  catering_company: string | null;
+  catering_notes: string | null;
+  catering_confirmed_at: string | null;
+  po_number: string | null;
   locations: { name: string; address: string | null; phone: string | null; latitude: number | null; longitude: number | null } | null;
   order_items: {
     id: string;
@@ -58,6 +62,8 @@ const DELIVERY_STEPS = [
 function statusLine(o: Order): string {
   switch (o.status) {
     case "received":
+      // Catering is for another day: what happens next is the phone call.
+      if (o.is_catering) return o.catering_confirmed_at ? "Confirmed with you by phone. We'll have it ready right on time." : "We've got it. We'll call you to confirm every detail.";
       return "Got it! Your order's in line for the press.";
     case "preparing":
       return "It's in the press, getting its grill marks.";
@@ -315,10 +321,21 @@ export default function OrderTracker({ id, placed: justPlaced }: { id: string; p
                   <dd className="tabular-nums">{money(order.total_amount)}</dd>
                 </div>
               </dl>
+              {order.is_catering && (order.catering_notes || order.catering_company || order.po_number) && (
+                <div className="mt-4 rounded-lg bg-cream p-4 text-[14px] text-ink">
+                  <p className="text-[12px] font-bold uppercase tracking-wide text-stone-500">Your catering details</p>
+                  {(order.catering_company || order.po_number) && (
+                    <p className="mt-1.5">{[order.catering_company, order.po_number && `PO ${order.po_number}`].filter(Boolean).join(" · ")}</p>
+                  )}
+                  {order.catering_notes && <p className="mt-1.5 whitespace-pre-line">{order.catering_notes}</p>}
+                </div>
+              )}
               {isMember && !passwordless && !cancelled && (
                 <p className="mt-4 flex items-center gap-2 rounded-lg bg-cream p-3 text-[14px] text-ink">
                   <Sparkles className="size-4 text-brand" aria-hidden />
-                  {order.status === "completed" ? `${points} PaninoPoints added to your account.` : `${points} PaninoPoints land in your account once it's ${order.order_type === "delivery" ? "delivered" : "picked up"}.`}
+                  {order.status === "completed"
+                    ? `${points.toLocaleString("en-CA")} PaninoPoints added to your account.`
+                    : `${points.toLocaleString("en-CA")} PaninoPoints land in your account once it's ${order.order_type === "delivery" ? "delivered" : "picked up"}.`}
                 </p>
               )}
             </section>

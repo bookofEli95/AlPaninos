@@ -18,8 +18,10 @@ export const metadata: Metadata = {
     type: "website",
     siteName: "Al Paninos",
     locale: "en_CA",
-    images: [{ url: "/media/hero-poster.jpg", width: 720, height: 1280, alt: "A crispy chicken panino with fries" }],
+    images: [{ url: "/media/og.jpg", width: 1200, height: 630, alt: "Al Paninos: Pressed hot. Stacked high. Toasted paninos, wraps and catering in St. Thomas and London, Ontario." }],
   },
+  // The big picture card when a link is shared (texts, Facebook, X).
+  twitter: { card: "summary_large_image", images: ["/media/og.jpg"] },
 };
 
 export const viewport: Viewport = {

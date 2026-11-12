@@ -25,7 +25,7 @@ export async function reorderFromOrder(orderId: string): Promise<ReorderResult> 
       unit_price,
       total_price,
       special_instructions,
-      menu_items ( name, is_available, image_url ),
+      menu_items ( name, is_available, image_url, per_person ),
       order_item_modifiers (
         modifier_option_id,
         price_adjustment,
@@ -67,6 +67,7 @@ export async function reorderFromOrder(orderId: string): Promise<ReorderResult> 
       totalPrice: (oi.unit_price + modifiers.reduce((sum: number, m: any) => sum + m.price, 0)) * oi.quantity,
       specialInstructions: oi.special_instructions || undefined,
       imageUrl: oi.menu_items?.image_url,
+      perPerson: oi.menu_items?.per_person || undefined,
     };
 
     useCartStore.getState().addItem(cartItem, order.location_id);

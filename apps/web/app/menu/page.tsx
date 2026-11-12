@@ -120,7 +120,7 @@ export default async function MenuPage({ searchParams }: PageProps<"/menu">) {
               <Users className="size-9 shrink-0 text-gold" aria-hidden />
               <span className="flex-1">
                 <span className="block font-display text-xl font-extrabold">Catering for a crowd</span>
-                <span className="block text-[15px] text-white/80">Boards and party packs. Order by 6 PM for next day.</span>
+                <span className="block text-[15px] text-white/80">Six spreads, priced per person. Order by 6 PM for the next day.</span>
               </span>
               <ArrowRight className="size-5 transition-transform group-hover:translate-x-1" aria-hidden />
             </Link>

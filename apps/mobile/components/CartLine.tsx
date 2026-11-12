@@ -63,6 +63,12 @@ export default function CartLine({
           {item.name}
         </Text>
 
+        {item.perPerson && !isReward && (
+          <Text className="text-xs font-inter-bold text-[#1C1917] mt-0.5" numberOfLines={1}>
+            For {item.quantity} {item.quantity === 1 ? 'person' : 'people'} · ${(item.totalPrice / Math.max(item.quantity, 1)).toFixed(2)} / person
+          </Text>
+        )}
+
         {isReward && (
           <View className="flex-row items-center mt-0.5">
             <Ionicons name="gift" size={12} color="#B45309" />
@@ -116,7 +122,7 @@ export default function CartLine({
             <TouchableOpacity
               onPress={() => change(item.quantity - 1)}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 4 }}
-              accessibilityLabel={item.quantity === 1 ? `Remove ${item.name}` : `One less ${item.name}`}
+              accessibilityLabel={item.quantity === 1 ? `Remove ${item.name}` : item.perPerson ? `One less person for ${item.name}` : `One less ${item.name}`}
               className="w-7 h-7 rounded-full bg-white items-center justify-center"
             >
               <Ionicons name={item.quantity === 1 ? 'trash-outline' : 'remove'} size={14} color={item.quantity === 1 ? RED : '#1C1917'} />
@@ -127,7 +133,7 @@ export default function CartLine({
             <TouchableOpacity
               onPress={() => change(item.quantity + 1)}
               hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
-              accessibilityLabel={`One more ${item.name}`}
+              accessibilityLabel={item.perPerson ? `One more person for ${item.name}` : `One more ${item.name}`}
               className="w-7 h-7 rounded-full bg-white items-center justify-center"
             >
               <Ionicons name="add" size={14} color="#1C1917" />

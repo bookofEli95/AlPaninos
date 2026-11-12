@@ -22,6 +22,8 @@ export type CartItem = {
   // cart right now) instead of tracking a separate flag that could go stale
   // if the item is removed or the modifier-picking flow is abandoned.
   promoCode?: string;
+  // A catering package priced per person: the quantity is the headcount.
+  perPerson?: boolean;
 };
 
 interface AccountCart {

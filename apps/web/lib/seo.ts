@@ -18,6 +18,14 @@ function postalAddress(address: string | null) {
   };
 }
 
+// "(548) 866-0420" -> "+15488660420", the form search engines ask for.
+function internationalPhone(phone: string): string {
+  const digits = phone.replace(/[^0-9]/g, "");
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith("1")) return `+${digits}`;
+  return phone;
+}
+
 // Each store as a Restaurant for Google (local results, Maps, hours and
 // "Order online" links), straight from the same data as the pages.
 export function restaurantJsonLd(stores: Store[]) {
@@ -37,12 +45,12 @@ export function restaurantJsonLd(stores: Store[]) {
         name: `Al Paninos ${store.name}`,
         brand: { "@id": `${SITE_URL}/#organization` },
         url: `${SITE_URL}/locations`,
-        image: `${SITE_URL}/media/hero-poster.jpg`,
+        image: [`${SITE_URL}/media/storefront.jpg`, `${SITE_URL}/media/hero-poster.jpg`],
         servesCuisine: ["Sandwiches", "Italian", "Paninos", "Wraps"],
         priceRange: "$$",
         acceptsReservations: false,
         hasMenu: `${SITE_URL}/menu?store=${store.id}`,
-        ...(store.phone ? { telephone: store.phone } : {}),
+        ...(store.phone ? { telephone: internationalPhone(store.phone) } : {}),
         ...(store.address ? { address: postalAddress(store.address) } : {}),
         ...(store.latitude != null && store.longitude != null ? { geo: { "@type": "GeoCoordinates", latitude: store.latitude, longitude: store.longitude } } : {}),
         openingHoursSpecification: DAY_NAMES.flatMap((day) => {
