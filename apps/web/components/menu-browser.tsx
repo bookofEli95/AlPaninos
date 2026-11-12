@@ -110,7 +110,7 @@ export default function MenuBrowser({ sections, storeName, mode }: { sections: S
             </p>
           )}
 
-          <div className="space-y-14 pt-8">
+          <div id="menu-items" className="scroll-mt-32 space-y-14 pt-8">
             {shown.map(({ category, items }) => (
               <section key={category.id} aria-labelledby={`${category.id}-title`}>
                 <div id={category.id} className="flex scroll-mt-32 items-baseline justify-between gap-3 border-b border-stone-200 pb-3">

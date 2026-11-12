@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Menu as MenuIcon } from "lucide-react";
 import BrandMark from "./brand-mark";
-import { HeaderAccount, HeaderCart, HeaderStore } from "./header-ordering";
+import { HeaderAccount, HeaderCart, HeaderOrderNow, HeaderStore } from "./header-ordering";
 
 const NAV = [
   { href: "/menu", label: "Menu" },
@@ -54,12 +54,7 @@ export default function SiteHeader() {
             <HeaderStore />
             <HeaderAccount />
             <HeaderCart />
-            <Link
-              href="/menu"
-              className="hidden whitespace-nowrap rounded-lg bg-brand px-5 py-3 text-sm font-extrabold uppercase tracking-wide text-white transition-colors hover:bg-brand-dark sm:block"
-            >
-              Order Now
-            </Link>
+            <HeaderOrderNow className="hidden whitespace-nowrap rounded-lg bg-brand px-5 py-3 text-sm font-extrabold uppercase tracking-wide text-white transition-colors hover:bg-brand-dark sm:block" />
 
             {/* Phones and tablets: the sections behind a button, no script needed. */}
             <details className="relative lg:hidden">

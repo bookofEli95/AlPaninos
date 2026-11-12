@@ -55,8 +55,7 @@ function FormPart({ title, id, children }: { title: string; id?: string; childre
 // everything again and stops if the total doesn't match what's shown.
 //
 // The catering page uses it too, for its own order (`orderStore`): its
-// package builder comes first (`lead`), and the order goes in with "Send it
-// to Al".
+// package builder comes first (`lead`), and the button reads Order Now.
 export default function Checkout({
   stores,
   orderStore = mainCart,
@@ -414,7 +413,7 @@ export default function Checkout({
   // On the catering page the form already sits in its own labelled section,
   // so the summary is a plain box there rather than a sidebar landmark.
   const SummaryBox = cateringForm ? "div" : "aside";
-  const readyLabel = cateringForm ? "Send it to Al" : "Place Order";
+  const readyLabel = cateringForm ? "Order Now" : "Place Order";
   const placeLabel = !c.lines.length ? "Pick a package to start" : guestForm && !emailVerified ? "Verify your email to continue" : readyLabel;
   const whenLabel = slot ? formatDayAndTime(slot) : isCatering ? "· pick a day and time" : `in about ${asapMinutes} min`;
   let n = 0;
@@ -844,7 +843,7 @@ export default function Checkout({
             >
               <span className="flex items-center gap-2 text-[15px] font-extrabold uppercase tracking-wide">
                 {placing ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Lock className="size-4" aria-hidden />}
-                {placing ? (cateringForm ? "Sending it to Al" : "Placing your order") : placeLabel}
+                {placing ? "Placing your order" : placeLabel}
               </span>
               <span className="text-[16px] font-extrabold tabular-nums">{money(totals.total)}</span>
             </button>
@@ -863,7 +862,7 @@ export default function Checkout({
   );
 
   // The catering page: one order form, top to bottom, like a printed one --
-  // then the order with its total and "Send it to Al".
+  // then the order with its total and Order Now.
   if (cateringForm) {
     return (
       <div className="mx-auto max-w-3xl">

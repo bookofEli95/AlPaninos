@@ -29,7 +29,9 @@ import { money, tidyDescription } from "@/lib/format";
 // remembered in this browser until it's sent.
 
 const DEFAULT_PEOPLE = 10;
-const MOST_POPULAR = "Al's Classic Luncheon";
+// (The name before and after the "Al Panino's" rename, so the badge stays
+// put whichever is in the database.)
+const MOST_POPULAR = ["Al Panino's Classic Luncheon", "Al's Classic Luncheon"];
 
 function lineFor(pkg: CateringPackage, people: number, selections: Selections = defaultSelections(pkg.groups)): Omit<CartLine, "lineId"> {
   const shown = visibleGroups(pkg.groups, selections);
@@ -97,7 +99,7 @@ export function PackageCards({ packages, stores, initialStoreId, customPhone }: 
   return (
     <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
       {here.map((pkg, i) => {
-        const popular = pkg.name === MOST_POPULAR;
+        const popular = MOST_POPULAR.includes(pkg.name);
         const picked = inOrder.has(pkg.id);
         const choices = choiceSummary(pkg);
         return (
@@ -142,14 +144,14 @@ export function PackageCards({ packages, stores, initialStoreId, customPhone }: 
       <li className="grain relative flex flex-col overflow-hidden rounded-2xl bg-ink p-6 text-white sm:col-span-2 lg:col-span-3 lg:flex-row lg:items-center lg:gap-12 lg:p-8">
         <div className="flex-1">
           <p className="text-[12px] font-extrabold uppercase tracking-[0.14em] text-gold">Fully custom</p>
-          <h3 className="mt-1.5 font-display text-2xl font-extrabold leading-tight sm:text-3xl">Al Makes It Your Way</h3>
+          <h3 className="mt-1.5 font-display text-2xl font-extrabold leading-tight sm:text-3xl">Al Panino&apos;s Makes It Your Way</h3>
           <p className="mt-3 max-w-2xl text-[15px] leading-6 text-stone-300">
-            Got something else in mind? A bigger crowd, a different menu, gluten-free for everyone? Tell Al what you&apos;re dreaming up and Al will build it. Needs 48 hours&apos; notice.
+            Got something else in mind? A bigger crowd, a different menu, gluten-free for everyone? Tell Al Panino&apos;s what you&apos;re dreaming up and we&apos;ll build it. Needs 48 hours&apos; notice.
           </p>
         </div>
         <div className="mt-5 flex flex-wrap gap-2.5 lg:mt-0 lg:shrink-0">
           <a href="/support?topic=Catering" className="inline-flex flex-1 items-center justify-center whitespace-nowrap rounded-lg bg-gold px-6 py-3.5 text-[14px] font-extrabold uppercase tracking-wide text-ink hover:bg-white lg:flex-none">
-            Tell Al What You Need
+            Ask Al Panino&apos;s
           </a>
           {customPhone && (
             <a
@@ -374,7 +376,7 @@ export default function CateringOrder({ packages, stores, initialStoreId }: { pa
 }
 
 // Phones: the running total along the bottom while the form is on screen,
-// with a jump to the summary and "Send it to Al".
+// with a jump to the summary and Order Now.
 function MobileTotalBar({ lines, people, total }: { lines: number; people: number; total: number }) {
   const [show, setShow] = useState(false);
   useEffect(() => {

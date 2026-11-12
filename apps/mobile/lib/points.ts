@@ -17,11 +17,13 @@ const REWARD_TIERS = [
 export const FIRST_REWARD_POINTS = 150;
 
 // What a points balance buys at the biggest tier it reaches, e.g.
-// "2 free sandwiches" -- null below the cheapest reward.
+// "2 free sandwiches" -- null below the cheapest reward, and just "plenty of
+// free food" past a handful (a big balance read "4166 free sandwiches").
 export function pointsRewardLabel(points: number): string | null {
   const tier = REWARD_TIERS.find((t) => points >= t.cost);
   if (!tier) return null;
   const n = Math.floor(points / tier.cost);
+  if (n > 5) return 'plenty of free food';
   return n === 1 ? tier.one : tier.many(n);
 }
 
@@ -32,5 +34,6 @@ export function pointsRewardLabel(points: number): string | null {
 export function pointsProgressLabel(balanceAfter: number): string {
   const next = [...REWARD_TIERS].reverse().find((t) => t.cost > balanceAfter);
   if (next) return `${(next.cost - balanceAfter).toLocaleString()} more for ${next.one}`;
-  return `you'll have enough for ${pointsRewardLabel(balanceAfter)}`;
+  const reward = pointsRewardLabel(balanceAfter);
+  return reward === 'plenty of free food' ? 'plenty for free food on your next order' : `you'll have enough for ${reward}`;
 }

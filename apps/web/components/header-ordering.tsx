@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { ChevronDown, ShoppingBag, Store, UserRound } from "lucide-react";
 import { useOrdering } from "./ordering/ordering-provider";
 import { cartTotals, useCart } from "@/lib/cart";
@@ -25,6 +26,29 @@ export function HeaderStore() {
         <span className="block max-w-[11rem] truncate text-sm font-bold text-ink">{c.storeName || "Choose a store"}</span>
       </span>
       <ChevronDown className="size-4 text-stone-500" aria-hidden />
+    </Link>
+  );
+}
+
+// Order Now: the menu, at the store and pickup/delivery already chosen --
+// and on the menu page itself, down to the food (instead of reloading the
+// page it's on, which looked like nothing happened).
+export function HeaderOrderNow({ className }: { className: string }) {
+  const c = useCart();
+  const pathname = usePathname();
+  return (
+    <Link
+      href={c.storeId ? `/menu?store=${c.storeId}&mode=${c.mode}` : "/menu"}
+      className={className}
+      onClick={(e) => {
+        if (pathname !== "/menu") return;
+        const items = document.getElementById("menu-items");
+        if (!items) return;
+        e.preventDefault();
+        items.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+      }}
+    >
+      Order Now
     </Link>
   );
 }

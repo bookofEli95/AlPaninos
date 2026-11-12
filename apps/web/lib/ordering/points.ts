@@ -13,12 +13,12 @@ export function pointsForSubtotal(subtotal: number): number {
   return Math.floor(subtotal * POINTS_PER_DOLLAR);
 }
 
-// "120 more for a free drink" -- or, past the top reward, what they'll have.
+// "120 more for a free drink" -- or, past the top reward, that there's free
+// food waiting (not a count: a big balance read "4167 free sandwiches").
 export function pointsProgressLabel(balanceAfter: number): string {
   const next = REWARD_TIERS.find((t) => t.cost > balanceAfter);
   if (next) return `${(next.cost - balanceAfter).toLocaleString()} more for ${next.one}`;
-  const n = Math.floor(balanceAfter / 1200);
-  return `you'll have enough for ${n === 1 ? "a free sandwich" : `${n} free sandwiches`}`;
+  return "plenty for free food on your next order";
 }
 
 // Progress toward the next reward, 0-1.

@@ -18,9 +18,9 @@ export const metadata: Metadata = {
 };
 
 const STEPS = [
-  { Icon: ClipboardList, title: "Pick your spread", text: "Six packages, priced per person. Or tell Al exactly what you're after." },
+  { Icon: ClipboardList, title: "Pick your spread", text: "Six packages, priced per person. Or tell Al Panino's exactly what you're after." },
   { Icon: UtensilsCrossed, title: "Make it yours", text: "Headcount, salad and dessert upgrades, drinks, cutlery. Your total updates as you go." },
-  { Icon: PhoneCall, title: "Al calls to confirm", text: "We go over every detail with you before anything hits the press. No emailing forms back and forth." },
+  { Icon: PhoneCall, title: "Al Panino's calls to confirm", text: "We go over every detail with you before anything hits the press. No emailing forms back and forth." },
   { Icon: HandPlatter, title: "Mangia!", text: "Picked up or delivered right on time, made fresh that day." },
 ];
 
@@ -78,7 +78,7 @@ export default async function CateringPage({ searchParams }: PageProps<"/caterin
                 <span className="mx-2">/</span>
                 <span className="text-white">Catering</span>
               </nav>
-              <p className="mt-5 text-[13px] font-extrabold font-accent uppercase tracking-[0.18em] text-gold">Catering by Al</p>
+              <p className="mt-5 text-[13px] font-extrabold font-accent uppercase tracking-[0.18em] text-gold">Catering by Al Panino&apos;s</p>
               <h1 className="mt-3 font-display text-[2.75rem] font-extrabold leading-[1] tracking-tight sm:text-6xl">Feed the whole famiglia.</h1>
               <p className="mt-5 max-w-md text-lg leading-8 text-stone-300">
                 Paninos, pasta, tacos, Texas BBQ and Greek, made fresh for the office, the party or game day.
@@ -139,7 +139,7 @@ export default async function CateringPage({ searchParams }: PageProps<"/caterin
               </div>
               <div className="px-6 py-8 sm:px-8">
                 <h2 className="font-display text-2xl font-extrabold text-ink">The order form is on its way</h2>
-                <p className="mt-2 text-stone-600">Al&apos;s loading the catering menu onto the website. Check back shortly{phone ? ", or call the store and we'll take your order" : ""}.</p>
+                <p className="mt-2 text-stone-600">Al Panino&apos;s is loading the catering menu onto the website. Check back shortly{phone ? ", or call the store and we'll take your order" : ""}.</p>
                 {phone && (
                   <a href={`tel:${phone.replace(/[^\d+]/g, "")}`} className="mt-5 inline-flex items-center gap-2 rounded-lg bg-brand px-6 py-3.5 text-[14px] font-extrabold uppercase tracking-wide text-white hover:bg-brand-dark">
                     <Phone className="size-4" aria-hidden />
@@ -178,8 +178,8 @@ export default async function CateringPage({ searchParams }: PageProps<"/caterin
               <div className="mt-8 grid gap-10 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
                 {menu.sandwiches.length > 0 && (
                   <div>
-                    <h3 className="font-display text-2xl font-extrabold text-ink">Al&apos;s sandwich lineup</h3>
-                    <p className="mt-1.5 text-[15px] text-stone-600">For the Classic Luncheon, Al picks an assortment of our most popular. Got favourites? Pick them in your order.</p>
+                    <h3 className="font-display text-2xl font-extrabold text-ink">Al Panino&apos;s sandwich lineup</h3>
+                    <p className="mt-1.5 text-[15px] text-stone-600">For the Classic Luncheon, Al Panino&apos;s picks an assortment of our most popular. Got favourites? Pick them in your order.</p>
                     <ul className="mt-5 grid gap-x-8 gap-y-4 sm:grid-cols-2">
                       {menu.sandwiches.map((name) => (
                         <li key={name}>
@@ -212,7 +212,7 @@ export default async function CateringPage({ searchParams }: PageProps<"/caterin
                           {g.upgrades.length > 0 && (
                             <div>
                               <p className="text-[12px] font-extrabold uppercase tracking-[0.14em] text-brand">
-                                Al&apos;s Choice +{money(Math.min(...g.upgrades.map((o) => Number(o.price_adjustment))))} / person
+                                Al Panino&apos;s Choice +{money(Math.min(...g.upgrades.map((o) => Number(o.price_adjustment))))} / person
                               </p>
                               <ul className="mt-1.5 space-y-1 text-[15px] font-semibold text-ink">
                                 {g.upgrades.map((o) => (
@@ -251,7 +251,7 @@ export default async function CateringPage({ searchParams }: PageProps<"/caterin
                 <h2 id="order-title" className="mt-2 font-display text-4xl font-extrabold tracking-tight text-ink sm:text-5xl">
                   Place your catering order
                 </h2>
-                <p className="mt-3 text-lg leading-8 text-stone-600">One form, and it goes straight to the store. Al calls you to confirm the details before anything hits the press.</p>
+                <p className="mt-3 text-lg leading-8 text-stone-600">One form, and it goes straight to the store. Al Panino&apos;s calls you to confirm the details before anything hits the press.</p>
               </div>
               <div className="mt-8">
                 <CateringOrder packages={packages} stores={stores} initialStoreId={store!.id} />
