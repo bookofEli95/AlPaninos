@@ -14,8 +14,10 @@
 // Needs two secrets, set once from the terminal:
 //   pnpm dlx supabase secrets set SMTP_USER=you@gmail.com SMTP_PASS="your app password"
 // Optional: SMTP_HOST (default smtp.gmail.com), SMTP_PORT (default 465),
-// SMTP_FROM_NAME (default "Al Paninos"). Port 465 because hosted Edge
-// Functions can't send out on port 587.
+// SMTP_FROM_NAME (default "Al Paninos"), SMTP_FROM (the address it's sent
+// from, when the login isn't an address -- Resend's is "resend"), and
+// SMTP_REPLY_TO (where replies go). Port 465 because hosted Edge Functions
+// can't send out on port 587.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import nodemailer from 'npm:nodemailer@6.9.16';
 
@@ -149,7 +151,8 @@ Deno.serve(async (req) => {
 
     const number = invoiceNumber(order);
     await transporter.sendMail({
-      from: `"${Deno.env.get('SMTP_FROM_NAME') ?? 'Al Paninos'}" <${smtpUser}>`,
+      from: `"${Deno.env.get('SMTP_FROM_NAME') ?? 'Al Paninos'}" <${Deno.env.get('SMTP_FROM') ?? smtpUser}>`,
+      ...(Deno.env.get('SMTP_REPLY_TO') ? { replyTo: Deno.env.get('SMTP_REPLY_TO') } : {}),
       to,
       subject: `Al Paninos Invoice ${number}${order.po_number ? ` (PO ${order.po_number})` : ''}`,
       html: emailHtml(order),

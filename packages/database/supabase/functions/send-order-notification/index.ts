@@ -193,7 +193,8 @@ Deno.serve(async (req) => {
             auth: { user: smtpUser, pass: smtpPass },
           });
           await transporter.sendMail({
-            from: `"${Deno.env.get('SMTP_FROM_NAME') ?? 'Al Paninos'}" <${smtpUser}>`,
+            from: `"${Deno.env.get('SMTP_FROM_NAME') ?? 'Al Paninos'}" <${Deno.env.get('SMTP_FROM') ?? smtpUser}>`,
+            ...(Deno.env.get('SMTP_REPLY_TO') ? { replyTo: Deno.env.get('SMTP_REPLY_TO') } : {}),
             to,
             subject: email.subject,
             html: emailHtml(order, email.heading, email.lines),
