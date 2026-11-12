@@ -870,7 +870,7 @@ export default function Checkout({
         <div className="overflow-hidden rounded-2xl bg-white shadow-xl shadow-black/[0.04] ring-1 ring-stone-200">
           <div className="grain flex items-center justify-between gap-4 bg-ink px-5 py-5 text-white sm:px-8">
             <div>
-              <p className="text-[12px] font-extrabold uppercase tracking-[0.16em] text-gold">Al Paninos catering order</p>
+              <p className="text-[12px] font-extrabold font-accent uppercase tracking-[0.16em] text-gold">Al Paninos catering order</p>
               <p className="mt-1 text-[15px] text-stone-300">Fill it in, watch your total, send it straight to the store.</p>
             </div>
             <ApBadge className="hidden size-[52px] shrink-0 -rotate-6 sm:block" />

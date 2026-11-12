@@ -15,8 +15,9 @@
   --color-gold: #ffc72c;
   --color-blush: #f0b4ac;
   /* The logo's own cream and red (the sign, the AP stamp). */
-  --color-paper: #feebda;
+  --color-paper: #ffe4cd;
   --color-stamp: #b21909;
+  --color-logo: #d00000;
   /* Tailwind's stone-500, a shade darker: small grey text stays readable
      (WCAG AA contrast) on the cream backgrounds, not just on white. */
   --color-stone-500: #6e6862;
@@ -35,7 +36,11 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-fjalla), "Arial Narrow", var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  /* The brand's fonts come from Adobe (layout.tsx): Contempora Sans
+     Condensed for headings, Sweet Sans Pro for small capitals. Fjalla One,
+     served by the site, stands in while they load or if Adobe can't. */
+  --font-display: "contempora-sans-condensed", var(--font-fjalla), "Arial Narrow", var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-accent: "sweet-sans-pro", var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --radius-sm: calc(var(--radius) * 0.5);
   --radius-md: calc(var(--radius) * 0.75);
   --radius-lg: var(--radius);
@@ -89,6 +94,11 @@
     background-image: radial-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px);
     background-size: 3px 3px;
   }
+}
+
+/* Headings come in one weight; bold ones aren't thickened by the browser. */
+.font-display {
+  font-synthesis: none;
 }
 
 /* The little motions: notes sliding up, sheets rising, the order count

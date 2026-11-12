@@ -55,7 +55,7 @@ export default async function HomePage() {
 
           <div className="relative flex items-center">
             <div className="w-full px-4 pb-14 pt-2 sm:px-6 lg:ml-auto lg:max-w-[640px] lg:py-20 lg:pr-14">
-              <p className="text-[13px] font-extrabold uppercase tracking-[0.18em] text-gold">Fresh off the press</p>
+              <p className="text-[13px] font-extrabold font-accent uppercase tracking-[0.18em] text-gold">Fresh off the press</p>
               <h1 className="mt-4 font-display text-[2.75rem] font-extrabold leading-[1] tracking-tight sm:text-6xl xl:text-[4.25rem]">
                 Pressed hot.
                 <br />
@@ -150,7 +150,7 @@ export default async function HomePage() {
       <section id="catering" className="grain scroll-mt-24 bg-brand py-16 text-white md:py-24">
         <div className="mx-auto grid max-w-7xl gap-12 px-4 sm:px-6 lg:grid-cols-[1fr_1.15fr] lg:items-center">
           <div>
-            <p className="text-[13px] font-extrabold uppercase tracking-[0.18em] text-gold">Catering</p>
+            <p className="text-[13px] font-extrabold font-accent uppercase tracking-[0.18em] text-gold">Catering</p>
             <h2 className="mt-3 font-display text-4xl font-extrabold leading-[1.02] tracking-tight sm:text-[3.4rem]">
               Feeding the whole crew?
             </h2>
@@ -193,7 +193,7 @@ export default async function HomePage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="grid gap-10 lg:grid-cols-[1fr_1.4fr] lg:items-end">
             <div>
-              <p className="text-[13px] font-extrabold uppercase tracking-[0.18em] text-brand">PaninoPoints</p>
+              <p className="text-[13px] font-extrabold font-accent uppercase tracking-[0.18em] text-brand">PaninoPoints</p>
               <h2 className="mt-3 font-display text-4xl font-extrabold leading-[1.02] tracking-tight text-ink sm:text-[3.4rem]">
                 Eat. Earn. Repeat.
               </h2>
@@ -305,7 +305,7 @@ function SectionHeading({
   return (
     <div className="flex flex-wrap items-end justify-between gap-4 border-b border-stone-200 pb-5">
       <div>
-        <p className="text-[13px] font-extrabold uppercase tracking-[0.18em] text-brand">{eyebrow}</p>
+        <p className="text-[13px] font-extrabold font-accent uppercase tracking-[0.18em] text-brand">{eyebrow}</p>
         <h2 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-ink sm:text-[2.5rem] sm:leading-[1.1]">
           {title}
         </h2>
@@ -403,7 +403,7 @@ function PromoTile({ tone, eyebrow, value, title, text, terms, href, cta, deal }
   return (
     <article className={`relative flex min-h-[250px] flex-col overflow-hidden rounded-xl p-6 sm:p-7 ${t.box}`}>
       <UtensilsCrossed aria-hidden className="absolute -bottom-8 -right-8 size-44 -rotate-12 opacity-[0.07]" strokeWidth={1.25} />
-      <p className={`text-[12px] font-extrabold uppercase tracking-[0.16em] ${t.eyebrow}`}>{eyebrow}</p>
+      <p className={`text-[12px] font-extrabold font-accent uppercase tracking-[0.16em] ${t.eyebrow}`}>{eyebrow}</p>
       <p className={`mt-2 font-display text-[2.6rem] font-extrabold leading-none tracking-tight ${t.value}`}>{value}</p>
       <h3 className="mt-3 text-lg font-bold">{title}</h3>
       {!!text && <p className={`mt-1 line-clamp-2 text-[15px] leading-6 ${t.text}`}>{text}</p>}

@@ -13,7 +13,7 @@ export default function AuthShell({ children }: { children: React.ReactNode }) {
         <Image src="/media/hero-poster.jpg" alt="" fill sizes="50vw" className="object-cover object-[50%_60%] opacity-70" priority />
         <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/40 to-transparent" />
         <div className="absolute inset-x-0 bottom-0 p-12 text-white">
-          <p className="text-[13px] font-extrabold uppercase tracking-[0.16em] text-gold">PaninoPoints</p>
+          <p className="text-[13px] font-extrabold font-accent uppercase tracking-[0.16em] text-gold">PaninoPoints</p>
           <p className="mt-3 max-w-md font-display text-4xl font-extrabold leading-tight">Every order gets you closer to a free sandwich.</p>
           <ul className="mt-6 space-y-3 text-[16px] text-stone-200">
             <li className="flex items-center gap-3">

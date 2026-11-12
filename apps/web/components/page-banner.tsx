@@ -33,7 +33,7 @@ export default function PageBanner({
         </nav>
         <div className="mt-4 flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl">
-            {eyebrow && <p className="text-[13px] font-extrabold uppercase tracking-[0.18em] text-gold">{eyebrow}</p>}
+            {eyebrow && <p className="text-[13px] font-extrabold font-accent uppercase tracking-[0.18em] text-gold">{eyebrow}</p>}
             <h1 className="mt-2 font-display text-5xl font-extrabold tracking-tight sm:text-6xl">{title}</h1>
             {intro && <div className="mt-4 text-lg leading-8 text-stone-300">{intro}</div>}
           </div>

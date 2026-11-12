@@ -78,7 +78,7 @@ export default async function CateringPage({ searchParams }: PageProps<"/caterin
                 <span className="mx-2">/</span>
                 <span className="text-white">Catering</span>
               </nav>
-              <p className="mt-5 text-[13px] font-extrabold uppercase tracking-[0.18em] text-gold">Catering by Al</p>
+              <p className="mt-5 text-[13px] font-extrabold font-accent uppercase tracking-[0.18em] text-gold">Catering by Al</p>
               <h1 className="mt-3 font-display text-[2.75rem] font-extrabold leading-[1] tracking-tight sm:text-6xl">Feed the whole famiglia.</h1>
               <p className="mt-5 max-w-md text-lg leading-8 text-stone-300">
                 Paninos, pasta, tacos, Texas BBQ and Greek, made fresh for the office, the party or game day.
@@ -110,7 +110,7 @@ export default async function CateringPage({ searchParams }: PageProps<"/caterin
       {/* ---- How it works ------------------------------------------------- */}
       <section aria-labelledby="how" className="border-b border-stone-200 bg-white">
         <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
-          <h2 id="how" className="text-[13px] font-extrabold uppercase tracking-[0.18em] text-brand">
+          <h2 id="how" className="text-[13px] font-extrabold font-accent uppercase tracking-[0.18em] text-brand">
             How it works
           </h2>
           <ol className="mt-6 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
@@ -135,7 +135,7 @@ export default async function CateringPage({ searchParams }: PageProps<"/caterin
           <div className="mx-auto max-w-3xl px-4 py-14 sm:px-6">
             <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-stone-200">
               <div className="grain bg-ink px-6 py-5 text-white sm:px-8">
-                <p className="text-[12px] font-extrabold uppercase tracking-[0.16em] text-gold">Al Paninos catering order</p>
+                <p className="text-[12px] font-extrabold font-accent uppercase tracking-[0.16em] text-gold">Al Paninos catering order</p>
               </div>
               <div className="px-6 py-8 sm:px-8">
                 <h2 className="font-display text-2xl font-extrabold text-ink">The order form is on its way</h2>
@@ -156,7 +156,7 @@ export default async function CateringPage({ searchParams }: PageProps<"/caterin
           <section id="packages" aria-labelledby="packages-title" className="scroll-mt-20 bg-cream">
             <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
               <div className="max-w-2xl">
-                <p className="text-[13px] font-extrabold uppercase tracking-[0.18em] text-brand">The spreads</p>
+                <p className="text-[13px] font-extrabold font-accent uppercase tracking-[0.18em] text-brand">The spreads</p>
                 <h2 id="packages-title" className="mt-2 font-display text-4xl font-extrabold tracking-tight text-ink sm:text-5xl">
                   Pick your package
                 </h2>
@@ -171,7 +171,7 @@ export default async function CateringPage({ searchParams }: PageProps<"/caterin
           {/* ---- What's on the menu --------------------------------------- */}
           <section aria-labelledby="menu-title" className="bg-white">
             <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
-              <p className="text-[13px] font-extrabold uppercase tracking-[0.18em] text-brand">What&apos;s on the menu</p>
+              <p className="text-[13px] font-extrabold font-accent uppercase tracking-[0.18em] text-brand">What&apos;s on the menu</p>
               <h2 id="menu-title" className="mt-2 font-display text-4xl font-extrabold tracking-tight text-ink">
                 The lineup
               </h2>
@@ -247,7 +247,7 @@ export default async function CateringPage({ searchParams }: PageProps<"/caterin
           <section id="order" aria-labelledby="order-title" className="scroll-mt-20 bg-cream">
             <div className="mx-auto max-w-7xl px-4 pb-24 pt-14 sm:px-6">
               <div className="mx-auto max-w-3xl text-center">
-                <p className="text-[13px] font-extrabold uppercase tracking-[0.18em] text-brand">Order online</p>
+                <p className="text-[13px] font-extrabold font-accent uppercase tracking-[0.18em] text-brand">Order online</p>
                 <h2 id="order-title" className="mt-2 font-display text-4xl font-extrabold tracking-tight text-ink sm:text-5xl">
                   Place your catering order
                 </h2>

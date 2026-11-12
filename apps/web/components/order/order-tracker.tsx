@@ -206,7 +206,7 @@ export default function OrderTracker({ id, placed: justPlaced }: { id: string; p
       {placed && <Confetti />}
       <section className="grain bg-ink text-white">
         <div className="mx-auto max-w-5xl px-4 pb-12 pt-10 sm:px-6 sm:pt-14">
-          <p className="text-[13px] font-bold uppercase tracking-[0.16em] text-gold">
+          <p className="text-[13px] font-bold font-accent uppercase tracking-[0.16em] text-gold">
             {placed ? "Order placed" : order.is_catering ? "Catering order" : "Your order"} · #{shortId}
           </p>
           <h1 className="mt-3 font-display text-4xl font-extrabold tracking-tight sm:text-5xl">

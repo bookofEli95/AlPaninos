@@ -29,6 +29,11 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en-CA" className={`${inter.variable} ${fjalla.variable}`}>
+      <head>
+        {/* The brand's Adobe fonts (Contempora Sans Condensed, Sweet Sans Pro). */}
+        <link rel="preconnect" href="https://use.typekit.net" crossOrigin="anonymous" />
+        <link rel="stylesheet" href="https://use.typekit.net/wgm2csw.css" />
+      </head>
       <body className="flex min-h-dvh flex-col">
         <OrderingProvider>
           <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[80] focus:rounded-lg focus:bg-ink focus:px-4 focus:py-3 focus:text-white">

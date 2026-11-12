@@ -157,7 +157,7 @@ export default function AccountPage() {
       <section className="grain bg-ink text-white">
         <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1fr_420px] lg:items-end lg:py-16">
           <div>
-            <p className="text-[13px] font-bold uppercase tracking-[0.16em] text-gold">My Account</p>
+            <p className="text-[13px] font-bold font-accent uppercase tracking-[0.16em] text-gold">My Account</p>
             <h1 className="mt-3 font-display text-4xl font-extrabold tracking-tight sm:text-5xl">Hi, {profile.first_name || "there"}!</h1>
             <p className="mt-2 text-stone-400">{user?.email}</p>
           </div>

@@ -19,8 +19,8 @@ export function ApStamp({ className, title }: { className?: string; title?: stri
 export function ApBadge({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 1000 1000" className={className} aria-hidden>
-      <circle cx="500" cy="500" r="500" fill="#b21909" />
-      <g transform="translate(110 112.5) scale(0.82627)" fill="#feebda">
+      <circle cx="500" cy="500" r="500" fill="#d00000" />
+      <g transform="translate(110 112.5) scale(0.82627)" fill="#ffe4cd">
         <g transform="translate(0.000000,938.000000) scale(0.100000,-0.100000)">
           <path d={STAMP} />
         </g>

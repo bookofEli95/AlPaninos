@@ -82,7 +82,7 @@ function StaffSignIn() {
         }}
         className="w-full max-w-sm rounded-2xl bg-white p-7"
       >
-        <p className="text-[13px] font-extrabold uppercase tracking-[0.16em] text-brand">Al Paninos</p>
+        <p className="text-[13px] font-extrabold font-accent uppercase tracking-[0.16em] text-brand">Al Paninos</p>
         <h1 className="mt-1 font-display text-3xl font-extrabold text-ink">Store orders</h1>
         <p className="mt-1 text-[15px] text-stone-600">Sign in with a staff account.</p>
         <label className="mt-6 block">
