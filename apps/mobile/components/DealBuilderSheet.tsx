@@ -341,7 +341,7 @@ const styles = StyleSheet.create({
   },
   leaveTitle: {
     color: INK,
-    fontFamily: 'PlusJakartaSans_800ExtraBold',
+    fontFamily: 'FjallaOne_400Regular',
     fontSize: 20,
     textAlign: 'center',
   },
@@ -387,12 +387,12 @@ const styles = StyleSheet.create({
   },
   valueChipText: {
     color: GOLD,
-    fontFamily: 'PlusJakartaSans_800ExtraBold',
+    fontFamily: 'FjallaOne_400Regular',
     fontSize: 15,
   },
   title: {
     color: INK,
-    fontFamily: 'PlusJakartaSans_800ExtraBold',
+    fontFamily: 'FjallaOne_400Regular',
     fontSize: 18,
     lineHeight: 22,
   },
@@ -476,7 +476,7 @@ const styles = StyleSheet.create({
   },
   mealName: {
     color: INK,
-    fontFamily: 'PlusJakartaSans_800ExtraBold',
+    fontFamily: 'FjallaOne_400Regular',
     fontSize: 16,
     marginTop: 2,
   },
@@ -551,7 +551,7 @@ const styles = StyleSheet.create({
   },
   nowPrice: {
     color: INK,
-    fontFamily: 'PlusJakartaSans_800ExtraBold',
+    fontFamily: 'FjallaOne_400Regular',
     fontSize: 22,
   },
   savedLine: {

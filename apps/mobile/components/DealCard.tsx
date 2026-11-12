@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
   },
   valueBig: {
     color: GOLD,
-    fontFamily: 'PlusJakartaSans_800ExtraBold',
+    fontFamily: 'FjallaOne_400Regular',
     fontSize: 34,
     letterSpacing: -1,
     textShadowColor: 'rgba(0,0,0,0.45)',
@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
   },
   title: {
     color: INK,
-    fontFamily: 'PlusJakartaSans_800ExtraBold',
+    fontFamily: 'FjallaOne_400Regular',
     fontSize: 16,
     lineHeight: 20,
   },

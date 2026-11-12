@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   },
   title: {
     color: INK,
-    fontFamily: 'PlusJakartaSans_800ExtraBold',
+    fontFamily: 'FjallaOne_400Regular',
     fontSize: 20,
     textAlign: 'center',
   },

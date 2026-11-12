@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
   },
   valueBig: {
     color: GOLD,
-    fontFamily: 'PlusJakartaSans_800ExtraBold',
+    fontFamily: 'FjallaOne_400Regular',
     fontSize: 22,
   },
   valueSmall: {

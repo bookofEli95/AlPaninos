@@ -11,11 +11,6 @@ import {
   Inter_700Bold,
   Inter_800ExtraBold,
 } from "@expo-google-fonts/inter";
-import {
-  PlusJakartaSans_600SemiBold,
-  PlusJakartaSans_700Bold,
-  PlusJakartaSans_800ExtraBold,
-} from "@expo-google-fonts/plus-jakarta-sans";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -130,9 +125,8 @@ export default function Layout() {
     Inter_600SemiBold,
     Inter_700Bold,
     Inter_800ExtraBold,
-    PlusJakartaSans_600SemiBold,
-    PlusJakartaSans_700Bold,
-    PlusJakartaSans_800ExtraBold,
+    // Headings: tall and narrow like the menu boards, as on the website.
+    FjallaOne_400Regular: require("../assets/fonts/FjallaOne_400Regular.ttf"),
   });
   const fontsReady = fontsLoaded || !!fontError;
 

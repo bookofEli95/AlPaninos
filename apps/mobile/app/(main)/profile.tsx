@@ -1031,7 +1031,7 @@ const styles = StyleSheet.create({
   },
   pointsNumber: {
     color: CREAM,
-    fontFamily: 'PlusJakartaSans_800ExtraBold',
+    fontFamily: 'FjallaOne_400Regular',
     fontSize: 52,
     lineHeight: 60,
     letterSpacing: -1.5,

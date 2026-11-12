@@ -570,7 +570,7 @@ const styles = StyleSheet.create({
   },
   tileName: {
     color: '#FFFFFF',
-    fontFamily: 'PlusJakartaSans_800ExtraBold',
+    fontFamily: 'FjallaOne_400Regular',
     fontSize: 19,
     lineHeight: 23,
     paddingHorizontal: 12,

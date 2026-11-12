@@ -1448,7 +1448,7 @@ const styles = StyleSheet.create({
   },
   title: {
     color: GOLD,
-    fontFamily: 'PlusJakartaSans_800ExtraBold',
+    fontFamily: 'FjallaOne_400Regular',
     fontSize: 38,
     letterSpacing: 1,
     marginTop: 2,
@@ -1510,7 +1510,7 @@ const styles = StyleSheet.create({
   },
   segmentLabel: {
     color: '#FFFFFF',
-    fontFamily: 'PlusJakartaSans_800ExtraBold',
+    fontFamily: 'FjallaOne_400Regular',
     fontSize: LABEL_FONT_SIZE,
     textAlign: 'center',
     lineHeight: LABEL_LINE_HEIGHT,
@@ -1582,7 +1582,7 @@ const styles = StyleSheet.create({
   },
   spinText: {
     color: '#7A0E0A',
-    fontFamily: 'PlusJakartaSans_800ExtraBold',
+    fontFamily: 'FjallaOne_400Regular',
     fontSize: 24,
     letterSpacing: 2,
   },
@@ -1628,7 +1628,7 @@ const styles = StyleSheet.create({
   },
   winnerRibbonText: {
     color: '#FFFFFF',
-    fontFamily: 'PlusJakartaSans_800ExtraBold',
+    fontFamily: 'FjallaOne_400Regular',
     fontSize: 13,
     letterSpacing: 2,
   },
@@ -1648,7 +1648,7 @@ const styles = StyleSheet.create({
   },
   prizeTitle: {
     color: '#F4ECE1',
-    fontFamily: 'PlusJakartaSans_800ExtraBold',
+    fontFamily: 'FjallaOne_400Regular',
     fontSize: 26,
     textAlign: 'center',
     letterSpacing: -0.5,
@@ -1675,7 +1675,7 @@ const styles = StyleSheet.create({
   },
   jackpotAmount: {
     color: GOLD,
-    fontFamily: 'PlusJakartaSans_800ExtraBold',
+    fontFamily: 'FjallaOne_400Regular',
     fontSize: Math.round(PRIZE_FRAME_SIZE * 0.32),
     letterSpacing: -1,
     textShadowColor: '#FF6A00',
@@ -1691,7 +1691,7 @@ const styles = StyleSheet.create({
   },
   jackpotTitle: {
     color: GOLD,
-    fontFamily: 'PlusJakartaSans_800ExtraBold',
+    fontFamily: 'FjallaOne_400Regular',
     fontSize: 28,
     textAlign: 'center',
     letterSpacing: 0.5,
@@ -1702,7 +1702,7 @@ const styles = StyleSheet.create({
   },
   claimButtonText: {
     color: '#7A0E0A',
-    fontFamily: 'PlusJakartaSans_800ExtraBold',
+    fontFamily: 'FjallaOne_400Regular',
     fontSize: 15,
     letterSpacing: 1.5,
   },

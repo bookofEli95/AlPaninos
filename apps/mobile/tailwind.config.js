@@ -9,8 +9,10 @@ module.exports = {
         'inter-semibold': ['Inter_600SemiBold'],
         'inter-bold': ['Inter_700Bold'],
         'inter-extrabold': ['Inter_800ExtraBold'],
-        display: ['PlusJakartaSans_700Bold'],
-        'display-bold': ['PlusJakartaSans_800ExtraBold'],
+        // Headings, like the menu boards (and the website's stand-in for its
+        // Adobe heading font, which is licensed for the web only).
+        display: ['FjallaOne_400Regular'],
+        'display-bold': ['FjallaOne_400Regular'],
       },
       colors: {
         brand: {

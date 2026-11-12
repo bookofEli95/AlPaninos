@@ -1168,7 +1168,7 @@ const styles = StyleSheet.create({
   },
   headline: {
     color: '#FFFFFF',
-    fontFamily: 'PlusJakartaSans_800ExtraBold',
+    fontFamily: 'FjallaOne_400Regular',
     fontSize: 34,
     lineHeight: 38,
     letterSpacing: -0.5,
@@ -1197,7 +1197,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   bigButtonTitle: {
-    fontFamily: 'PlusJakartaSans_800ExtraBold',
+    fontFamily: 'FjallaOne_400Regular',
     fontSize: 20,
     letterSpacing: -0.2,
   },

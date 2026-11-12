@@ -15,7 +15,7 @@
     "android": {
       "package": "com.alpaninos.app",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#D00000",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -32,8 +32,8 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/icon.png",
-          "color": "#A61C14"
+          "icon": "./assets/notification-icon.png",
+          "color": "#D00000"
         }
       ],
       "expo-video",
