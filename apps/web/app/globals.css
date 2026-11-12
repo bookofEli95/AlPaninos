@@ -2,8 +2,9 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-/* Al Paninos -- the same colours and type as the app (apps/mobile
-   tailwind.config.js): cream paper, deep red, ink, gold. */
+/* Al Paninos -- the same colours as the app (apps/mobile
+   tailwind.config.js): cream paper, deep red, ink, gold. Headings in a tall,
+   narrow face like the menu boards. */
 @theme {
   --color-cream: #faf6f0;
   --color-cream-deep: #f4ece1;
@@ -13,6 +14,9 @@
   --color-ink: #1c1917;
   --color-gold: #ffc72c;
   --color-blush: #f0b4ac;
+  /* The logo's own cream and red (the sign, the AP stamp). */
+  --color-paper: #feebda;
+  --color-stamp: #b21909;
   /* Tailwind's stone-500, a shade darker: small grey text stays readable
      (WCAG AA contrast) on the cream backgrounds, not just on white. */
   --color-stone-500: #6e6862;
@@ -31,7 +35,7 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-jakarta), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-fjalla), "Arial Narrow", var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --radius-sm: calc(var(--radius) * 0.5);
   --radius-md: calc(var(--radius) * 0.75);
   --radius-lg: var(--radius);

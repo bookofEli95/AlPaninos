@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Image from "next/image";
+import RedPhoto from "@/components/brand/red-photo";
 import Link from "next/link";
 import { ArrowRight, BadgeCheck, CalendarClock, ChefHat, ClipboardList, HandPlatter, Leaf, MessageCircleQuestion, Phone, PhoneCall, Receipt, ShieldAlert, Truck, UtensilsCrossed } from "lucide-react";
 import CateringOrder, { PackageCards } from "@/components/catering/catering-order";
@@ -65,7 +65,7 @@ export default async function CateringPage({ searchParams }: PageProps<"/caterin
       <section className="relative overflow-hidden bg-ink text-white">
         <div className="grid lg:min-h-[560px] lg:grid-cols-2">
           <div className="relative aspect-[16/10] sm:aspect-[16/8] lg:order-2 lg:aspect-auto">
-            <Image src="/media/hero-poster.jpg" alt="A crispy chicken panino, fresh off the press" fill priority sizes="(min-width: 1024px) 50vw, 100vw" className="object-cover object-[50%_60%]" />
+            <RedPhoto src="/media/focaccia.jpg" alt="A stack of fresh focaccia outside the shop" sizes="(min-width: 1024px) 50vw, 100vw" priority position="50% 62%" />
             <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-ink via-ink/10 to-transparent lg:bg-gradient-to-r lg:from-ink lg:via-ink/0" />
             <span className="absolute bottom-5 right-5 hidden -rotate-2 rounded-md bg-gold px-3.5 py-2 text-[13px] font-extrabold uppercase tracking-wide text-wine shadow-lg sm:block">No minimum</span>
           </div>

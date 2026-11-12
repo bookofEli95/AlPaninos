@@ -1,4 +1,5 @@
 import Link from "next/link";
+import RedPhoto from "./brand/red-photo";
 
 // The dark band at the top of an inside page: where you are, the title and
 // a line about it -- and room for actions alongside on big screens.
@@ -16,8 +17,13 @@ export default function PageBanner({
   children?: React.ReactNode;
 }) {
   return (
-    <section className="grain bg-ink text-white">
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 md:py-14">
+    <section className="relative overflow-hidden bg-ink text-white">
+      {/* The shop's sign, faint in the brand red, fading into the dark. */}
+      <div aria-hidden className="absolute inset-y-0 right-0 hidden w-2/3 opacity-45 md:block">
+        <RedPhoto src="/media/storefront.jpg" alt="" sizes="66vw" position="50% 8%" />
+        <div className="absolute inset-0 bg-gradient-to-r from-ink via-ink/60 to-ink/10" />
+      </div>
+      <div className="relative mx-auto max-w-7xl px-4 py-10 sm:px-6 md:py-14">
         <nav aria-label="Breadcrumb" className="text-[13px] text-stone-400">
           <Link href="/" className="hover:text-white">
             Home

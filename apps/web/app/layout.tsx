@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { inter, jakarta } from "./fonts";
+import { fjalla, inter } from "./fonts";
 import SiteHeader from "@/components/site-header";
 import SiteFooter from "@/components/site-footer";
 import OrderingProvider from "@/components/ordering/ordering-provider";
@@ -28,7 +28,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en-CA" className={`${inter.variable} ${jakarta.variable}`}>
+    <html lang="en-CA" className={`${inter.variable} ${fjalla.variable}`}>
       <body className="flex min-h-dvh flex-col">
         <OrderingProvider>
           <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[80] focus:rounded-lg focus:bg-ink focus:px-4 focus:py-3 focus:text-white">

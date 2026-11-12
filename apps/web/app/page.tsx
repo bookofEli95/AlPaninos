@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, MapPin, Phone, UtensilsCrossed } from "lucide-react";
 import OrderableCard from "@/components/ordering/orderable-card";
+import RedPhoto from "@/components/brand/red-photo";
 import ApplyDealButton from "@/components/ordering/apply-deal-button";
 import type { PromoRow } from "@/lib/ordering/promo";
 import OrderStart from "@/components/order-start";
@@ -41,27 +42,18 @@ export default async function HomePage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(restaurantJsonLd(stores)) }} />
       {/* ---- Hero: start an order right here --------------------------- */}
       <section className="relative overflow-hidden bg-ink text-white">
-        <div className="grid lg:min-h-[620px] lg:grid-cols-2">
-          <div className="relative aspect-[16/11] sm:aspect-[16/9] lg:order-2 lg:aspect-auto">
-            <video
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="metadata"
-              poster="/media/hero-poster.jpg"
-              className="absolute inset-0 size-full object-cover object-[50%_62%]"
-              aria-label="A crispy chicken panino with fries, fresh off the press"
-            >
-              <source src="/media/hero.mp4" type="video/mp4" />
-            </video>
-            <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-ink via-ink/10 to-transparent lg:bg-gradient-to-r lg:from-ink lg:via-ink/0" />
+        <div className="grid lg:min-h-[640px] lg:grid-cols-2">
+          {/* The shop's sign in the brand red: above the words on phones,
+              behind the whole band on big screens. */}
+          <div className="relative aspect-[4/3] sm:aspect-[16/9] lg:absolute lg:inset-0 lg:aspect-auto">
+            <RedPhoto src="/media/storefront.jpg" alt="The red Al Paninos sign over the shop door" sizes="100vw" priority position="50% 0%" />
+            <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-ink via-ink/15 to-transparent lg:bg-gradient-to-r lg:from-ink lg:from-25% lg:via-ink/60 lg:via-55% lg:to-ink/0" />
             <span className="absolute bottom-5 right-5 hidden rotate-2 rounded-md bg-gold px-3.5 py-2 text-[13px] font-extrabold uppercase tracking-wide text-wine shadow-lg sm:block">
               +10 PaninoPoints per $1
             </span>
           </div>
 
-          <div className="relative flex items-center lg:order-1">
+          <div className="relative flex items-center">
             <div className="w-full px-4 pb-14 pt-2 sm:px-6 lg:ml-auto lg:max-w-[640px] lg:py-20 lg:pr-14">
               <p className="text-[13px] font-extrabold uppercase tracking-[0.18em] text-gold">Fresh off the press</p>
               <h1 className="mt-4 font-display text-[2.75rem] font-extrabold leading-[1] tracking-tight sm:text-6xl xl:text-[4.25rem]">

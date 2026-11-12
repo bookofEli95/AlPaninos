@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertCircle, ArrowLeft, Car, Check, CheckCircle2, Loader2, Lock, MailCheck, MapPin, ShoppingBag, Sparkles, Store as StoreIcon } from "lucide-react";
+import { ApBadge } from "@/components/brand/marks";
 import CartLines from "@/components/ordering/cart-lines";
 import { useOrdering } from "@/components/ordering/ordering-provider";
 import StoreStatus from "@/components/store-status";
@@ -873,7 +873,7 @@ export default function Checkout({
               <p className="text-[12px] font-extrabold uppercase tracking-[0.16em] text-gold">Al Paninos catering order</p>
               <p className="mt-1 text-[15px] text-stone-300">Fill it in, watch your total, send it straight to the store.</p>
             </div>
-            <Image src="/logo.jpg" alt="" width={52} height={52} className="hidden size-[52px] shrink-0 -rotate-6 rounded-full ring-2 ring-gold/60 sm:block" />
+            <ApBadge className="hidden size-[52px] shrink-0 -rotate-6 sm:block" />
           </div>
           <div className="divide-y divide-stone-200">
             {lead && (

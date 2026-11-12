@@ -1,7 +1,8 @@
 import localFont from "next/font/local";
 
-// The app's own fonts (Inter for text, Plus Jakarta Sans for headings),
-// served from the site itself -- Latin-only, as woff2.
+// The site's fonts, served from the site itself (Latin-only woff2): Inter
+// for text, Fjalla One for headings -- tall and narrow like the menu boards
+// (until the brand's own heading font is in).
 export const inter = localFont({
   src: [
     { path: "./fonts/Inter_400Regular.woff2", weight: "400", style: "normal" },
@@ -14,11 +15,10 @@ export const inter = localFont({
   display: "swap",
 });
 
-export const jakarta = localFont({
-  src: [
-    { path: "./fonts/PlusJakartaSans_700Bold.woff2", weight: "700", style: "normal" },
-    { path: "./fonts/PlusJakartaSans_800ExtraBold.woff2", weight: "800", style: "normal" },
-  ],
-  variable: "--font-jakarta",
+// One weight, already heavy: it stands for every weight, so headings marked
+// bold aren't thickened again by the browser.
+export const fjalla = localFont({
+  src: [{ path: "./fonts/FjallaOne_400Regular.woff2", weight: "400 900", style: "normal" }],
+  variable: "--font-fjalla",
   display: "swap",
 });
