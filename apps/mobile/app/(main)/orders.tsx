@@ -16,6 +16,7 @@ import { useProfile } from '../../hooks/useProfile';
 import { needsPassword } from '../../lib/account';
 import { reorderFromOrder } from '../../lib/reorder';
 import { tabularNums } from '../../lib/typography';
+import { orderGrandTotal } from '../../lib/payments';
 
 const STATUS_CONFIG: Record<string, { bg: string; text: string; label: string }> = {
   received: { bg: 'bg-amber-100', text: 'text-amber-800', label: 'Received' },
@@ -254,7 +255,7 @@ export default function OrdersScreen() {
                     </Text>
                   </View>
                   <Text className="font-inter-extrabold text-base text-[#A61C14] mt-0.5" style={tabularNums}>
-                    ${Number(item.total_amount).toFixed(2)}
+                    ${orderGrandTotal(item).toFixed(2)}
                   </Text>
                   <Text className="text-stone-500 text-[13px] font-inter-medium mt-0.5" numberOfLines={1}>
                     {item.order_type === 'delivery' ? 'Delivery' : 'Pickup'}

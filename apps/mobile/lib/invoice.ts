@@ -128,7 +128,9 @@ function invoiceHtml(order: any): string {
     <tr><td>Subtotal</td><td class="amt">${money(subtotal)}</td></tr>
     ${Number(order.discount_amount) > 0 ? `<tr><td>Discount${order.promo_code ? ` (${escape(order.promo_code)})` : ''}</td><td class="amt">-${money(order.discount_amount)}</td></tr>` : ''}
     ${order.tax_amount != null ? `<tr><td>HST${taxRate != null ? ` (${taxRate}%)` : ''}</td><td class="amt">${money(order.tax_amount)}</td></tr>` : ''}
-    <tr class="grand"><td>Total (CAD)</td><td class="amt">${money(order.total_amount)}</td></tr>
+    ${Number(order.tip_amount ?? 0) > 0 ? `<tr><td>Tip</td><td class="amt">${money(order.tip_amount)}</td></tr>` : ''}
+    <tr class="grand"><td>Total (CAD)</td><td class="amt">${money(Number(order.total_amount) + Number(order.tip_amount ?? 0))}</td></tr>
+    ${order.payment_status === 'paid' ? `<tr><td>Paid by card${order.card_summary ? ` (${escape(order.card_summary)})` : ''}</td><td class="amt">${money(order.amount_paid ?? Number(order.total_amount) + Number(order.tip_amount ?? 0))}</td></tr>` : ''}
   </table>
 
   <div class="foot">Thank you for ordering from ${escape(BUSINESS_NAME)}!</div>

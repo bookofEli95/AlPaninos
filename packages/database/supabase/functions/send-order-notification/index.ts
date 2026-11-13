@@ -101,7 +101,7 @@ function emailHtml(order: any, heading: string, lines: string[]): string {
     <h1 style="margin:0 0 14px;font-size:24px;">${escape(heading)}</h1>
     ${lines.map((line) => `<p style="margin:0 0 10px;font-size:15px;line-height:22px;">${line}</p>`).join('')}
     ${rows ? `<table style="width:100%;border-collapse:collapse;margin-top:14px;font-size:13px;">${rows}</table>` : ''}
-    <p style="margin:12px 0 0;text-align:right;font-weight:700;">Total ${money(order.total_amount)}</p>
+    <p style="margin:12px 0 0;text-align:right;font-weight:700;">Total ${money(Number(order.total_amount) + Number(order.tip_amount ?? 0))}${order.payment_status === 'paid' ? ' (paid by card)' : ''}</p>
     <p style="margin-top:20px;color:#A8A29E;font-size:12px;">You're getting this because you asked for order updates by email. You can turn them off in the app under More &rsaquo; Notifications.</p>
   </div></body></html>`;
 }
@@ -119,7 +119,9 @@ Deno.serve(async (req) => {
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .select(
-        'id, user_id, status, order_type, customer_name, customer_email, notify_email, emailed_statuses, delivery_address, total_amount, locations ( name, address, phone ), order_items ( quantity, menu_items ( name ) )'
+        // The whole order row (payment details included once the database
+        // has them), with its store and items.
+        '*, locations ( name, address, phone ), order_items ( quantity, menu_items ( name ) )'
       )
       .eq('id', orderId)
       .maybeSingle();

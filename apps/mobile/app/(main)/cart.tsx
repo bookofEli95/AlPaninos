@@ -49,6 +49,9 @@ import { tabularNums } from '../../lib/typography';
 import { pointsForSubtotal, pointsProgressLabel } from '../../lib/points';
 import { useProfile } from '../../hooks/useProfile';
 import { useCartTotals, fetchMenuItemInfo, menuItemInfoKey } from '../../hooks/useCartTotals';
+import PaymentSection from '../../components/PaymentSection';
+import type { CardWebViewHandle } from '../../components/CardWebView';
+import { fetchOnlinePayments, payOrder, tipAmount, type PayMethod, type TipChoice } from '../../lib/payments';
 
 const hapticSuccess = () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
 const hapticError = () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
@@ -189,6 +192,28 @@ export default function CartScreen() {
     placeholderData: keepPreviousData,
   });
   const isCateringOrder = !!cateringItemIds && items.some((i) => cateringItemIds.has(i.menuItemId));
+
+  // ---- paying ----
+  // By card now (where the store takes it), or at the store -- catering: by
+  // card now, or by invoice after we call. A tip only with a card.
+  const { data: onlinePayments } = useQuery({
+    queryKey: ['onlinePayments', locationId],
+    queryFn: () => fetchOnlinePayments(locationId!),
+    enabled: !!locationId,
+    staleTime: 60_000,
+  });
+  const otherWay: PayMethod = isCateringOrder ? 'invoice' : 'in_store';
+  const payMethods: PayMethod[] = onlinePayments ? ['online', otherWay] : [otherWay];
+  const [pickedMethod, setPickedMethod] = useState<PayMethod | null>(null);
+  const payMethod = pickedMethod && payMethods.includes(pickedMethod) ? pickedMethod : payMethods[0];
+  const [pickedTip, setPickedTip] = useState<TipChoice | null>(null);
+  const tipChoice: TipChoice = pickedTip ?? (isCateringOrder ? { kind: 'none' } : { kind: 'percent', percent: 15 });
+  // A free order (a reward) has nothing to pay.
+  const nothingToPay = items.length > 0 && grandTotal === 0;
+  const usingCard = payMethod === 'online' && !nothingToPay;
+  const tipNow = usingCard ? tipAmount(tipChoice, discountedSubtotal) : 0;
+  const payTotal = Math.round((grandTotal + tipNow) * 100) / 100;
+  const cardRef = useRef<CardWebViewHandle>(null);
   const cateringDays = useMemo(() => getCateringDays(locationHours), [locationHours, isCateringOrder]);
   // After discounts, before tax.
   const cateringShortfall = isCateringOrder ? Math.max(0, CATERING_MIN_SUBTOTAL - discountedSubtotal) : 0;
@@ -577,6 +602,11 @@ export default function CartScreen() {
       Alert.alert('Notification Preference', 'Choose at least one way to receive order updates.');
       return;
     }
+    if (usingCard && tipNow > grandTotal) {
+      hapticError();
+      Alert.alert('Check the Tip', 'Please check the tip amount.');
+      return;
+    }
 
     setIsSubmitting(true);
 
@@ -605,7 +635,21 @@ export default function CartScreen() {
         customerPhone = profile.phone;
       }
 
+      // The card's one-time token (nothing of the card itself comes here).
+      let cardToken: string | null = null;
+      if (usingCard) {
+        const card = await cardRef.current?.tokenize();
+        if (!card || 'error' in card) {
+          hapticError();
+          Alert.alert('Card', card && 'error' in card ? card.error : "The card form didn't load. Please try again.");
+          return;
+        }
+        cardToken = card.token;
+      }
+
       const cartSignature = JSON.stringify([
+        usingCard ? 'online' : nothingToPay ? 'in_store' : payMethod,
+        tipNow,
         locationId,
         orderType,
         selectedSlot?.toISOString() ?? null,
@@ -657,6 +701,8 @@ export default function CartScreen() {
               .filter(Boolean)
               .join('\n') || null,
           expected_total: Math.round((acceptedTotal ?? grandTotal) * 100) / 100,
+          payment_method: usingCard ? 'online' : nothingToPay ? 'in_store' : payMethod,
+          tip_amount: tipNow,
           items: items.map((item) => ({
             menu_item_id: item.menuItemId,
             quantity: item.quantity,
@@ -675,15 +721,32 @@ export default function CartScreen() {
           hapticError();
           Alert.alert(
             'Prices Updated',
-            `Some prices changed since these items went in your cart. Your total is now $${newTotal.toFixed(2)} (it was $${grandTotal.toFixed(2)}).`,
+            `Some prices changed since these items went in your cart. Your total is now $${(newTotal + tipNow).toFixed(2)} (it was $${payTotal.toFixed(2)}).`,
             [
               { text: 'Cancel', style: 'cancel' },
-              { text: `Place Order ($${newTotal.toFixed(2)})`, onPress: () => handleCheckout(newTotal) },
+              { text: `Place Order ($${(newTotal + tipNow).toFixed(2)})`, onPress: () => handleCheckout(newTotal) },
             ]
           );
           return;
         }
         throw placeError;
+      }
+
+      // A card order: charge it now. A declined card takes the order back
+      // out (the cart stays), so they can try another card or pay at the
+      // store.
+      if (placed.payment_status === 'awaiting' || placed.payment_status === 'charging') {
+        const paid = await payOrder(placed.order_id, cardToken ?? '');
+        if (paid.status !== 'paid') {
+          // Removed or never charged: the next try is a new order.
+          if (paid.status !== 'unknown' && paid.status !== 'busy') checkoutKey.current = null;
+          hapticError();
+          Alert.alert(
+            paid.status === 'declined' ? 'Card Declined' : paid.status === 'unknown' ? 'Payment Not Confirmed' : "Payment Didn't Go Through",
+            paid.message ?? "Your payment didn't go through. Please try again."
+          );
+          return;
+        }
       }
       const orderData = { id: placed.order_id as string };
       checkoutKey.current = null;
@@ -720,6 +783,8 @@ export default function CartScreen() {
       setCateringSuite('');
       setCateringDropoff('');
       setCateringDietary('');
+      setPickedTip(null);
+      setPickedMethod(null);
       // Straight to the order, where it's celebrated (confetti, points) and
       // tracked live -- no popup in between.
       router.replace({ pathname: `/(main)/order/${orderData.id}`, params: { placed: '1' } });
@@ -1255,6 +1320,26 @@ export default function CartScreen() {
               />
             )}
 
+            {/* How it's paid */}
+            {!nothingToPay && !!locationId && (
+              <>
+                <Text className="text-xs font-inter-bold uppercase tracking-wider text-stone-500 mt-5 mb-2 px-1">
+                  Payment
+                </Text>
+                <PaymentSection
+                  methods={payMethods}
+                  method={payMethod}
+                  onMethod={setPickedMethod}
+                  orderType={orderType}
+                  tip={tipChoice}
+                  onTip={setPickedTip}
+                  beforeTax={discountedSubtotal}
+                  storeId={locationId}
+                  cardRef={cardRef}
+                />
+              </>
+            )}
+
             {/* What it comes to */}
             <Text className="text-xs font-inter-bold uppercase tracking-wider text-stone-500 mt-5 mb-2 px-1">
               Summary
@@ -1285,10 +1370,18 @@ export default function CartScreen() {
                   ${taxAmount.toFixed(2)}
                 </Text>
               </View>
+              {tipNow > 0 && (
+                <View className="flex-row justify-between items-center mt-1.5">
+                  <Text className="text-sm font-inter-medium text-stone-600">Tip</Text>
+                  <Text className="text-sm font-inter-semibold text-[#1C1917]" style={tabularNums}>
+                    ${tipNow.toFixed(2)}
+                  </Text>
+                </View>
+              )}
               <View className="flex-row justify-between items-center mt-3 pt-3 border-t border-stone-100">
                 <Text className="text-base font-inter-bold text-[#1C1917]">Total</Text>
                 <Text className="text-lg font-inter-extrabold text-[#1C1917]" style={tabularNums}>
-                  ${grandTotal.toFixed(2)}
+                  ${payTotal.toFixed(2)}
                 </Text>
               </View>
               {pointsEarned > 0 && (
@@ -1331,7 +1424,7 @@ export default function CartScreen() {
               <>
                 <Text className="text-[#F4ECE1] font-inter-bold text-base">Place Order</Text>
                 <View className="flex-row items-center">
-                  <Text className="text-[#F4ECE1] font-inter-bold text-lg mr-1.5" style={tabularNums}>${grandTotal.toFixed(2)}</Text>
+                  <Text className="text-[#F4ECE1] font-inter-bold text-lg mr-1.5" style={tabularNums}>${payTotal.toFixed(2)}</Text>
                   <Ionicons name="arrow-forward" size={18} color="#F4ECE1" />
                 </View>
               </>

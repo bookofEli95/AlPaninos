@@ -11,6 +11,7 @@ import SkeletonBox from '../../../components/Skeleton';
 import { formatDayAndTime, getEtaDisplay } from '../../../lib/orderTiming';
 import { reorderFromOrder } from '../../../lib/reorder';
 import { tabularNums } from '../../../lib/typography';
+import { orderGrandTotal, paymentNote } from '../../../lib/payments';
 import { groupRepeats } from '../../../lib/modifiers';
 import { pointsForSubtotal, pointsProgressLabel, pointsRewardLabel, FIRST_REWARD_POINTS } from '../../../lib/points';
 import { emailInvoice, saveInvoice } from '../../../lib/invoice';
@@ -692,13 +693,25 @@ export default function OrderDetailScreen() {
                     <Text className="text-[#78716C]">Tax</Text>
                     <Text className="text-[#1C1917]" style={tabularNums}>${Number(order.tax_amount).toFixed(2)}</Text>
                   </View>
+                  {Number(order.tip_amount ?? 0) > 0 && (
+                    <View className="flex-row justify-between mt-1">
+                      <Text className="text-[#78716C]">Tip</Text>
+                      <Text className="text-[#1C1917]" style={tabularNums}>${Number(order.tip_amount).toFixed(2)}</Text>
+                    </View>
+                  )}
                 </View>
               )}
 
               <View className="flex-row justify-between items-center pt-2.5 mt-2.5 border-t border-stone-100">
                 <Text className="text-base font-inter-bold text-[#1C1917]">Total</Text>
-                <Text className="text-xl font-inter-bold text-[#A61C14]" style={tabularNums}>${Number(order.total_amount).toFixed(2)}</Text>
+                <Text className="text-xl font-inter-bold text-[#A61C14]" style={tabularNums}>${orderGrandTotal(order).toFixed(2)}</Text>
               </View>
+              {!isCancelled && (
+                <View className="flex-row items-start bg-[#FAF6F0] rounded-xl px-3 py-2.5 mt-3">
+                  <Ionicons name={order.payment_status === 'paid' ? 'card' : 'storefront'} size={15} color="#A61C14" />
+                  <Text className="text-[13px] text-[#1C1917] ml-2 flex-1">{paymentNote(order)}</Text>
+                </View>
+              )}
 
               {!isCancelled && (
                 <View className="flex-row gap-2 mt-3">

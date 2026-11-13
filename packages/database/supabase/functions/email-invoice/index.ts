@@ -76,7 +76,9 @@ function emailHtml(order: any): string {
       ${line('Subtotal', money(subtotal))}
       ${Number(order.discount_amount) > 0 ? line(`Discount${order.promo_code ? ` (${escape(order.promo_code)})` : ''}`, `-${money(order.discount_amount)}`) : ''}
       ${order.tax_amount != null ? line('HST', money(order.tax_amount)) : ''}
-      ${line('Total (CAD)', money(order.total_amount), true)}
+      ${Number(order.tip_amount ?? 0) > 0 ? line('Tip', money(order.tip_amount)) : ''}
+      ${line('Total (CAD)', money(Number(order.total_amount) + Number(order.tip_amount ?? 0)), true)}
+      ${order.payment_status === 'paid' ? line('Paid by card', money(order.amount_paid ?? Number(order.total_amount) + Number(order.tip_amount ?? 0))) : ''}
     </table>
     ${location.hst_number ? `<p style="margin-top:16px;color:#A8A29E;font-size:12px;">HST # ${escape(location.hst_number)}</p>` : ''}
     <p style="margin-top:16px;color:#78716C;font-size:12px;">Thank you for ordering from Al Panino's!</p>

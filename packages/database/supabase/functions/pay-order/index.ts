@@ -53,17 +53,16 @@ const DECLINED = 'Your card was declined. Please try another card, or choose to 
 const UNKNOWN = "We couldn't confirm your payment. Please don't pay again. Call the store and we'll check it for you.";
 
 // Pretend card company for testing. Never charges anything.
-const testProvider: Provider = {
-  charge: async ({ token }) => {
-    if (token === 'test_ok') {
-      return { outcome: 'approved', ref: `test_${crypto.randomUUID().slice(0, 12)}`, card: 'Test card •••• 4242' };
-    }
-    if (token === 'test_cvv') return { outcome: 'declined', reason: 'incorrect_cvc' };
-    if (token === 'test_expired') return { outcome: 'declined', reason: 'expired_card' };
-    if (token === 'test_unknown') return { outcome: 'unknown' };
-    return { outcome: 'declined', reason: 'card_declined' };
-  },
-};
+function testCharge(token: string): ChargeResult {
+  if (token === 'test_ok') {
+    return { outcome: 'approved', ref: `test_${crypto.randomUUID().slice(0, 12)}`, card: 'Test card •••• 4242' };
+  }
+  if (token === 'test_cvv') return { outcome: 'declined', reason: 'incorrect_cvc' };
+  if (token === 'test_expired') return { outcome: 'declined', reason: 'expired_card' };
+  if (token === 'test_unknown') return { outcome: 'unknown' };
+  return { outcome: 'declined', reason: 'card_declined' };
+}
+const testProvider: Provider = { charge: ({ token }) => Promise.resolve(testCharge(token)) };
 
 function pickProvider(): Provider | null {
   const name = Deno.env.get('PAYMENTS_PROVIDER') ?? '';
