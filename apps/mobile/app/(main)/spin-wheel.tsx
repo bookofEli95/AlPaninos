@@ -1199,7 +1199,7 @@ export default function SpinWheelScreen() {
           ))}
         </View>
         <Text className="text-[#FFF4D6] text-center text-xs mt-0.5 max-w-[300px] font-inter-semibold leading-4">
-          Welcome to Al Paninos! Tap SPIN or give the wheel a flick -- every prize is a winner.
+          Welcome to Al Panino's! Tap SPIN or give the wheel a flick -- every prize is a winner.
         </Text>
       </Animated.View>
 

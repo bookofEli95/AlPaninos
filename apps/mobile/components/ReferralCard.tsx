@@ -70,7 +70,7 @@ export default function ReferralCard({ compact = false }: { compact?: boolean })
           <Text className="text-[11px] font-inter-extrabold text-[#A61C14] uppercase tracking-wider">
             Give ${REFERRAL_AMOUNT}, Get ${REFERRAL_AMOUNT}
           </Text>
-          <Text className="text-lg font-inter-bold text-[#1C1917] leading-6">Treat a friend to Al Paninos</Text>
+          <Text className="text-lg font-inter-bold text-[#1C1917] leading-6">Treat a friend to Al Panino's</Text>
         </View>
       </View>
 

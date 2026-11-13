@@ -170,7 +170,7 @@ export default function NotificationsScreen() {
                   <Ionicons name="alert-circle" size={15} color="#B45309" style={{ marginTop: 1 }} />
                   <View className="flex-1 ml-2">
                     <Text className="text-amber-900 text-[13px] font-inter-semibold">
-                      Notifications are turned off for Al Paninos in your phone's settings.
+                      Notifications are turned off for Al Panino's in your phone's settings.
                     </Text>
                     <TouchableOpacity onPress={() => Linking.openSettings().catch(() => {})} className="mt-1 self-start">
                       <Text className="text-[#A61C14] text-[13px] font-inter-bold">Open Phone Settings ›</Text>
@@ -186,7 +186,7 @@ export default function NotificationsScreen() {
               )}
               {prefs.push_enabled && deviceStatus === null && (
                 <Text className="text-xs text-stone-500 mt-2 ml-[52px]">
-                  Works in the Al Paninos app from the App Store or Google Play.
+                  Works in the Al Panino's app from the App Store or Google Play.
                 </Text>
               )}
             </View>

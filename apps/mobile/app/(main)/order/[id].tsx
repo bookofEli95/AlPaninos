@@ -55,7 +55,7 @@ function statusLine(order: any): { text: string; time: string | null } | null {
       };
     case 'completed':
       return {
-        text: 'Enjoy, and thanks for ordering from Al Paninos!',
+        text: "Enjoy, and thanks for ordering from Al Panino's!",
         time: order.completed_at ? `${pickup ? 'Picked up' : 'Delivered'} at ${clock(order.completed_at)}` : null,
       };
     default:

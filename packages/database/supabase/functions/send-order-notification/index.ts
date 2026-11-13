@@ -39,7 +39,7 @@ const orderNumber = (order: any) => `AP-${String(order.id).slice(0, 8).toUpperCa
 // The emails, by status. null = no email for that status (and order type).
 function emailFor(order: any): { subject: string; heading: string; lines: string[] } | null {
   const store = order.locations || {};
-  const storeName = `Al Paninos ${store.name ?? ''}`.trim();
+  const storeName = `Al Panino's ${store.name ?? ''}`.trim();
   const firstName = String(order.customer_name ?? '').trim().split(/\s+/)[0];
   const hi = firstName ? `Hi ${escape(firstName)},` : 'Hi there,';
 
@@ -96,7 +96,7 @@ function emailHtml(order: any, heading: string, lines: string[]): string {
     .join('');
   return `<html><body style="font-family:sans-serif;background:#FAF6F0;padding:24px;color:#1C1917;">
   <div style="max-width:520px;margin:0 auto;background:#fff;border-radius:16px;padding:28px;">
-    <h2 style="margin:0 0 2px;color:#A61C14;">Al Paninos</h2>
+    <h2 style="margin:0 0 2px;color:#A61C14;">Al Panino's</h2>
     <p style="margin:0 0 18px;color:#78716C;font-size:13px;">Order ${orderNumber(order)}</p>
     <h1 style="margin:0 0 14px;font-size:24px;">${escape(heading)}</h1>
     ${lines.map((line) => `<p style="margin:0 0 10px;font-size:15px;line-height:22px;">${line}</p>`).join('')}
@@ -151,7 +151,7 @@ Deno.serve(async (req) => {
               tokens.map((t: { token: string }) => ({
                 to: t.token,
                 sound: 'default',
-                title: 'Al Paninos',
+                title: "Al Panino's",
                 body,
                 data: { orderId: order.id },
               }))
@@ -193,7 +193,7 @@ Deno.serve(async (req) => {
             auth: { user: smtpUser, pass: smtpPass },
           });
           await transporter.sendMail({
-            from: `"${Deno.env.get('SMTP_FROM_NAME') ?? 'Al Paninos'}" <${Deno.env.get('SMTP_FROM') ?? smtpUser}>`,
+            from: `"${Deno.env.get('SMTP_FROM_NAME') ?? "Al Panino's"}" <${Deno.env.get('SMTP_FROM') ?? smtpUser}>`,
             ...(Deno.env.get('SMTP_REPLY_TO') ? { replyTo: Deno.env.get('SMTP_REPLY_TO') } : {}),
             to,
             subject: email.subject,

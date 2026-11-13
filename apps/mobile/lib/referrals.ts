@@ -34,7 +34,7 @@ export function useMyReferral() {
 
 export function shareReferral(code: string) {
   const message =
-    `Get $${REFERRAL_AMOUNT} off your first Al Paninos order! Create a free account in the Al Paninos app ` +
+    `Get $${REFERRAL_AMOUNT} off your first Al Panino's order! Create a free account in the Al Panino's app ` +
     `and enter my code ${code} at checkout.` +
     (APP_DOWNLOAD_URL ? ` ${APP_DOWNLOAD_URL}` : '');
   return Share.share({ message }).catch(() => {});

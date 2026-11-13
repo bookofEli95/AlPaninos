@@ -259,7 +259,7 @@ export default function CustomerSupportScreen() {
         <TouchableOpacity
           onPress={callUs}
           activeOpacity={0.85}
-          accessibilityLabel={`Call Al Paninos at ${SUPPORT_PHONE}`}
+          accessibilityLabel={`Call Al Panino's at ${SUPPORT_PHONE}`}
           className="flex-row items-center bg-[#1C1917] rounded-2xl px-4 py-4"
         >
           <View className="w-11 h-11 rounded-full bg-[#A61C14] items-center justify-center mr-3">
@@ -284,7 +284,7 @@ export default function CustomerSupportScreen() {
             </View>
             <Text className="text-xl font-display-bold text-[#1C1917]">Message Sent</Text>
             <Text className="text-sm text-stone-600 text-center leading-5 mt-1.5">
-              Thanks{profile?.first_name ? `, ${profile.first_name}` : ''} -- it's on its way to the Al Paninos team
+              Thanks{profile?.first_name ? `, ${profile.first_name}` : ''} -- it's on its way to the Al Panino's team
               {sent.withOrder ? ", along with the order it's about." : '.'}
             </Text>
             <TouchableOpacity

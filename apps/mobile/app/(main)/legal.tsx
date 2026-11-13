@@ -5,7 +5,7 @@ import InfoPage from '../../components/InfoPage';
 const SECTIONS = [
   {
     heading: 'Acceptance of Terms',
-    body: 'By using the Al Paninos app, you agree to these terms. If you do not agree, please do not use the app.',
+    body: "By using the Al Panino's app, you agree to these terms. If you do not agree, please do not use the app.",
   },
   {
     heading: 'Orders and Payment',
@@ -25,7 +25,7 @@ const SECTIONS = [
   },
   {
     heading: 'Limitation of Liability',
-    body: 'Al Paninos is not liable for indirect or incidental damages arising from use of this app, to the extent permitted by law.',
+    body: "Al Panino's is not liable for indirect or incidental damages arising from use of this app, to the extent permitted by law.",
   },
   {
     heading: 'Changes to These Terms',
@@ -38,7 +38,7 @@ export default function LegalScreen() {
     <InfoPage
       title="Terms & Legal"
       icon="document-text"
-      intro="The terms for ordering from Al Paninos in this app -- orders, refunds, and your account."
+      intro="The terms for ordering from Al Panino's in this app -- orders, refunds, and your account."
       sections={SECTIONS}
     />
   );

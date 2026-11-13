@@ -259,7 +259,7 @@ export default function Login() {
             resizeMode="contain"
           />
           <Text className="text-3xl font-display-bold text-[#F4ECE1] tracking-tight">
-            Al Paninos
+            Al Panino's
           </Text>
         </Animated.View>
 

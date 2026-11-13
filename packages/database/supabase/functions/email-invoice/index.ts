@@ -14,7 +14,7 @@
 // Needs two secrets, set once from the terminal:
 //   pnpm dlx supabase secrets set SMTP_USER=you@gmail.com SMTP_PASS="your app password"
 // Optional: SMTP_HOST (default smtp.gmail.com), SMTP_PORT (default 465),
-// SMTP_FROM_NAME (default "Al Paninos"), SMTP_FROM (the address it's sent
+// SMTP_FROM_NAME (default "Al Panino's"), SMTP_FROM (the address it's sent
 // from, when the login isn't an address -- Resend's is "resend"), and
 // SMTP_REPLY_TO (where replies go). Port 465 because hosted Edge Functions
 // can't send out on port 587.
@@ -68,7 +68,7 @@ function emailHtml(order: any): string {
 
   return `<html><body style="font-family:sans-serif;background:#FAF6F0;padding:24px;color:#1C1917;">
   <div style="max-width:520px;margin:0 auto;background:#fff;border-radius:16px;padding:28px;">
-    <h2 style="margin:0 0 4px;color:#A61C14;">Al Paninos</h2>
+    <h2 style="margin:0 0 4px;color:#A61C14;">Al Panino's</h2>
     <p style="margin:0 0 16px;color:#78716C;font-size:13px;">${escape(location.name)}${location.address ? ` &middot; ${escape(location.address)}` : ''}</p>
     <p style="margin:0 0 4px;">Here's your invoice <strong>${invoiceNumber(order)}</strong>${order.po_number ? ` (PO ${escape(order.po_number)})` : ''}. The PDF is attached.</p>
     <table style="width:100%;border-collapse:collapse;margin-top:16px;font-size:13px;">${rows}</table>
@@ -79,7 +79,7 @@ function emailHtml(order: any): string {
       ${line('Total (CAD)', money(order.total_amount), true)}
     </table>
     ${location.hst_number ? `<p style="margin-top:16px;color:#A8A29E;font-size:12px;">HST # ${escape(location.hst_number)}</p>` : ''}
-    <p style="margin-top:16px;color:#78716C;font-size:12px;">Thank you for ordering from Al Paninos!</p>
+    <p style="margin-top:16px;color:#78716C;font-size:12px;">Thank you for ordering from Al Panino's!</p>
   </div></body></html>`;
 }
 
@@ -151,10 +151,10 @@ Deno.serve(async (req) => {
 
     const number = invoiceNumber(order);
     await transporter.sendMail({
-      from: `"${Deno.env.get('SMTP_FROM_NAME') ?? 'Al Paninos'}" <${Deno.env.get('SMTP_FROM') ?? smtpUser}>`,
+      from: `"${Deno.env.get('SMTP_FROM_NAME') ?? "Al Panino's"}" <${Deno.env.get('SMTP_FROM') ?? smtpUser}>`,
       ...(Deno.env.get('SMTP_REPLY_TO') ? { replyTo: Deno.env.get('SMTP_REPLY_TO') } : {}),
       to,
-      subject: `Al Paninos Invoice ${number}${order.po_number ? ` (PO ${order.po_number})` : ''}`,
+      subject: `Al Panino's Invoice ${number}${order.po_number ? ` (PO ${order.po_number})` : ''}`,
       html: emailHtml(order),
       attachments: [
         { filename: `AlPaninos-Invoice-${number}.pdf`, content: pdf_base64, encoding: 'base64', contentType: 'application/pdf' },

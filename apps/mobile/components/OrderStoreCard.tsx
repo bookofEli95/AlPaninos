@@ -24,7 +24,7 @@ export default function OrderStoreCard({
           <Ionicons name="storefront-outline" size={19} color="#A61C14" />
         </View>
         <View className="flex-1">
-          {!!location.name && <Text className="text-base font-inter-bold text-[#1C1917]">Al Paninos {location.name}</Text>}
+          {!!location.name && <Text className="text-base font-inter-bold text-[#1C1917]">Al Panino's {location.name}</Text>}
           {!!location.address && <Text className="text-sm text-[#78716C] mt-0.5">{location.address}</Text>}
           {!!location.phone && <Text className="text-sm text-[#78716C] mt-0.5">{location.phone}</Text>}
         </View>

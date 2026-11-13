@@ -132,7 +132,7 @@ export default function MoreScreen() {
                       <Ionicons name="storefront" size={19} color="#A61C14" />
                     </View>
                     <View className="flex-1">
-                      <Text className="text-base font-inter-bold text-[#1C1917]">Al Paninos {location.name}</Text>
+                      <Text className="text-base font-inter-bold text-[#1C1917]">Al Panino's {location.name}</Text>
                       {!!location.address && (
                         <Text className="text-stone-500 text-[13px] mt-0.5">{location.address}</Text>
                       )}

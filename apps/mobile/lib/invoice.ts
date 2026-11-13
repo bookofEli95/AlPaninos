@@ -13,7 +13,7 @@ import { supabase } from './supabase';
 // phone; Email Invoice hands it to the email-invoice function to send, and
 // Save as PDF saves it on the phone.
 
-const BUSINESS_NAME = 'Al Paninos';
+const BUSINESS_NAME = "Al Panino's";
 
 const escape = (value: unknown) =>
   String(value ?? '')
@@ -216,7 +216,7 @@ export async function saveInvoice(order: any): Promise<SaveInvoiceResult> {
   const go = await new Promise<boolean>((resolve) =>
     Alert.alert(
       'Choose a Folder for Invoices',
-      "Pick where your invoices are saved -- we'll remember it for next time.\n\nTip: in Downloads, tap the folder + button to make an \"Al Paninos\" folder and use that.",
+      "Pick where your invoices are saved -- we'll remember it for next time.\n\nTip: in Downloads, tap the folder + button to make an \"Al Panino's\" folder and use that.",
       [
         { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
         { text: 'Choose Folder', onPress: () => resolve(true) },
