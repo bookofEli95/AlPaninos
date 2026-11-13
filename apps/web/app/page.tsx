@@ -235,7 +235,7 @@ export default async function HomePage() {
       {stores.length > 0 && (
         <section id="locations" className="scroll-mt-24 bg-white py-16 md:py-20">
           <div className="mx-auto max-w-7xl px-4 sm:px-6">
-            <SectionHeading eyebrow="Locations" title="Find your Al Paninos" action={{ href: "/locations", label: "Hours & directions" }} />
+            <SectionHeading eyebrow="Locations" title="Find your Al Panino's" action={{ href: "/locations", label: "Hours & directions" }} />
             <div className="mt-8 grid gap-5 md:grid-cols-2">
               {stores.map((s) => (
                 <article key={s.id} className="grid gap-6 rounded-xl p-6 ring-1 ring-stone-200 sm:grid-cols-[1fr_auto] sm:p-7">
@@ -391,7 +391,7 @@ const FALLBACK_TILES: Tile[] = [
     eyebrow: "New here?",
     value: "Free spin",
     title: "A welcome prize",
-    text: "Create an account and get a free spin for a prize in the Al Paninos app.",
+    text: "Create an account and get a free spin for a prize in the Al Panino's app.",
     terms: [],
     href: "/join",
     cta: "Get Started",

@@ -21,7 +21,7 @@ const COLUMNS = [
     ],
   },
   {
-    title: "Al Paninos",
+    title: "Al Panino's",
     links: [
       { href: "/locations", label: "Locations & Hours" },
       { href: "/support", label: "Customer Support" },

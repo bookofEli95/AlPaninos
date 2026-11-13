@@ -14,7 +14,7 @@ export const revalidate = 300;
 export const metadata: Metadata = {
   alternates: { canonical: "/catering" },
   title: "Catering",
-  description: `Al Paninos catering in St. Thomas and London, Ontario. Six spreads from $18.50 a person: sandwich luncheons, build-your-own paninos, tacos, pasta, Texas BBQ and Greek. No minimum, order by 6 PM for tomorrow, free delivery within ${CATERING_MAX_DELIVERY_KM} km.`,
+  description: `Al Panino's catering in St. Thomas and London, Ontario. Six spreads from $18.50 a person: sandwich luncheons, build-your-own paninos, tacos, pasta, Texas BBQ and Greek. No minimum, order by 6 PM for tomorrow, free delivery within ${CATERING_MAX_DELIVERY_KM} km.`,
 };
 
 const STEPS = [
@@ -135,7 +135,7 @@ export default async function CateringPage({ searchParams }: PageProps<"/caterin
           <div className="mx-auto max-w-3xl px-4 py-14 sm:px-6">
             <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-stone-200">
               <div className="grain bg-ink px-6 py-5 text-white sm:px-8">
-                <p className="text-[12px] font-extrabold font-accent uppercase tracking-[0.16em] text-gold">Al Paninos catering order</p>
+                <p className="text-[12px] font-extrabold font-accent uppercase tracking-[0.16em] text-gold">Al Panino&apos;s catering order</p>
               </div>
               <div className="px-6 py-8 sm:px-8">
                 <h2 className="font-display text-2xl font-extrabold text-ink">The order form is on its way</h2>

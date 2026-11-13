@@ -35,14 +35,14 @@ export function restaurantJsonLd(stores: Store[]) {
       {
         "@type": "Organization",
         "@id": `${SITE_URL}/#organization`,
-        name: "Al Paninos",
+        name: "Al Panino's",
         url: SITE_URL,
         logo: `${SITE_URL}/logo.jpg`,
       },
       ...stores.map((store) => ({
         "@type": "Restaurant",
         "@id": `${SITE_URL}/locations#${store.id}`,
-        name: `Al Paninos ${store.name}`,
+        name: `Al Panino's ${store.name}`,
         brand: { "@id": `${SITE_URL}/#organization` },
         url: `${SITE_URL}/locations`,
         image: [`${SITE_URL}/media/storefront.jpg`, `${SITE_URL}/media/hero-poster.jpg`],

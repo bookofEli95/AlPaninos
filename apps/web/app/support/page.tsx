@@ -9,7 +9,7 @@ import { getStores } from "@/lib/menu";
 export const metadata: Metadata = {
   alternates: { canonical: "/support" },
   title: "Help & Customer Support",
-  description: "Questions about an order, catering or your account? Contact Al Paninos in St. Thomas and London, Ontario.",
+  description: "Questions about an order, catering or your account? Contact Al Panino's in St. Thomas and London, Ontario.",
 };
 
 const QUICK = [

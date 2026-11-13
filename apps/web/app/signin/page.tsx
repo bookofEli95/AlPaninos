@@ -4,7 +4,7 @@ import SignInForm from "@/components/account/sign-in-form";
 
 export const metadata: Metadata = {
   title: "Sign In",
-  description: "Sign in to your Al Paninos account to order faster, see your orders and earn PaninoPoints.",
+  description: "Sign in to your Al Panino's account to order faster, see your orders and earn PaninoPoints.",
 };
 
 export default async function SignInPage({ searchParams }: PageProps<"/signin">) {

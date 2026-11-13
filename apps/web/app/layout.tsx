@@ -9,16 +9,16 @@ import "./globals.css";
 export const metadata: Metadata = {
   metadataBase: new URL("https://alpaninos.com"),
   title: {
-    default: "Al Paninos | Toasted Paninos, Wraps & Catering",
-    template: "%s | Al Paninos",
+    default: "Al Panino's | Toasted Paninos, Wraps & Catering",
+    template: "%s | Al Panino's",
   },
   description:
     "Toasted paninos, wraps, loaded fries and catering in St. Thomas and London, Ontario. Order ahead for pickup or delivery and earn PaninoPoints on every order.",
   openGraph: {
     type: "website",
-    siteName: "Al Paninos",
+    siteName: "Al Panino's",
     locale: "en_CA",
-    images: [{ url: "/media/og.jpg", width: 1200, height: 630, alt: "Al Paninos: Pressed hot. Stacked high. Toasted paninos, wraps and catering in St. Thomas and London, Ontario." }],
+    images: [{ url: "/media/og.jpg", width: 1200, height: 630, alt: "Al Panino's: Pressed hot. Stacked high. Toasted paninos, wraps and catering in St. Thomas and London, Ontario." }],
   },
   // The big picture card when a link is shared (texts, Facebook, X).
   twitter: { card: "summary_large_image", images: ["/media/og.jpg"] },

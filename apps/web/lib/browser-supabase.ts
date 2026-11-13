@@ -79,7 +79,7 @@ export async function ensureSession(): Promise<Session> {
 // Supabase's error text, in words a customer can act on.
 export function friendlyAuthError(message: string): string {
   if (/already (been )?registered|already exists|email_exists/i.test(message)) {
-    return "That email already has an Al Paninos account. Sign in to order with it.";
+    return "That email already has an Al Panino's account. Sign in to order with it.";
   }
   if (/invalid login credentials/i.test(message)) return "That email and password don't match. Try again or reset your password.";
   if (/token has expired|invalid/i.test(message) && /token|otp|code/i.test(message)) return "That code is wrong or has expired. Check the email or send a new code.";

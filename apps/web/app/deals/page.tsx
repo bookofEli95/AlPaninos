@@ -11,12 +11,12 @@ import type { PromoRow } from "@/lib/ordering/promo";
 export const metadata: Metadata = {
   alternates: { canonical: "/deals" },
   title: "Deals & Offers",
-  description: "Today's Al Paninos deals: save on paninos, wraps and pickup orders in St. Thomas and London, Ontario. Apply a deal and it comes off at checkout.",
+  description: "Today's Al Panino's deals: save on paninos, wraps and pickup orders in St. Thomas and London, Ontario. Apply a deal and it comes off at checkout.",
 };
 
 const PERKS = [
   { Icon: Sparkles, title: "10 points per $1", text: "Every order earns PaninoPoints toward free food.", href: "/rewards", cta: "How it works" },
-  { Icon: Gift, title: "Welcome spin", text: "New members spin for a free prize in the Al Paninos app.", href: "/join", cta: "Join free" },
+  { Icon: Gift, title: "Welcome spin", text: "New members spin for a free prize in the Al Panino's app.", href: "/join", cta: "Join free" },
   { Icon: Cake, title: "Birthday treat", text: "Tell us your birthday in the app and we'll treat you.", href: "/rewards", cta: "Learn more" },
   { Icon: Users, title: "Give $5, get $5", text: "Share your code. Friends save $5, and so do you.", href: "/account", cta: "Get your code" },
 ];

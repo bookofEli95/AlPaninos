@@ -12,7 +12,7 @@ export const revalidate = 300;
 export const metadata: Metadata = {
   alternates: { canonical: "/locations" },
   title: "Locations & Hours",
-  description: "Al Paninos in St. Thomas and London, Ontario: addresses, phone numbers, opening hours and directions. Order ahead for pickup or delivery.",
+  description: "Al Panino's in St. Thomas and London, Ontario: addresses, phone numbers, opening hours and directions. Order ahead for pickup or delivery.",
 };
 
 // Every store: where it is, when it's open (live), how to call, directions,
@@ -33,7 +33,7 @@ export default async function LocationsPage() {
                 : `https://maps.google.com/maps?q=${query}&z=15&output=embed`;
             return (
               <article key={s.id} id={s.id} className="scroll-mt-28 overflow-hidden rounded-2xl bg-white ring-1 ring-stone-200">
-                <iframe title={`Map of Al Paninos ${s.name}`} src={mapSrc} loading="lazy" referrerPolicy="no-referrer-when-downgrade" className="aspect-[16/9] w-full border-0 bg-cream-deep" />
+                <iframe title={`Map of Al Panino's ${s.name}`} src={mapSrc} loading="lazy" referrerPolicy="no-referrer-when-downgrade" className="aspect-[16/9] w-full border-0 bg-cream-deep" />
                 <div className="grid gap-6 p-6 sm:grid-cols-[1fr_auto] sm:p-8">
                   <div>
                     <h2 className="font-display text-3xl font-extrabold tracking-tight text-ink">{s.name}</h2>

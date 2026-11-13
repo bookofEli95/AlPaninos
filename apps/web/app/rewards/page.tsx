@@ -7,7 +7,7 @@ import MyRewards from "@/components/rewards/my-rewards";
 export const metadata: Metadata = {
   alternates: { canonical: "/rewards" },
   title: "PaninoPoints Rewards",
-  description: "Join PaninoPoints, free: earn 10 points for every $1 at Al Paninos and redeem them for free dips, drinks, specialty sides and signature sandwiches.",
+  description: "Join PaninoPoints, free: earn 10 points for every $1 at Al Panino's and redeem them for free dips, drinks, specialty sides and signature sandwiches.",
 };
 
 const STEPS = [
@@ -64,7 +64,7 @@ export default function RewardsPage() {
           <section aria-labelledby="extras" className="grid gap-4 md:grid-cols-3">
             <h2 id="extras" className="sr-only">More perks</h2>
             {[
-              { Icon: Sparkles, title: "Welcome spin", text: "New members get a free spin for a prize in the Al Paninos app." },
+              { Icon: Sparkles, title: "Welcome spin", text: "New members get a free spin for a prize in the Al Panino's app." },
               { Icon: Cake, title: "Birthday treat", text: "Add your birthday in the app and a treat arrives on your day." },
               { Icon: Users, title: "Give $5, get $5", text: "Friends save $5 on their first order of $15+. You get $5 when they order." },
             ].map(({ Icon, title, text }) => (

@@ -73,7 +73,7 @@ export default function PromoBox({
         row = (friend as PromoRow) ?? null;
       }
       if (!row) throw new Error("That code doesn't exist or is no longer active.");
-      if (Number(row.discount_percent ?? 0) >= 100) throw new Error("That's a free-item reward. Claim it in the Al Paninos app.");
+      if (Number(row.discount_percent ?? 0) >= 100) throw new Error("That's a free-item reward. Claim it in the Al Panino's app.");
       await apply(row);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't apply that code.");

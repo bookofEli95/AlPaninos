@@ -99,7 +99,7 @@ export default function JoinForm({ next }: { next: string }) {
           <Gift className="size-8" aria-hidden />
         </span>
         <h1 className="mt-6 font-display text-4xl font-extrabold tracking-tight text-ink">Welcome, {firstName.trim()}!</h1>
-        <p className="mt-3 text-[16px] text-stone-600">You&apos;re in. Every order now earns 10 PaninoPoints per $1, and your welcome spin is waiting in the Al Paninos app.</p>
+        <p className="mt-3 text-[16px] text-stone-600">You&apos;re in. Every order now earns 10 PaninoPoints per $1, and your welcome spin is waiting in the Al Panino&apos;s app.</p>
         <div className="mt-8 grid gap-3 sm:grid-cols-2">
           <button type="button" onClick={() => router.replace(next === "/account" ? "/menu" : next)} className={authButton}>
             {next === "/checkout" ? "Back to Checkout" : "Start an Order"}

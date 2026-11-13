@@ -199,7 +199,7 @@ export default function SignInForm({ next }: { next: string }) {
 
       {mode === "signin" && (
         <p className="mt-6 text-center text-[15px] text-stone-600">
-          New to Al Paninos?{" "}
+          New to Al Panino&apos;s?{" "}
           <Link href={`/join${next !== "/account" ? `?next=${encodeURIComponent(next)}` : ""}`} className="font-bold text-brand hover:underline">
             Join PaninoPoints
           </Link>

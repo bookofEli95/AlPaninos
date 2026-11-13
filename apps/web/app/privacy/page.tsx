@@ -4,7 +4,7 @@ import InfoPage from "@/components/info-page";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
-  description: "What Al Paninos collects when you order, what we use it for, and the choices you have.",
+  description: "What Al Panino's collects when you order, what we use it for, and the choices you have.",
 };
 
 // Generic placeholder copy (the app's, apps/mobile/app/(main)/privacy.tsx)

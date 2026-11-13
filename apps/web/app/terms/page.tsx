@@ -4,7 +4,7 @@ import InfoPage from "@/components/info-page";
 
 export const metadata: Metadata = {
   title: "Terms & Legal",
-  description: "The terms for ordering from Al Paninos online and in the app.",
+  description: "The terms for ordering from Al Panino's online and in the app.",
 };
 
 // Generic placeholder copy (the app's, apps/mobile/app/(main)/legal.tsx)
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 const SECTIONS = [
   {
     heading: "Acceptance of Terms",
-    body: "By using the Al Paninos website or app, you agree to these terms. If you do not agree, please do not use them.",
+    body: "By using the Al Panino's website or app, you agree to these terms. If you do not agree, please do not use them.",
   },
   {
     heading: "Orders and Payment",
@@ -33,7 +33,7 @@ const SECTIONS = [
   },
   {
     heading: "Limitation of Liability",
-    body: "Al Paninos is not liable for indirect or incidental damages arising from use of the website or app, to the extent permitted by law.",
+    body: "Al Panino's is not liable for indirect or incidental damages arising from use of the website or app, to the extent permitted by law.",
   },
   {
     heading: "Changes to These Terms",
@@ -47,7 +47,7 @@ export default function TermsPage() {
       title="Terms & Legal"
       icon={FileText}
       updated="November 2026"
-      intro="The terms for ordering from Al Paninos online and in the app: orders, refunds, and your account."
+      intro="The terms for ordering from Al Panino's online and in the app: orders, refunds, and your account."
       sections={SECTIONS}
     />
   );

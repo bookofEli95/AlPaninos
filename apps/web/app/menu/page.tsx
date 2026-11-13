@@ -11,7 +11,7 @@ import { everydayMenu, getMenu, getStores, pickStore } from "@/lib/menu";
 export const metadata: Metadata = {
   alternates: { canonical: "/menu" },
   title: "Menu",
-  description: "Toasted paninos, wraps, sides and drinks from Al Paninos. Order ahead for pickup or delivery.",
+  description: "Toasted paninos, wraps, sides and drinks from Al Panino's. Order ahead for pickup or delivery.",
 };
 
 // The full menu for one store (?store=<id>, otherwise the first), straight
@@ -129,7 +129,7 @@ export default async function MenuPage({ searchParams }: PageProps<"/menu">) {
             <Flame className="size-9 shrink-0 text-blush" aria-hidden />
             <span className="flex-1">
               <span className="block font-display text-xl font-extrabold">The Secret Mob</span>
-              <span className="block text-[15px] text-stone-400">Limited drops, only in the Al Paninos app.</span>
+              <span className="block text-[15px] text-stone-400">Limited drops, only in the Al Panino&apos;s app.</span>
             </span>
           </div>
         </div>

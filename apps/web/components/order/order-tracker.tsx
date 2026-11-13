@@ -72,7 +72,7 @@ function statusLine(o: Order): string {
     case "out_for_delivery":
       return o.out_for_delivery_at ? `Wrapped up and on its way. It left the shop at ${clockTime(o.out_for_delivery_at)}.` : "Wrapped up and on its way to you.";
     case "completed":
-      return "Enjoy, and thanks for ordering from Al Paninos!";
+      return "Enjoy, and thanks for ordering from Al Panino's!";
     default:
       return "";
   }
