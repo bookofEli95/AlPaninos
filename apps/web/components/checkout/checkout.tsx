@@ -11,7 +11,7 @@ import StoreStatus from "@/components/store-status";
 import PromoBox from "./promo-box";
 import { CateringTimePicker, RegularTimePicker } from "./time-picker";
 import { browserSupabase, ensureSession, friendlyAuthError, useSession } from "@/lib/browser-supabase";
-import { cartTotals, mainCart, useHydrated, type CartStore } from "@/lib/cart";
+import { cartTotals, mainCart, round2, useHydrated, type CartStore } from "@/lib/cart";
 import { COUNTRIES, DEFAULT_COUNTRY, formatPhoneNumber, isValidPhoneForCountry, parsePhone, type Country } from "@/lib/ordering/countries";
 import { canOrderAsap, estimateReadyMinutes, formatDayAndTime, getOrderDays, isOrderTimeAvailable } from "@/lib/ordering/timing";
 import { CATERING_MAX_DELIVERY_KM, getCateringDays, isCateringSlotAllowed } from "@/lib/ordering/catering";
@@ -20,6 +20,8 @@ import type { Store } from "@/lib/menu";
 import { storeStatus } from "@/lib/hours";
 import { money } from "@/lib/format";
 import { addressLookupOn } from "@/lib/places";
+import { payOrder, paymentProvider, tipAmount, useOnlinePayments, type PayMethod, type TipChoice } from "@/lib/payments";
+import PaymentBlock, { type CardBoxHandle } from "./payment-block";
 import AddressInput from "@/components/ordering/address-input";
 
 type Profile = { first_name: string | null; last_name: string | null; phone: string | null; notify_email: boolean | null; notify_sms: boolean | null; panino_points: number | null };
@@ -198,6 +200,24 @@ export default function Checkout({
     return asapAvailable ? null : orderDays[0]?.slots[0]?.time ?? null;
   }, [isCatering, pickedSlot, cateringDays, hours, c.mode, totals.itemCount, rush, now, asapAvailable, orderDays]);
 
+  // ---- paying --------------------------------------------------------------
+  // By card now (where the store takes it), or at the store -- catering:
+  // by card now, or by invoice after we call. A tip only with a card.
+  const provider = paymentProvider();
+  const onlineOn = useOnlinePayments(c.storeId);
+  const otherWay: PayMethod = isCatering ? "invoice" : "in_store";
+  const payMethods: PayMethod[] = onlineOn ? ["online", otherWay] : [otherWay];
+  const [pickedMethod, setPickedMethod] = useState<PayMethod | null>(null);
+  const payMethod = pickedMethod && payMethods.includes(pickedMethod) ? pickedMethod : payMethods[0];
+  const [pickedTip, setPickedTip] = useState<TipChoice | null>(null);
+  const tipChoice: TipChoice = pickedTip ?? (isCatering ? { kind: "none" } : { kind: "percent", percent: 15 });
+  // A free order (a reward) has nothing to pay.
+  const nothingToPay = c.lines.length > 0 && totals.total === 0;
+  const usingCard = payMethod === "online" && !nothingToPay;
+  const tipNow = usingCard ? tipAmount(tipChoice, totals.discounted) : 0;
+  const grandTotal = round2(totals.total + tipNow);
+  const cardRef = useRef<CardBoxHandle>(null);
+
   // ---- catering ----------------------------------------------------------
   const [company, setCompany] = useState("");
   const [po, setPo] = useState("");
@@ -294,6 +314,7 @@ export default function Checkout({
       }
       if (guestForm && !emailVerified) return fail("Verify your email with the code we send you, so we can send your receipt and updates.", "details");
       if (!notifyEmail && !notifySms) return fail("Choose at least one way to get order updates.", "updates");
+      if (usingCard && tipNow > totals.total) return fail("Please check the tip amount.", "payment");
 
       setPlacing(true);
       try {
@@ -314,7 +335,18 @@ export default function Checkout({
           }
         }
 
+        // The card's one-time token (nothing of the card itself comes here).
+        let cardToken: string | null = null;
+        if (usingCard) {
+          const card = await cardRef.current?.tokenize();
+          if (!card) return fail("The card form didn't load. Please refresh the page and try again.", "card");
+          if ("error" in card) return fail(card.error, "card");
+          cardToken = card.token;
+        }
+
         const signature = JSON.stringify([
+          usingCard ? "online" : nothingToPay ? "in_store" : payMethod,
+          tipNow,
           c.storeId,
           c.mode,
           slot?.toISOString() ?? null,
@@ -354,6 +386,8 @@ export default function Checkout({
                 .filter(Boolean)
                 .join("\n") || null,
             expected_total: Math.round((acceptedTotal ?? totals.total) * 100) / 100,
+            payment_method: usingCard ? "online" : nothingToPay ? "in_store" : payMethod,
+            tip_amount: tipNow,
             items: c.lines.map((l) => ({
               menu_item_id: l.menuItemId,
               quantity: l.quantity,
@@ -371,6 +405,18 @@ export default function Checkout({
           throw error;
         }
 
+        // A card order: charge it now. A declined card takes the order back
+        // out (the cart stays), so they can try another card or pay at the
+        // store.
+        if (placed.payment_status === "awaiting" || placed.payment_status === "charging") {
+          const paid = await payOrder(placed.order_id, cardToken ?? "");
+          if (paid.status !== "paid") {
+            // Removed or never charged: the next try is a new order.
+            if (paid.status !== "unknown" && paid.status !== "busy") checkoutKey.current = null;
+            return fail(paid.message ?? "Your payment didn't go through. Please try again.", "card");
+          }
+        }
+
         // A guest's details are the only name and phone their new account has.
         if (guestForm) {
           await supabase.from("profiles").update({ first_name: firstName.trim(), last_name: lastName.trim(), phone: fullPhone }).eq("id", me.id).is("first_name", null);
@@ -385,7 +431,7 @@ export default function Checkout({
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [store, c, totals, slot, hours, rush, guestForm, needsDetails, firstName, lastName, phone, country, email, emailVerified, notifyEmail, notifySms, profile, company, po, invoiceEmail, suite, dropoff, dietary, extraNotes]
+    [store, c, totals, slot, hours, rush, guestForm, needsDetails, firstName, lastName, phone, country, email, emailVerified, notifyEmail, notifySms, profile, company, po, invoiceEmail, suite, dropoff, dietary, extraNotes, usingCard, nothingToPay, payMethod, tipNow]
   );
 
   // ---- rendering ---------------------------------------------------------
@@ -754,6 +800,19 @@ export default function Checkout({
       </div>
     </>
   );
+  const paymentBlock = (
+    <PaymentBlock
+      methods={payMethods}
+      method={payMethod}
+      onMethod={setPickedMethod}
+      mode={c.mode}
+      tip={tipChoice}
+      onTip={setPickedTip}
+      beforeTax={totals.discounted}
+      provider={provider}
+      cardRef={cardRef}
+    />
+  );
   const dealsBlock = (
     <>
       <PromoBox c={c} discount={totals.discount} unmetReason={totals.unmetReason} userId={user?.id ?? null} isMember={isMember && !verifiedEmail} />
@@ -797,9 +856,15 @@ export default function Checkout({
             <dt className="text-stone-600">HST ({Math.round(Number(store.tax_rate ?? 0.13) * 100)}%)</dt>
             <dd className="tabular-nums text-ink">{money(totals.tax)}</dd>
           </div>
+          {tipNow > 0 && (
+            <div className="flex justify-between">
+              <dt className="text-stone-600">Tip</dt>
+              <dd className="tabular-nums text-ink">{money(tipNow)}</dd>
+            </div>
+          )}
           <div className="flex justify-between border-t border-stone-200 pt-3 text-lg">
             <dt className="font-extrabold text-ink">Total</dt>
-            <dd className="font-extrabold tabular-nums text-ink">{money(totals.total)}</dd>
+            <dd className="font-extrabold tabular-nums text-ink">{money(grandTotal)}</dd>
           </div>
         </dl>
         <div className="border-t border-stone-200 bg-cream/60 px-6 py-5">
@@ -836,14 +901,14 @@ export default function Checkout({
           {priceChange != null ? (
             <div className="rounded-xl bg-amber-50 p-4 ring-1 ring-amber-200">
               <p className="text-[14px] text-amber-950">
-                Some prices changed since these went in your order. Your total is now <strong>{money(priceChange)}</strong> (it was {money(totals.total)}).
+                Some prices changed since these went in your order. Your total is now <strong>{money(round2(priceChange + tipNow))}</strong> (it was {money(grandTotal)}).
               </p>
               <div className="mt-3 flex gap-2">
                 <button type="button" onClick={() => setPriceChange(null)} className="flex-1 rounded-lg bg-white py-3 text-[14px] font-bold text-ink ring-1 ring-stone-300">
                   Cancel
                 </button>
                 <button type="button" onClick={() => placeOrder(priceChange)} className="flex-1 rounded-lg bg-brand py-3 text-[14px] font-extrabold text-white">
-                  Place for {money(priceChange)}
+                  Place for {money(round2(priceChange + tipNow))}
                 </button>
               </div>
             </div>
@@ -858,14 +923,21 @@ export default function Checkout({
             >
               <span className="flex items-center gap-2 text-[15px] font-extrabold uppercase tracking-wide">
                 {placing ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Lock className="size-4" aria-hidden />}
-                {placing ? "Placing your order" : placeLabel}
+                {placing ? (usingCard ? "Processing payment" : "Placing your order") : placeLabel}
               </span>
-              <span className="text-[16px] font-extrabold tabular-nums">{money(totals.total)}</span>
+              <span className="text-[16px] font-extrabold tabular-nums">{money(grandTotal)}</span>
             </button>
           )}
           <p className="mt-3 text-center text-[12px] leading-5 text-stone-500">
             {isCatering && "We call to confirm every catering order before we start. "}
-            You pay when you {c.mode === "delivery" ? "get your delivery" : "pick up your order"}. By placing this order you agree to our{" "}
+            {nothingToPay
+              ? "Nothing to pay on this order. "
+              : usingCard
+                ? "Your card is charged when you place the order. "
+                : payMethod === "invoice"
+                  ? "We'll email your invoice after we confirm by phone. "
+                  : `You pay when you ${c.mode === "delivery" ? "get your delivery" : "pick up your order"}. `}
+            By placing this order you agree to our{" "}
             <Link href="/terms" className="underline hover:text-ink">
               Terms
             </Link>
@@ -907,6 +979,9 @@ export default function Checkout({
             </FormPart>
             <FormPart title="Order updates" id="updates">
               {updatesBlock}
+            </FormPart>
+            <FormPart title="Payment" id="payment">
+              {paymentBlock}
             </FormPart>
           </div>
         </div>
@@ -962,6 +1037,13 @@ export default function Checkout({
           <Section n={++n} title="Deals and codes">
             {dealsBlock}
           </Section>
+
+          {/* Paying */}
+          {!nothingToPay && (
+            <Section n={++n} title="Payment" id="payment">
+              {paymentBlock}
+            </Section>
+          )}
         </div>
 
         {/* Summary */}

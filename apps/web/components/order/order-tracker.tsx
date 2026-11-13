@@ -2,13 +2,39 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Check, ChefHat, Clock, Loader2, LifeBuoy, MapPin, Navigation, PackageCheck, Phone, ReceiptText, Sparkles, Truck, XCircle } from "lucide-react";
+import { Check, ChefHat, Clock, CreditCard, FileText, Loader2, LifeBuoy, MapPin, Navigation, PackageCheck, Phone, ReceiptText, Sparkles, Store, Truck, XCircle } from "lucide-react";
 import { browserSupabase, useSession } from "@/lib/browser-supabase";
 import KeepPointsCard from "@/components/account/keep-points-card";
 import { clockTime, etaLine, formatDayAndTime } from "@/lib/ordering/timing";
 import { pointsForSubtotal } from "@/lib/ordering/points";
 import { optionSummary } from "@/components/ordering/cart-lines";
 import { money } from "@/lib/format";
+import { orderGrandTotal, paymentState, type OrderPayment } from "@/lib/payments";
+
+// How the order is paid, under its total.
+function PaymentNote({ order }: { order: OrderPayment & { status: string } }) {
+  const state = paymentState(order);
+  const total = money(orderGrandTotal(order));
+  const note = {
+    paid: { Icon: CreditCard, tone: "bg-emerald-50 text-emerald-900 ring-emerald-200", text: `Paid by card${order.card_summary ? ` (${order.card_summary})` : ""}.` },
+    checking: { Icon: CreditCard, tone: "bg-amber-50 text-amber-950 ring-amber-200", text: "We're checking your card payment. Please don't pay again. The store will confirm it." },
+    refunded: { Icon: CreditCard, tone: "bg-stone-50 text-ink ring-stone-200", text: "Refunded to your card." },
+    invoice: { Icon: FileText, tone: "bg-stone-50 text-ink ring-stone-200", text: "We'll email your invoice after we confirm with you by phone." },
+    free: { Icon: Check, tone: "bg-stone-50 text-ink ring-stone-200", text: "Nothing to pay on this order." },
+    at_store: {
+      Icon: Store,
+      tone: "bg-stone-50 text-ink ring-stone-200",
+      text: order.order_type === "delivery" ? `You'll pay ${total} when it's delivered.` : `You'll pay ${total} when you pick it up.`,
+    },
+  }[state];
+  if (order.status === "cancelled" && state !== "paid" && state !== "refunded") return null;
+  return (
+    <p className={`mt-4 flex items-start gap-2.5 rounded-lg p-3.5 text-[14px] ring-1 ${note.tone}`}>
+      <note.Icon className="mt-0.5 size-4 shrink-0" aria-hidden />
+      {note.text}
+    </p>
+  );
+}
 
 type Order = {
   id: string;
@@ -26,6 +52,10 @@ type Order = {
   discount_amount: number | null;
   tax_amount: number;
   total_amount: number;
+  tip_amount?: number | null;
+  payment_method?: string | null;
+  payment_status?: string | null;
+  card_summary?: string | null;
   promo_code: string | null;
   is_catering: boolean;
   catering_company: string | null;
@@ -316,11 +346,18 @@ export default function OrderTracker({ id, placed: justPlaced }: { id: string; p
                   <dt className="text-stone-600">HST</dt>
                   <dd className="tabular-nums">{money(order.tax_amount)}</dd>
                 </div>
+                {Number(order.tip_amount ?? 0) > 0 && (
+                  <div className="flex justify-between">
+                    <dt className="text-stone-600">Tip</dt>
+                    <dd className="tabular-nums">{money(Number(order.tip_amount))}</dd>
+                  </div>
+                )}
                 <div className="flex justify-between border-t border-stone-200 pt-3 text-lg font-extrabold">
                   <dt>Total</dt>
-                  <dd className="tabular-nums">{money(order.total_amount)}</dd>
+                  <dd className="tabular-nums">{money(orderGrandTotal(order))}</dd>
                 </div>
               </dl>
+              <PaymentNote order={order} />
               {order.is_catering && (order.catering_notes || order.catering_company || order.po_number) && (
                 <div className="mt-4 rounded-lg bg-cream p-4 text-[14px] text-ink">
                   <p className="text-[12px] font-bold uppercase tracking-wide text-stone-500">Your catering details</p>

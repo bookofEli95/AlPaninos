@@ -419,6 +419,11 @@ verify_jwt = false
 [functions.email-invoice]
 verify_jwt = false
 
+# Checks who's signed in itself (guests too) -- see
+# functions/pay-order/index.ts.
+[functions.pay-order]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

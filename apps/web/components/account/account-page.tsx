@@ -14,6 +14,7 @@ import { pointsProgress } from "@/lib/ordering/points";
 import { COUNTRIES, DEFAULT_COUNTRY, formatPhoneNumber, isValidPhoneForCountry, parsePhone, type Country } from "@/lib/ordering/countries";
 import { formatDayAndTime } from "@/lib/ordering/timing";
 import { money } from "@/lib/format";
+import { orderGrandTotal } from "@/lib/payments";
 
 type Profile = { first_name: string | null; last_name: string | null; phone: string | null; notify_email: boolean; notify_sms: boolean; panino_points: number };
 type PastOrder = {
@@ -22,6 +23,7 @@ type PastOrder = {
   status: string;
   order_type: string;
   total_amount: number;
+  tip_amount?: number | null;
   is_catering: boolean;
   locations: { name: string } | null;
   order_items: { quantity: number; menu_items: { name: string; per_person?: boolean | null } | null }[];
@@ -65,7 +67,7 @@ export default function AccountPage() {
       supabase.from("profiles").select("first_name, last_name, phone, notify_email, notify_sms, panino_points").eq("id", userId).single(),
       supabase
         .from("orders")
-        .select("id, created_at, status, order_type, total_amount, is_catering, locations ( name ), order_items ( quantity, menu_items ( * ) )")
+        .select("*, locations ( name ), order_items ( quantity, menu_items ( * ) )")
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(12),
@@ -205,7 +207,7 @@ export default function AccountPage() {
                         </span>
                         <span className="mt-0.5 block truncate text-[14px] text-stone-500">{names}</span>
                         <span className="mt-0.5 block text-[13px] text-stone-400">
-                          {o.order_type === "delivery" ? "Delivery" : "Pickup"} · {o.locations?.name} · {money(o.total_amount)}
+                          {o.order_type === "delivery" ? "Delivery" : "Pickup"} · {o.locations?.name} · {money(orderGrandTotal(o))}
                         </span>
                       </Link>
                       <div className="flex shrink-0 gap-2">

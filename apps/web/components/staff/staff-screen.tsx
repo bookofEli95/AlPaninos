@@ -6,6 +6,7 @@ import { browserSupabase, useSession } from "@/lib/browser-supabase";
 import { playChime, unlockSound } from "@/lib/staff/chime";
 import { clockTime, formatDayAndTime, storeDayStart } from "@/lib/ordering/timing";
 import { money, prettyPhone } from "@/lib/format";
+import { orderGrandTotal, paymentState } from "@/lib/payments";
 
 type Line = {
   id: string;
@@ -27,6 +28,11 @@ type Order = {
   customer_phone: string | null;
   total_amount: number;
   discount_amount: number | null;
+  // Payments (missing until the payments update is in the database).
+  tip_amount?: number | null;
+  payment_method?: string | null;
+  payment_status?: string | null;
+  card_summary?: string | null;
   promo_code: string | null;
   is_catering: boolean;
   catering_company: string | null;
@@ -36,10 +42,33 @@ type Order = {
   invoice_email: string | null;
   order_items: Line[];
 };
+
+// How the order is paid, in big letters on the card: PAID, or what to
+// collect.
+function PayBadge({ order }: { order: Order }) {
+  const state = paymentState(order);
+  const tip = Number(order.tip_amount ?? 0);
+  const [tone, text] = {
+    paid: ["bg-emerald-600 text-white", `PAID ${money(orderGrandTotal(order))}`],
+    checking: ["bg-red-600 text-white", "CHECK PAYMENT IN CLOVER"],
+    refunded: ["bg-stone-200 text-ink", "REFUNDED"],
+    invoice: ["bg-sky-100 text-sky-900", `INVOICE ${money(order.total_amount)}`],
+    free: ["bg-stone-200 text-ink", "NOTHING TO PAY"],
+    at_store: ["bg-amber-300 text-ink", `COLLECT ${money(order.total_amount)}`],
+  }[state];
+  return (
+    <span className="flex flex-col items-end gap-0.5">
+      <span className={`rounded-md px-2.5 py-1 text-[13px] font-extrabold tracking-wide tabular-nums ${tone}`}>{text}</span>
+      {state === "paid" && tip > 0 && <span className="text-[12px] font-semibold text-stone-500">incl. {money(tip)} tip</span>}
+      {Number(order.discount_amount) > 0 && <span className="text-[12px] font-semibold text-emerald-700">{order.promo_code}</span>}
+    </span>
+  );
+}
 type StoreRow = { id: string; name: string };
 
-const SELECT = `id, created_at, status, order_type, delivery_address, requested_ready_at, estimated_ready_at, customer_name, customer_phone,
-  total_amount, discount_amount, promo_code, is_catering, catering_company, catering_notes, catering_confirmed_at, po_number, invoice_email,
+// Everything on the order (so new details like payments show up as soon as
+// the database has them), with its items.
+const SELECT = `*,
   order_items ( id, quantity, special_instructions, menu_items ( * ), order_item_modifiers ( modifier_options ( name, modifier_groups!group_id ( name ) ) ) )`;
 
 const ACTIVE = ["received", "preparing", "ready", "out_for_delivery"] as const;
@@ -239,10 +268,7 @@ function OrderCard({
             ) : (
               <span />
             )}
-            <span className="font-bold text-ink">
-              Collect {money(order.total_amount)}
-              {Number(order.discount_amount) > 0 && <span className="ml-1 font-semibold text-emerald-700">({order.promo_code})</span>}
-            </span>
+            <PayBadge order={order} />
           </div>
         </div>
 
@@ -250,7 +276,10 @@ function OrderCard({
           <footer className="border-t border-stone-200 p-3">
             {confirmCancel ? (
               <div className="flex flex-wrap items-center gap-2">
-                <p className="flex-1 text-[14px] font-semibold text-ink">Cancel this order? The customer will be told.</p>
+                <p className="flex-1 text-[14px] font-semibold text-ink">
+                  Cancel this order? The customer will be told.
+                  {order.payment_status === "paid" && <span className="mt-1 block text-red-700">It was paid by card online: refund it in Clover.</span>}
+                </p>
                 <button type="button" onClick={() => setConfirmCancel(false)} className="rounded-lg px-4 py-3 text-[14px] font-bold ring-1 ring-stone-300">
                   Keep It
                 </button>
@@ -323,7 +352,16 @@ function Ticket({ order }: { order: Order }) {
       {order.delivery_address && <p>Deliver to: {order.delivery_address}</p>}
       {order.catering_notes && <p className="whitespace-pre-line">{order.catering_notes}</p>}
       {order.customer_phone && <p>Phone: {prettyPhone(order.customer_phone)}</p>}
-      <p className="mt-1 font-bold">Collect: {money(order.total_amount)}</p>
+      <p className="mt-1 font-bold">
+        {{
+          paid: `PAID BY CARD: ${money(orderGrandTotal(order))}`,
+          checking: "CHECK PAYMENT IN CLOVER",
+          refunded: "REFUNDED",
+          invoice: `Invoice: ${money(order.total_amount)}`,
+          free: "Nothing to pay",
+          at_store: `Collect: ${money(order.total_amount)}`,
+        }[paymentState(order)]}
+      </p>
     </div>
   );
 }
@@ -604,7 +642,7 @@ function Board({ userEmail }: { userEmail: string }) {
                       {o.order_items.map((l) => (l.menu_items?.per_person ? `${l.menu_items.name} for ${l.quantity}` : `${l.quantity} ${l.menu_items?.name}`)).join(", ")}
                     </span>
                     <span className={`font-bold ${o.status === "cancelled" ? "text-red-700" : "text-emerald-700"}`}>
-                      {o.status === "cancelled" ? "Cancelled" : "Done"} · {money(o.total_amount)}
+                      {o.status === "cancelled" ? "Cancelled" : "Done"} · {money(orderGrandTotal(o))}
                     </span>
                   </li>
                 ))}

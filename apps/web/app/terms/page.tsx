@@ -17,11 +17,11 @@ const SECTIONS = [
   },
   {
     heading: "Orders and Payment",
-    body: "All orders are subject to availability and confirmation by the restaurant. Menu prices do not include tax, which is added at checkout. You pay when you pick up your order or when it is delivered. Orders may be cancelled by the restaurant if items become unavailable.",
+    body: "All orders are subject to availability and confirmation by the restaurant. Menu prices do not include tax, which is added at checkout. Where card payment is offered, you can pay by card when you place your order and add an optional tip; your card is charged when the order is placed. Otherwise you pay when you pick up your order or when it is delivered. Orders may be cancelled by the restaurant if items become unavailable, and an order paid by card that we cancel is refunded to that card.",
   },
   {
     heading: "Catering",
-    body: "Catering orders need to be placed by 6 PM the day before, and custom catering needs 48 hours' notice. We call to confirm the details of every catering order before we start preparing it.",
+    body: "Catering orders need to be placed by 6 PM the day before, and custom catering needs 48 hours' notice. We call to confirm the details of every catering order before we start preparing it. Catering can be paid by card when you order (where offered) or by invoice after we confirm.",
   },
   {
     heading: "Cancellations and Refunds",
