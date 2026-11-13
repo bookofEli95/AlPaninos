@@ -8,10 +8,11 @@ import FoodPhoto from "@/components/food-photo";
 import { useModal } from "./use-modal";
 import { useOrdering } from "./ordering-provider";
 import { browserSupabase, useSession } from "@/lib/browser-supabase";
-import { cartTotals, useCart } from "@/lib/cart";
+import { cart, cartTotals, useCart } from "@/lib/cart";
+import { isQuickAdd, quickAddLine } from "@/lib/ordering/quick-add";
 import { money } from "@/lib/format";
 
-type Suggestion = { id: string; name: string; base_price: number; image_url: string | null };
+type Suggestion = { id: string; name: string; base_price: number; image_url: string | null; category: { id: string; name: string } };
 
 // Sides and drinks from this store that aren't in the order yet -- "Make
 // it a meal" under the order.
@@ -43,7 +44,11 @@ function useSuggestions(storeId: string | null, inOrder: string[], enabled: bool
       if (sides > 0) byCategory.unshift(...byCategory.splice(sides, 1));
       const picked: Suggestion[] = [];
       for (let i = 0; picked.length < 3 && byCategory.some((list) => list.length > i); i++) {
-        byCategory.forEach((list) => list[i] && picked.length < 3 && picked.push(list[i]));
+        byCategory.forEach((list) => {
+          const s = list[i];
+          const category = s && cats.find((cat) => cat.id === s.category_id);
+          if (s && category && picked.length < 3) picked.push({ ...s, category });
+        });
       }
       setItems(picked);
     })();
@@ -116,7 +121,12 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
                   <ul className="mt-3 grid grid-cols-3 gap-2.5">
                     {suggestions.map((s) => (
                       <li key={s.id}>
-                        <button type="button" onClick={() => openItem(s.id)} className="group block w-full text-left">
+                        <button
+                          type="button"
+                          // A drink goes straight in (nothing to choose); a side opens to pick its options.
+                          onClick={() => (isQuickAdd(s.category.name) && c.storeId ? cart.add(quickAddLine(s, s.category), { id: c.storeId, name: c.storeName ?? "" }) : openItem(s.id))}
+                          className="group block w-full text-left"
+                        >
                           <span className="relative block">
                             <FoodPhoto src={s.image_url} alt="" sizes="120px" className="aspect-square w-full rounded-lg" />
                             <span className="absolute bottom-1.5 right-1.5 flex size-7 items-center justify-center rounded-full bg-brand text-white shadow-md transition-transform group-hover:scale-110">

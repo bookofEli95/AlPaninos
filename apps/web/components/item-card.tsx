@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import FoodPhoto from "./food-photo";
 import { money, tidyDescription } from "@/lib/format";
 
@@ -11,12 +12,15 @@ export default function ItemCard({
   badge,
   priority = false,
   sizes = "(min-width: 1280px) 300px, (min-width: 768px) 33vw, 50vw",
+  cta,
 }: {
   item: { id: string; name: string; description?: string | null; base_price: number; image_url: string | null };
   idBase: string;
   badge?: string | null;
   priority?: boolean;
   sizes?: string;
+  // In place of the "Add to Order" button (a quick-add card's counter).
+  cta?: ReactNode;
 }) {
   const description = tidyDescription(item.description);
   return (
@@ -46,14 +50,16 @@ export default function ItemCard({
             {description}
           </p>
         )}
-        <div className="mt-auto flex items-center justify-between gap-2 pt-4">
+        <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-4">
           <span id={`${idBase}-price`} className="text-[16px] font-extrabold text-ink tabular-nums sm:text-[17px]">
             {money(item.base_price)}
           </span>
-          <span id={`${idBase}-cta`} className="rounded-lg bg-brand px-3.5 py-2 text-[13px] font-extrabold uppercase tracking-wide text-white transition-colors group-hover:bg-brand-dark sm:px-4">
-            <span className="sm:hidden">Add</span>
-            <span className="hidden sm:inline">Add to Order</span>
-          </span>
+          {cta ?? (
+            <span id={`${idBase}-cta`} className="rounded-lg bg-brand px-3.5 py-2 text-[13px] font-extrabold uppercase tracking-wide text-white transition-colors group-hover:bg-brand-dark sm:px-4">
+              <span className="sm:hidden">Add</span>
+              <span className="hidden sm:inline">Add to Order</span>
+            </span>
+          )}
         </div>
       </div>
     </div>

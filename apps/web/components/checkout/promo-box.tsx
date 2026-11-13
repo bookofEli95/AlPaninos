@@ -6,6 +6,7 @@ import { browserSupabase } from "@/lib/browser-supabase";
 import { cart, type CartState } from "@/lib/cart";
 import { appliedPromoFromRow, promoValue, type PromoRow } from "@/lib/ordering/promo";
 import { money } from "@/lib/format";
+import { isDealUsed, useUsedDealCodes } from "@/lib/ordering/used-deals";
 
 // A typed code (a deal's, or a friend's referral code for accounts), the
 // applied one with what it's doing right now, and the deals on offer to
@@ -82,7 +83,9 @@ export default function PromoBox({
     }
   };
 
-  const others = offers.filter((o) => o.code.toLowerCase() !== c.promo?.code.toLowerCase()).slice(0, 4);
+  // Not the one that's on, and not one they've already used.
+  const used = useUsedDealCodes();
+  const others = offers.filter((o) => o.code.toLowerCase() !== c.promo?.code.toLowerCase() && !isDealUsed(o, used)).slice(0, 4);
 
   return (
     <div>

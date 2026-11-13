@@ -19,6 +19,8 @@ export type Deal = {
   category_names: string[] | null;
   expires_at: string | null;
   user_id?: string | null;
+  // One use per customer (the default) unless false.
+  single_use?: boolean | null;
 };
 
 export async function getDeals(storeId: string | null): Promise<Deal[]> {

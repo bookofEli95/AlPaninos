@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ArrowRight, MapPin, Phone, UtensilsCrossed } from "lucide-react";
 import OrderableCard from "@/components/ordering/orderable-card";
 import RedPhoto from "@/components/brand/red-photo";
-import ApplyDealButton from "@/components/ordering/apply-deal-button";
+import ApplyDealButton, { DealList } from "@/components/ordering/apply-deal-button";
 import type { PromoRow } from "@/lib/ordering/promo";
 import OrderStart from "@/components/order-start";
 import StoreStatus from "@/components/store-status";
@@ -80,11 +80,24 @@ export default async function HomePage() {
       <section id="deals" className="scroll-mt-24 bg-cream py-16 md:py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <SectionHeading eyebrow="Deals & offers" title="Today's deals" action={{ href: "/deals", label: "All deals" }} />
-          <div className="mt-8 grid gap-5 md:grid-cols-3">
-            {(deals.length > 0 ? deals.slice(0, 3).map((deal, i) => dealTile(deal, i, menuHref)) : FALLBACK_TILES).map(({ key, ...tile }) => (
-              <PromoTile key={key} {...tile} />
-            ))}
-          </div>
+          {/* Up to three deals this customer hasn't used up yet -- or the
+              PaninoPoints tiles when there are none. */}
+          <DealList
+            as="div"
+            className="mt-8 grid gap-5 md:grid-cols-3"
+            limit={3}
+            items={deals.map((deal, i) => {
+              const { key, ...tile } = dealTile(deal, i, menuHref);
+              return { key, code: deal.code, singleUse: deal.single_use, node: <PromoTile {...tile} /> };
+            })}
+            empty={
+              <div className="mt-8 grid gap-5 md:grid-cols-3">
+                {FALLBACK_TILES.map(({ key, ...tile }) => (
+                  <PromoTile key={key} {...tile} />
+                ))}
+              </div>
+            }
+          />
         </div>
       </section>
 

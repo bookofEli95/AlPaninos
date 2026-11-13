@@ -4,8 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Search, X } from "lucide-react";
 import OrderableCard from "./ordering/orderable-card";
 import OrderPanel from "./ordering/order-panel";
+import { isQuickAdd } from "@/lib/ordering/quick-add";
 
-type Item = { id: string; name: string; description: string | null; base_price: number; image_url: string | null };
+type Item = { id: string; name: string; description: string | null; base_price: number; image_url: string | null; location_id: string };
 type Section = { category: { id: string; name: string }; items: Item[] };
 
 // The menu as a website shows it: a category bar across the full width that
@@ -124,7 +125,14 @@ export default function MenuBrowser({ sections, storeName, mode }: { sections: S
                 <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3">
                   {items.map((item, i) => (
                     // The first row is on screen when the page opens: its photos load first.
-                    <OrderableCard key={item.id} item={item} priority={sectionIndex === 0 && i < 3} sizes="(min-width: 1280px) 280px, (min-width: 768px) 30vw, 50vw" />
+                    <OrderableCard
+                      key={item.id}
+                      item={item}
+                      priority={sectionIndex === 0 && i < 3}
+                      sizes="(min-width: 1280px) 280px, (min-width: 768px) 30vw, 50vw"
+                      // Drinks and extras: straight into the order, no pop-up.
+                      quickAdd={isQuickAdd(category.name) ? { category, store: { id: item.location_id, name: storeName } } : undefined}
+                    />
                   ))}
                 </div>
               </section>

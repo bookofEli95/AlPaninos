@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Cake, Gift, Sparkles, Tag, Users } from "lucide-react";
 import PageBanner from "@/components/page-banner";
-import ApplyDealButton from "@/components/ordering/apply-deal-button";
+import ApplyDealButton, { DealList } from "@/components/ordering/apply-deal-button";
 import StoreSelect from "@/components/store-select";
 import { getDeals, dealTerms, dealValue } from "@/lib/deals";
 import { getStores, pickStore } from "@/lib/menu";
@@ -42,13 +42,21 @@ export default async function DealsPage({ searchParams }: PageProps<"/deals">) {
       </PageBanner>
       <div className="bg-cream">
         <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
-          {deals.length === 0 ? (
-            <p className="rounded-2xl bg-white p-10 text-center text-stone-500 ring-1 ring-stone-200">No deals are running right now. Join PaninoPoints and every order still earns toward free food.</p>
-          ) : (
-            <ul className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-              {deals.map((deal) => {
-                const menuHref = `/menu?store=${store?.id ?? ""}`;
-                return (
+          {/* The deals this customer hasn't used up yet. */}
+          <DealList
+            className="grid gap-5 md:grid-cols-2 xl:grid-cols-3"
+            empty={
+              <p className="rounded-2xl bg-white p-10 text-center text-stone-500 ring-1 ring-stone-200">
+                No deals are running right now. Join PaninoPoints and every order still earns toward free food.
+              </p>
+            }
+            items={deals.map((deal) => {
+              const menuHref = `/menu?store=${store?.id ?? ""}`;
+              return {
+                key: deal.id,
+                code: deal.code,
+                singleUse: deal.single_use,
+                node: (
                   <li key={deal.id} className="relative flex overflow-hidden rounded-2xl bg-white ring-1 ring-stone-200">
                     <div className="flex w-32 shrink-0 flex-col items-center justify-center bg-brand p-4 text-center text-white sm:w-36">
                       <Tag className="size-5 text-gold" aria-hidden />
@@ -74,10 +82,10 @@ export default async function DealsPage({ searchParams }: PageProps<"/deals">) {
                       </div>
                     </div>
                   </li>
-                );
-              })}
-            </ul>
-          )}
+                ),
+              };
+            })}
+          />
 
           <h2 className="mt-16 font-display text-3xl font-extrabold tracking-tight text-ink">Member perks</h2>
           <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
